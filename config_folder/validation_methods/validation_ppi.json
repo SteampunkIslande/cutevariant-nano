@@ -1,0 +1,23 @@
+[
+	{
+		"step": "Etape 1",
+		"description": "Première étape de la validation: Ici, vous voyez les variants...",
+		"fields": [
+			{
+				"name": "chromosome",
+				"table": "main_table",
+				"is_expression": false
+			},
+			{
+				"name": "position",
+				"table": "main_table",
+				"is_expression": false
+			},
+			{
+				"name": "reference",
+				"table": "main_table",
+				"is_expression": false
+			}
+		]
+	}
+]
