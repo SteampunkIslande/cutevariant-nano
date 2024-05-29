@@ -195,6 +195,8 @@ class Query(qc.QObject):
     # Signals for external use
     query_changed = qc.Signal()
 
+    datalake_changed = qc.Signal()
+
     def __init__(self, conn: db.DuckDBPyConnection = None) -> None:
         super().__init__()
 
@@ -267,12 +269,6 @@ class Query(qc.QObject):
     def set_order_by(self, order_by: List[List[Union[Field, str]]]):
         self.order_by = order_by
         self.order_by_changed.emit()
-
-        return self
-
-    def set_connection(self, conn: db.DuckDBPyConnection):
-        self.conn = conn
-        self.update()
 
         return self
 

@@ -33,7 +33,8 @@ class MainWindow(qw.QMainWindow):
 
         self.menu = self.menuBar()
 
-        self.menu.addAction("Open datalake", self.open_datalake)
+        self.file_menu = self.menu.addMenu("File")
+        self.file_menu.addAction("Open datalake", self.open_datalake)
 
         self.load_previous_session()
 

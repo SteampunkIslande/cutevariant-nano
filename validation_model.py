@@ -52,6 +52,8 @@ class ValidationModel(qc.QAbstractTableModel):
         self.headers = []
         self._data = []
 
+        self.query.datalake_changed.connect(self.on_datalake_changed)
+
     def data(self, index: qc.QModelIndex, role: int) -> str | None:
         if role == qc.Qt.ItemDataRole.DisplayRole:
             return self._data[index.row()][index.column()]
@@ -107,3 +109,7 @@ class ValidationModel(qc.QAbstractTableModel):
             self.headers = query_res.columns
             self._data = [tuple(v for v in d.values()) for d in query_res.to_dicts()]
         self.endResetModel()
+
+    def on_datalake_changed(self):
+        initialize_database(self.query.datalake_path / "validation.db")
+        self.update()
