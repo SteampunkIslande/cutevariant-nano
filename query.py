@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import os
 from pathlib import Path
 import pickle
 from typing import Any, List, Tuple, Union
@@ -439,6 +440,9 @@ class Query(qc.QObject):
 
     def set_datalake_path(self, path: str):
         self.datalake_path = path
+        # TODO: iterate over a dictionary of all possibly opened databases...
+        self.conn = db.connect(os.path.join(path, "validation.db"))
+        self.datalake_changed.emit()
         return self
 
     def save(self, filename: Path):

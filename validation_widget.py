@@ -48,6 +48,7 @@ class ValidationWelcomeWidget(qw.QWidget):
                 self, "Pas de dossier de configuration trouvé, veuillez en choisir un."
             )
             if config_folder:
+                # config_folder will be read by the wizard
                 save_user_prefs({"config_folder": config_folder})
             else:
                 return

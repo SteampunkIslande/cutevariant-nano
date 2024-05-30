@@ -95,6 +95,8 @@ class ValidationModel(qc.QAbstractTableModel):
                 self.query.conn, validation_name, username, parquet_files, sample_names
             )
             self.endInsertRows()
+        else:
+            print("No connection to database")
 
     def set_query(self, query: Query):
         self.query = query
@@ -111,5 +113,6 @@ class ValidationModel(qc.QAbstractTableModel):
         self.endResetModel()
 
     def on_datalake_changed(self):
+        print("Datalake changed")
         initialize_database(self.query.datalake_path / "validation.db")
         self.update()
