@@ -7,7 +7,7 @@ import PySide6.QtCore as qc
 import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
 
-from commons import load_user_prefs, save_user_prefs, get_user_prefs_file
+from commons import get_user_prefs_file, load_user_prefs, save_user_prefs
 from inspector import Inspector
 from query import Query
 from query_table_widget import QueryTableWidget

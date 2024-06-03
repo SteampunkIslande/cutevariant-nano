@@ -1,21 +1,17 @@
 import json
-import os
 from pathlib import Path
-import PySide6.QtCore as qc
-import PySide6.QtWidgets as qw
-import PySide6.QtGui as qg
-
-from validation_model import ValidationModel, VALIDATION_TABLE_COLUMNS
-
-from query import Query
 
 import duckdb as db
+import PySide6.QtCore as qc
+import PySide6.QtGui as qg
+import PySide6.QtWidgets as qw
 
-from commons import duck_db_literal_string_list, load_user_prefs, save_user_prefs
-
-from common_widgets.string_list_chooser import StringListChooser
 from common_widgets.multiwidget_holder import MultiWidgetHolder
 from common_widgets.searchable_table import SearchableTable
+from common_widgets.string_list_chooser import StringListChooser
+from commons import duck_db_literal_string_list, load_user_prefs, save_user_prefs
+from query import Query
+from validation_model import VALIDATION_TABLE_COLUMNS, ValidationModel
 
 
 class ValidationWelcomeWidget(qw.QWidget):

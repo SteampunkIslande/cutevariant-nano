@@ -2,9 +2,8 @@ import json
 import typing
 from pathlib import Path
 
-import PySide6.QtCore as qc
-
 import duckdb as db
+import PySide6.QtCore as qc
 
 
 def duck_db_literal_string_list(l: typing.List) -> str:

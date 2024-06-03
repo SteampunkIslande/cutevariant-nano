@@ -1,15 +1,11 @@
 import datetime
-import os
-import PySide6.QtCore as qc
-
-import duckdb as db
-
 from pathlib import Path
-
 from typing import List
 
-from commons import duck_db_literal_string_list
+import duckdb as db
+import PySide6.QtCore as qc
 
+from commons import duck_db_literal_string_list
 from query import Query
 
 VALIDATION_TABLE_COLUMNS = {

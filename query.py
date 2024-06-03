@@ -1,15 +1,14 @@
 #!/usr/bin/env python
 
 import os
-from pathlib import Path
 import pickle
-from typing import Any, List, Tuple, Union
+from enum import Enum
+from pathlib import Path
+from typing import List, Tuple, Union
 
 import duckdb as db
 import PySide6.QtCore as qc
 from cachetools import cached
-
-from enum import Enum
 
 from commons import duck_db_literal_string_list
 

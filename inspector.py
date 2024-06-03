@@ -1,7 +1,6 @@
 import PySide6.QtWidgets as qw
 
 from query import Query
-
 from validation_widget import ValidationWidgetContainer
 
 
