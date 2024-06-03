@@ -10,7 +10,7 @@ from common_widgets.multiwidget_holder import MultiWidgetHolder
 from common_widgets.searchable_table import SearchableTable
 from common_widgets.string_list_chooser import StringListChooser
 from commons import duck_db_literal_string_list, load_user_prefs, save_user_prefs
-from query import Query
+from query import Field, Join, Query, Table
 from validation_model import VALIDATION_TABLE_COLUMNS, ValidationModel
 
 
@@ -33,10 +33,20 @@ class ValidationWelcomeWidget(qw.QWidget):
         self.start_validation_button = qw.QPushButton("Start Validation", self)
         self.start_validation_button.clicked.connect(self.on_start_validation_clicked)
 
+        if not self.query:
+            self.new_validation_button.setEnabled(False)
+            self.start_validation_button.setEnabled(False)
+        if not self.query.datalake_path:
+            self.new_validation_button.setEnabled(False)
+            self.start_validation_button.setEnabled(False)
+
         self.table = SearchableTable(self.model, parent=self)
-        self.table.view.hideColumn(VALIDATION_TABLE_COLUMNS["table_uuid"])
+        self.hide_unwanted_columns()
 
         self.init_layout()
+
+    def hide_unwanted_columns(self):
+        self.table.view.hideColumn(VALIDATION_TABLE_COLUMNS["table_uuid"])
 
     def on_new_validation_clicked(self):
         if not self.query:
@@ -68,19 +78,19 @@ class ValidationWelcomeWidget(qw.QWidget):
                 return
 
             config_folder = Path(userprefs["config_folder"])
-            validation_method = (
-                config_folder / "validation_methods" / f"{validation_method}.json"
-            )
 
-            self.model.set_query(self.query)
             self.model.new_validation(
-                validation_name, username, file_names, sample_names
+                validation_name, username, file_names, sample_names, validation_method
             )
 
     def on_start_validation_clicked(self):
-        # selected_validation = self.get_selected_validation()
-        # if selected_validation:
-        self.validation_start.emit()
+        selected_validation = self.get_selected_validation()
+        if selected_validation:
+            self.validation_start.emit()
+        else:
+            qw.QMessageBox.warning(
+                self, "Validation", "Veuillez sélectionner une validation à exécuter."
+            )
 
     def init_layout(self):
         self._layout.addWidget(self.table)
@@ -90,6 +100,10 @@ class ValidationWelcomeWidget(qw.QWidget):
 
     def on_query_changed(self):
         self.model.update()
+        self.hide_unwanted_columns()
+        if self.query and self.query.datalake_path:
+            self.new_validation_button.setEnabled(True)
+            self.start_validation_button.setEnabled(True)
 
     def get_selected_validation(self):
         selected = self.table.view.selectionModel().selectedRows()
@@ -98,21 +112,133 @@ class ValidationWelcomeWidget(qw.QWidget):
         return None
 
 
+class ValidationStep:
+
+    def __init__(self, query: Query, step_definition: dict):
+        self.step_definition = step_definition
+        self.title = step_definition["title"]
+        self.description = step_definition["description"]
+
+        self.query = query
+
+        self.tables = {}
+        self.joins = []
+        self.fields = []
+
+        self.tables["main_table"] = self.query.main_table
+
+        for table_def in step_definition["tables"]:
+            self.tables[table_def["alias"]] = Table(
+                table_def["name"], table_def["alias"]
+            )
+            self.joins.append(
+                Join(
+                    self.tables[table_def["alias"]],
+                    left_on=Field(
+                        table_def["join"]["left_on"],
+                        self.tables[table_def["join"]["left_table"]],
+                    ),
+                    right_on=Field(
+                        table_def["join"]["right_on"], self.tables[table_def["alias"]]
+                    ),
+                )
+            )
+        for field in step_definition["fields"]:
+            self.fields.append(
+                Field(
+                    field["name"],
+                    self.tables[field["table"]],
+                    is_expression=field["is_expression"],
+                ),
+            )
+
+
 class ValidationWidget(qw.QWidget):
 
     def __init__(self, query: Query, parent=None):
         super().__init__(parent)
         self.query = query
 
-        self.current_step = 0
+        self.current_step_id = 0
+        self.current_step = None
         self.method_path = None
+        self.validation_table_uuid = None
 
         self._layout = qw.QVBoxLayout(self)
 
-    def set_method(self, method: Path):
-        self.method_path = method
-        with open(method, "r") as f:
-            method_data = json.load(f)
+    def set_method_path(self, method_path: Path):
+        self.method_path = method_path
+        with open(method_path, "r") as f:
+            self.method = json.load(f)
+
+    def setup_step(self):
+        try:
+            step_definition = list(
+                filter(lambda x: x["step_id"] == self.current_step_id, self.method)
+            )[0]
+            self.current_step = ValidationStep(self.query, step_definition)
+            self.query.mute()
+
+            # CLEAR JOINS
+            self.query.clear_additional_tables()
+            # ADD JOINS
+            for join in self.current_step.joins:
+                self.query.add_join(join)
+
+            # CLEAR FIELDS
+            self.query.clear_fields()
+            # ADD FIELDS
+            for field in self.current_step.fields:
+                self.query.add_field(field)
+
+            self.query.unmute()
+            self.query.update()
+            if not self.query.is_valid():
+                print(self.query.to_do())
+        except IndexError:
+            print("Step not found")
+            return
+
+    def start_validation(self, selected_validation: dict):
+        try:
+            config_folder = Path(load_user_prefs()["config_folder"])
+        except KeyError:
+            qw.QMessageBox.warning(
+                self,
+                "Validation",
+                "Pas de dossier de configuration trouvé, veuillez en choisir un.",
+            )
+            config_folder = qw.QFileDialog.getExistingDirectory(
+                self, "Pas de dossier de configuration trouvé, veuillez en choisir un."
+            )
+            if config_folder:
+                save_user_prefs({"config_folder": config_folder})
+            else:
+                return
+
+        validation_table_uuid = selected_validation["table_uuid"]
+        method_path = (
+            Path(config_folder)
+            / "validation_methods"
+            / (selected_validation["validation_method"] + ".json")
+        )
+        if not self.query or not self.query.conn:
+            return
+        self.validation_table_uuid = validation_table_uuid
+        self.set_method_path(method_path)
+        try:
+            self.current_step_id = (
+                self.query.conn.sql(
+                    f"SELECT last_step FROM validations WHERE table_uuid = '{validation_table_uuid}'"
+                )
+                .pl()
+                .to_dicts()[0]["last_step"]
+            )
+            self.query.set_main_files(selected_validation["parquet_files"])
+            self.query.set_table_validation_name(selected_validation["validation_name"])
+            self.setup_step()
+        except IndexError:
+            self.current_step_id = 0
 
 
 class ValidationWidgetContainer(qw.QWidget):
@@ -149,6 +275,25 @@ class ValidationWidgetContainer(qw.QWidget):
             )
             return
         self.multi_widget.set_current_widget("validation")
+        try:
+            config_folder = Path(load_user_prefs()["config_folder"])
+        except KeyError:
+            qw.QMessageBox.warning(
+                self,
+                "Validation",
+                "Pas de dossier de configuration trouvé, veuillez en choisir un.",
+            )
+            config_folder = qw.QFileDialog.getExistingDirectory(
+                self, "Pas de dossier de configuration trouvé, veuillez en choisir un."
+            )
+            if config_folder:
+                save_user_prefs({"config_folder": config_folder})
+            else:
+                return
+
+        selected_validation = self.validation_welcome_widget.get_selected_validation()
+
+        self.validation_widget.start_validation(selected_validation)
 
 
 class IntroPage(qw.QWizardPage):

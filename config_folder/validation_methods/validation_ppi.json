@@ -1,7 +1,19 @@
 [
 	{
-		"step": "Etape 1",
-		"description": "Première étape de la validation: Ici, vous voyez les variants...",
+		"step_id": 0,
+		"title": "Etape 1",
+		"description": "Première étape de la validation: Ici, vous voyez les variants annotés avec un impact HIGH et MODIFIER.",
+		"tables": [
+			{
+				"name": "'{CWD}/aggregates/variants.parquet'",
+				"alias": "agg",
+				"join": {
+					"left_table": "main_table",
+					"left_on": "variant_hash",
+					"right_on": "variant_hash"
+				}
+			}
+		],
 		"fields": [
 			{
 				"name": "chromosome",
@@ -16,6 +28,26 @@
 			{
 				"name": "reference",
 				"table": "main_table",
+				"is_expression": false
+			},
+			{
+				"name": "alternate",
+				"table": "main_table",
+				"is_expression": false
+			},
+			{
+				"name": "snpeff_Annotation_Impact",
+				"table": "main_table",
+				"is_expression": false
+			},
+			{
+				"name": "ref_count",
+				"table": "agg",
+				"is_expression": false
+			},
+			{
+				"name": "var_count",
+				"table": "agg",
 				"is_expression": false
 			}
 		]

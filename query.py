@@ -2,6 +2,7 @@
 
 import os
 import pickle
+import sys
 from enum import Enum
 from pathlib import Path
 from typing import List, Tuple, Union
@@ -58,7 +59,10 @@ class Field:
                 if self.is_expression:
                     base = base.format(table=self.table.get_alias())
             else:
-                base = f'"{self.name}"'
+                if self.is_expression:
+                    base = f"{self.name}"
+                else:
+                    base = f'"{self.name}"'
 
             if self.alias:
                 base = f"{base} AS {self.alias}"
@@ -197,8 +201,16 @@ class Query(qc.QObject):
 
     datalake_changed = qc.Signal()
 
+    instance_count = 0
+
     def __init__(self, conn: db.DuckDBPyConnection = None) -> None:
         super().__init__()
+
+        Query.instance_count += 1
+        # This is supposed to be a singleton. Dirty hack to enforce it
+        if Query.instance_count > 1:
+            print("Only one instance of Query is allowed")
+            sys.exit(1)
 
         self.init_state()
 
@@ -229,9 +241,12 @@ class Query(qc.QObject):
         self.data = []
         self.header = []
 
+        self.current_validation_name = None
+
     def add_field(self, field: Union[str, Field]):
         if isinstance(field, str):
             field = Field(field, None)
+        self.fields.append(field)
         self.fields_changed.emit()
 
         return self
@@ -243,6 +258,10 @@ class Query(qc.QObject):
         self.fields = fields
         self.fields_changed.emit()
 
+        return self
+
+    def clear_fields(self):
+        self.fields.clear()
         return self
 
     def get_filter(self) -> FilterExpression:
@@ -346,6 +365,23 @@ class Query(qc.QObject):
         self.from_changed.emit()
         return self
 
+    def get_table_validation_name(self) -> str:
+        return self.current_validation_name
+
+    def set_table_validation_name(self, name: str):
+        self.current_validation_name = name
+        return self
+
+    def add_join(self, join: Join):
+        self.additional_tables[join.table.get_alias()] = join
+        self.from_changed.emit()
+        return self
+
+    def clear_additional_tables(self):
+        self.additional_tables.clear()
+        self.from_changed.emit()
+        return self
+
     def add_table(
         self,
         name: str,
@@ -371,10 +407,11 @@ class Query(qc.QObject):
             limit=self.limit,
             offset=self.offset,
         )
-        return str(q)
+        q = str(q).format(CWD=str(self.datalake_path))
+        return q
 
     def count_query(self):
-        field = Field("COUNT(*) AS count_star", is_expression=True)
+        field = Field("COUNT(*)", alias="count_star", is_expression=True)
 
         q = Select(
             fields=[field],
@@ -382,7 +419,8 @@ class Query(qc.QObject):
             additional_tables=list(self.additional_tables.values()),
             filters=self.filter,
         )
-        return str(q)
+        q = str(q).format(CWD=str(self.datalake_path))
+        return q
 
     def is_valid(self):
         return bool(self.main_table) and bool(self.fields) and self.datalake_path
@@ -446,9 +484,8 @@ class Query(qc.QObject):
 
     def set_datalake_path(self, path: str):
         self.datalake_path = path
-        # TODO: iterate over a dictionary of all possibly opened databases...
         self.conn = db.connect(os.path.join(path, "validation.db"))
-        self.datalake_changed.emit()
+        self.query_changed.emit()
         return self
 
     def save(self, filename: Path):
@@ -463,6 +500,7 @@ class Query(qc.QObject):
                     "limit": self.limit,
                     "offset": self.offset,
                     "datalake_path": self.datalake_path,
+                    "current_validation_name": self.current_validation_name,
                 },
                 f,
             )
@@ -473,13 +511,14 @@ class Query(qc.QObject):
             self_dic = pickle.load(f)
             q = Query()
             q.set_fields(self_dic["fields"])
-            q.set_main_files(self_dic["main_table"])
+            q.main_table = self_dic["main_table"]
             q.set_additional_tables(self_dic["additional_tables"])
             q.set_filter(self_dic["filter"])
             q.set_order_by(self_dic["order_by"])
             q.set_limit(self_dic["limit"])
             q.set_offset(self_dic["offset"])
             q.set_datalake_path(self_dic["datalake_path"])
+            q.set_table_validation_name(self_dic["current_validation_name"])
             return q
 
 

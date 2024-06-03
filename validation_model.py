@@ -27,7 +27,7 @@ def initialize_database(database: Path):
         return
     conn = db.connect(str(database))
     conn.sql(
-        "CREATE TABLE validations (parquet_files TEXT[], sample_names TEXT[], username TEXT, validation_name TEXT, table_uuid TEXT, creation_date DATETIME, completed BOOLEAN, last_step INTEGER)"
+        "CREATE TABLE validations (parquet_files TEXT[], sample_names TEXT[], username TEXT, validation_name TEXT, table_uuid TEXT, creation_date DATETIME, completed BOOLEAN, last_step INTEGER, validation_method TEXT)"
     )
     conn.sql(
         "CREATE TYPE COMMENT AS STRUCT(comment TEXT, username TEXT, creation_timestamp TIMESTAMP)"
@@ -41,12 +41,13 @@ def add_validation_table(
     username: str,
     parquet_files: List[str],
     sample_names: List[str],
+    validation_method: str,
 ):
     table_uuid = (
         conn.sql("SELECT ('validation_' || uuid()) as uuid").pl().to_dicts()[0]["uuid"]
     )
     conn.sql(
-        f"INSERT INTO validations VALUES ({duck_db_literal_string_list(parquet_files)}, {duck_db_literal_string_list(sample_names)}, '{username}', '{validation_name}', '{table_uuid}', NOW(), FALSE, 0)"
+        f"INSERT INTO validations VALUES ({duck_db_literal_string_list(parquet_files)}, {duck_db_literal_string_list(sample_names)}, '{username}', '{validation_name}', '{table_uuid}', NOW(), FALSE, 0, '{validation_method}')"
     )
     conn.sql(
         f"CREATE TABLE '{table_uuid}' (accepted BOOLEAN, comment COMMENT, tags TEXT[])"
@@ -61,7 +62,7 @@ class ValidationModel(qc.QAbstractTableModel):
         self.headers = []
         self._data = []
 
-        self.query.datalake_changed.connect(self.on_datalake_changed)
+        self.query.query_changed.connect(self.on_datalake_changed)
         if self.query.datalake_path:
             initialize_database(Path(self.query.datalake_path) / "validation.db")
             self.update()
@@ -87,8 +88,7 @@ class ValidationModel(qc.QAbstractTableModel):
                 res = ", ".join(res)
             return res
         if role == qc.Qt.ItemDataRole.UserRole and index.column() == 0:
-            if "table_uuid" in self.headers:
-                return self._data[index.row()][self.headers.index("table_uuid")]
+            return {k: v for k, v in zip(self.headers, self._data[index.row()])}
 
     def rowCount(self, parent: qc.QModelIndex) -> int:
         if parent.isValid():
@@ -117,10 +117,16 @@ class ValidationModel(qc.QAbstractTableModel):
         username: str,
         parquet_files: List[str],
         sample_names: List[str],
+        validation_method: str,
     ):
         if self.query.conn:
             add_validation_table(
-                self.query.conn, validation_name, username, parquet_files, sample_names
+                self.query.conn,
+                validation_name,
+                username,
+                parquet_files,
+                sample_names,
+                validation_method,
             )
             self.update()
         else:

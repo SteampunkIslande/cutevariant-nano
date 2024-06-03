@@ -43,6 +43,8 @@ class MainWindow(qw.QMainWindow):
             self.query = Query()
             return
         self.query = Query.load(Path(prefs["last_query"]))
+        self.query.query_changed.connect(self.on_query_changed)
+        self.query.update()
 
     def closeEvent(self, event: qg.QCloseEvent):
         user_prefs_folder = get_user_prefs_file().parent
@@ -54,6 +56,9 @@ class MainWindow(qw.QMainWindow):
             {"last_query": str(user_prefs_folder / "last_query.pickle")}
         )
         event.accept()
+
+    def on_query_changed(self):
+        self.setWindowTitle(f"ParquetViewer - {self.query.get_table_validation_name()}")
 
     def save_user_prefs(self, prefs: dict):
         save_user_prefs(prefs)
