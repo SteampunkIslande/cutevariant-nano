@@ -5,7 +5,7 @@ import PySide6.QtCore as qc
 import PySide6.QtWidgets as qw
 import PySide6.QtGui as qg
 
-from validation_model import ValidationModel, initialize_database
+from validation_model import ValidationModel, VALIDATION_TABLE_COLUMNS
 
 from query import Query
 
@@ -15,6 +15,7 @@ from commons import duck_db_literal_string_list, load_user_prefs, save_user_pref
 
 from common_widgets.string_list_chooser import StringListChooser
 from common_widgets.multiwidget_holder import MultiWidgetHolder
+from common_widgets.searchable_table import SearchableTable
 
 
 class ValidationWelcomeWidget(qw.QWidget):
@@ -25,6 +26,7 @@ class ValidationWelcomeWidget(qw.QWidget):
         super().__init__(parent)
         self.query = query
         self.model = ValidationModel(self.query, self)
+
         self.query.query_changed.connect(self.on_query_changed)
 
         self._layout = qw.QVBoxLayout(self)
@@ -35,15 +37,22 @@ class ValidationWelcomeWidget(qw.QWidget):
         self.start_validation_button = qw.QPushButton("Start Validation", self)
         self.start_validation_button.clicked.connect(self.on_start_validation_clicked)
 
-        self.table = qw.QTableView(self)
-        self.table.setModel(self.model)
+        self.table = SearchableTable(self.model, parent=self)
+        self.table.view.hideColumn(VALIDATION_TABLE_COLUMNS["table_uuid"])
 
         self.init_layout()
 
     def on_new_validation_clicked(self):
+        if not self.query:
+            return
         username = Path.home().name
         userprefs = load_user_prefs()
         if "config_folder" not in userprefs:
+            qw.QMessageBox.warning(
+                self,
+                "Validation",
+                "Pas de dossier de configuration trouvé, veuillez en choisir un.",
+            )
             config_folder = qw.QFileDialog.getExistingDirectory(
                 self, "Pas de dossier de configuration trouvé, veuillez en choisir un."
             )
@@ -53,26 +62,19 @@ class ValidationWelcomeWidget(qw.QWidget):
             else:
                 return
 
-        # if not self.query.conn:
-        #     if not self.query.datalake_path:
-        #         datalake_path = qw.QFileDialog.getExistingDirectory(
-        #             self, "Pas de datalake trouvé, veuillez en choisir un."
-        #         )
-        #         if datalake_path:
-        #             self.query.set_datalake_path(datalake_path)
-        #             database_path = Path(os.path.join(datalake_path, "validation.db"))
-        #             conn = initialize_database(database_path)
-        #             self.query.set_connection(conn)
-        #         else:
-        #             return
-
         wizard = ValidationWizard(self, self)
         if wizard.exec() == qw.QDialog.DialogCode.Accepted:
             file_names = wizard.data["file_names"]
             sample_names = wizard.data["sample_names"]
             validation_name = wizard.data["validation_name"]
-            if not self.query:
+            validation_method = wizard.data["validation_method"]
+            if "config_folder" not in userprefs:
                 return
+
+            config_folder = Path(userprefs["config_folder"])
+            validation_method = (
+                config_folder / "validation_methods" / f"{validation_method}.json"
+            )
 
             self.model.set_query(self.query)
             self.model.new_validation(
@@ -94,7 +96,7 @@ class ValidationWelcomeWidget(qw.QWidget):
         self.model.update()
 
     def get_selected_validation(self):
-        selected = self.table.selectionModel().selectedRows()
+        selected = self.table.view.selectionModel().selectedRows()
         if selected:
             return selected[0].data(qc.Qt.ItemDataRole.UserRole)
         return None

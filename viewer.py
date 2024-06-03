@@ -18,7 +18,8 @@ class MainWindow(qw.QMainWindow):
     def __init__(self):
         super().__init__()
 
-        self.query = Query()
+        # Avoid creating a new query if we already have one
+        self.load_previous_session()
 
         self.query_table_widget = QueryTableWidget(self.query)
         self.inspector = Inspector(self.query)
@@ -36,11 +37,10 @@ class MainWindow(qw.QMainWindow):
         self.file_menu = self.menu.addMenu("File")
         self.file_menu.addAction("Open datalake", self.open_datalake)
 
-        self.load_previous_session()
-
     def load_previous_session(self):
         prefs = self.get_user_prefs()
         if "last_query" not in prefs:
+            self.query = Query()
             return
         self.query = Query.load(Path(prefs["last_query"]))
 

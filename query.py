@@ -339,6 +339,8 @@ class Query(qc.QObject):
         return self
 
     def set_main_files(self, files: List[Path]):
+        if not files:
+            return self
         self.main_table = Table(
             f"read_parquet({duck_db_literal_string_list(files)})", "main_table"
         )
@@ -438,6 +440,11 @@ class Query(qc.QObject):
         self.blockSignals(False)
         self.query_changed.emit()
 
+    def set_additional_tables(self, tables: dict):
+        self.additional_tables = tables
+        self.from_changed.emit()
+        return self
+
     def set_datalake_path(self, path: str):
         self.datalake_path = path
         # TODO: iterate over a dictionary of all possibly opened databases...
@@ -456,6 +463,7 @@ class Query(qc.QObject):
                     "order_by": self.order_by,
                     "limit": self.limit,
                     "offset": self.offset,
+                    "datalake_path": self.datalake_path,
                 },
                 f,
             )
@@ -465,13 +473,14 @@ class Query(qc.QObject):
         with open(filename, "rb") as f:
             self_dic = pickle.load(f)
             q = Query()
-            q.fields = self_dic["fields"]
-            q.main_table = self_dic["main_table"]
-            q.additional_tables = self_dic["additional_tables"]
-            q.filter = self_dic["filter"]
-            q.order_by = self_dic["order_by"]
-            q.limit = self_dic["limit"]
-            q.offset = self_dic["offset"]
+            q.set_fields(self_dic["fields"])
+            q.set_main_files(self_dic["main_table"])
+            q.set_additional_tables(self_dic["additional_tables"])
+            q.set_filter(self_dic["filter"])
+            q.set_order_by(self_dic["order_by"])
+            q.set_limit(self_dic["limit"])
+            q.set_offset(self_dic["offset"])
+            q.set_datalake_path(self_dic["datalake_path"])
             return q
 
 

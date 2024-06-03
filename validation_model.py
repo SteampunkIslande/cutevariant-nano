@@ -1,3 +1,5 @@
+import datetime
+import os
 import PySide6.QtCore as qc
 
 import duckdb as db
@@ -10,6 +12,17 @@ from commons import duck_db_literal_string_list
 
 from query import Query
 
+VALIDATION_TABLE_COLUMNS = {
+    "parquet_files": 0,
+    "sample_names": 1,
+    "username": 2,
+    "validation_name": 3,
+    "table_uuid": 4,
+    "creation_date": 5,
+    "completed": 6,
+    "last_step": 7,
+}
+
 
 def initialize_database(database: Path):
 
@@ -18,7 +31,7 @@ def initialize_database(database: Path):
         return
     conn = db.connect(str(database))
     conn.sql(
-        "CREATE TABLE validations (parquet_files TEXT[], sample_names TEXT[], username TEXT, validation_name TEXT, table_uuid TEXT, creation_date DATETIME, completed BOOLEAN)"
+        "CREATE TABLE validations (parquet_files TEXT[], sample_names TEXT[], username TEXT, validation_name TEXT, table_uuid TEXT, creation_date DATETIME, completed BOOLEAN, last_step INTEGER)"
     )
     conn.sql(
         "CREATE TYPE COMMENT AS STRUCT(comment TEXT, username TEXT, creation_timestamp TIMESTAMP)"
@@ -37,10 +50,10 @@ def add_validation_table(
         conn.sql("SELECT ('validation_' || uuid()) as uuid").pl().to_dicts()[0]["uuid"]
     )
     conn.sql(
-        f"INSERT INTO validations VALUES ({duck_db_literal_string_list(parquet_files)}, {duck_db_literal_string_list(sample_names)}, '{username}', '{validation_name}', {table_uuid}, NOW(), FALSE)"
+        f"INSERT INTO validations VALUES ({duck_db_literal_string_list(parquet_files)}, {duck_db_literal_string_list(sample_names)}, '{username}', '{validation_name}', '{table_uuid}', NOW(), FALSE, 0)"
     )
     conn.sql(
-        f"CREATE TABLE {table_uuid} (accepted BOOLEAN, comment COMMENT, tags TEXT[])"
+        f"CREATE TABLE '{table_uuid}' (accepted BOOLEAN, comment COMMENT, tags TEXT[])"
     )
 
 
@@ -53,10 +66,30 @@ class ValidationModel(qc.QAbstractTableModel):
         self._data = []
 
         self.query.datalake_changed.connect(self.on_datalake_changed)
+        if self.query.datalake_path:
+            initialize_database(Path(self.query.datalake_path) / "validation.db")
+            self.update()
 
     def data(self, index: qc.QModelIndex, role: int) -> str | None:
         if role == qc.Qt.ItemDataRole.DisplayRole:
-            return self._data[index.row()][index.column()]
+            res = self._data[index.row()][index.column()]
+            if isinstance(res, bool):
+                res = "Yes" if res else "No"
+            if isinstance(res, datetime.datetime):
+                res = res.strftime("%d/%m/%Y %H:%M:%S")
+            if (
+                self.headerData(
+                    index.column(),
+                    qc.Qt.Orientation.Horizontal,
+                    qc.Qt.ItemDataRole.DisplayRole,
+                )
+                == "parquet_files"
+            ):
+                res = ", ".join([Path(r).stem for r in res])
+
+            if isinstance(res, list):
+                res = ", ".join(res)
+            return res
         if role == qc.Qt.ItemDataRole.UserRole and index.column() == 0:
             if "table_uuid" in self.headers:
                 return self._data[index.row()][self.headers.index("table_uuid")]
@@ -90,11 +123,10 @@ class ValidationModel(qc.QAbstractTableModel):
         sample_names: List[str],
     ):
         if self.query.conn:
-            self.beginInsertRows(qc.QModelIndex(), len(self._data), len(self._data))
             add_validation_table(
                 self.query.conn, validation_name, username, parquet_files, sample_names
             )
-            self.endInsertRows()
+            self.update()
         else:
             print("No connection to database")
 
@@ -113,6 +145,5 @@ class ValidationModel(qc.QAbstractTableModel):
         self.endResetModel()
 
     def on_datalake_changed(self):
-        print("Datalake changed")
-        initialize_database(self.query.datalake_path / "validation.db")
+        initialize_database(Path(self.query.datalake_path) / "validation.db")
         self.update()
