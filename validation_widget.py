@@ -171,8 +171,6 @@ class ValidationWidget(qw.QWidget):
         super().__init__(parent)
         self.query = query
 
-        self.init_state()
-
         self._layout = qw.QVBoxLayout(self)
 
         self.title_label = qw.QLabel("")
@@ -184,9 +182,13 @@ class ValidationWidget(qw.QWidget):
         self.return_to_validation_button = qw.QPushButton(
             "Back to validation selection", self
         )
+
         self.return_to_validation_button.clicked.connect(self.on_return_to_validation)
 
         qc.QCoreApplication.instance().aboutToQuit.connect(self.save_state)
+
+        # Will be overwritten by load_state, but set to default values here in case load_state does nothing
+        self.init_state()
         self.load_state()
 
         self.setup_layout()
@@ -218,6 +220,9 @@ class ValidationWidget(qw.QWidget):
         self.validation_table_uuid = None
         self.validation_name = None
         self.validation_parquet_files = None
+
+        self.next_step_button.setText("Next Step")
+        self.return_to_validation_button.setText("Back to validation selection")
 
         self.is_finished = False
 
@@ -403,6 +408,7 @@ class ValidationWidgetContainer(qw.QWidget):
             )
             return
         self.multi_widget.set_current_widget("validation")
+        self.validation_widget.init_state()
 
         config_folder = get_config_folder()
         if not config_folder:
@@ -419,6 +425,8 @@ class ValidationWidgetContainer(qw.QWidget):
 
     def on_return_to_validation(self):
         self.multi_widget.set_current_widget("welcome")
+        self.validation_widget.init_state()
+        self.validation_welcome_widget.model.update()
 
     def load_previous_session(self):
         userprefs = load_user_prefs()
