@@ -407,8 +407,7 @@ class Query(qc.QObject):
             limit=self.limit,
             offset=self.offset,
         )
-        q = str(q).format(CWD=str(self.datalake_path))
-        return q
+        return str(q)
 
     def count_query(self):
         field = Field("COUNT(*)", alias="count_star", is_expression=True)
@@ -419,8 +418,7 @@ class Query(qc.QObject):
             additional_tables=list(self.additional_tables.values()),
             filters=self.filter,
         )
-        q = str(q).format(CWD=str(self.datalake_path))
-        return q
+        return str(q)
 
     def is_valid(self):
         return bool(self.main_table) and bool(self.fields) and self.datalake_path
@@ -483,6 +481,7 @@ class Query(qc.QObject):
         return self
 
     def set_datalake_path(self, path: str):
+        os.chdir(path)
         self.datalake_path = path
         self.conn = db.connect(os.path.join(path, "validation.db"))
         self.query_changed.emit()

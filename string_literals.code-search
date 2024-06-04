@@ -1,0 +1,653 @@
+# Query: ((".+?")|('.+?'))
+# Flags: RegExp
+# Excluding: .git,*.json, *.yaml,*.md
+# ContextLines: 1
+
+252 résultats - Fichiers 9
+
+commons.py:
+  10  def duck_db_literal_string_list(l: typing.List) -> str:
+  11:     return "[" + ", ".join(f"'{e}'" for e in l) + "]"
+  12  
+
+  14  def dict_add_value(d: dict, key: str, value: typing.Any):
+  15:     """Pythonic way to add a value to an arbitrarly nested dictionary (and without using defaultdict)
+  16  
+
+  20          value (Any): the value to add
+  21:     """
+  22:     if "." in key:
+  23:         key, sub_key = key.split(".", 1)
+  24          if key not in d:
+
+  37          )
+  38:         / "config.json"
+  39      ).resolve()
+
+  47      if user_prefs.exists():
+  48:         with open(user_prefs, "r") as f:
+  49              old_prefs = json.load(f)
+
+  52  
+  53:     with open(user_prefs, "w") as f:
+  54          json.dump(old_prefs, f)
+
+  60      if user_prefs.exists():
+  61:         with open(user_prefs, "r") as f:
+  62              prefs = json.load(f)
+
+  75      try:
+  76:         config_folder = Path(load_user_prefs()["config_folder"])
+  77          return config_folder
+
+  80              None,
+  81:             "Validation",
+  82:             "Pas de dossier de configuration trouvé, veuillez en choisir un.",
+  83          )
+  84          config_folder = qw.QFileDialog.getExistingDirectory(
+  85:             None, "Pas de dossier de configuration trouvé, veuillez en choisir un."
+  86          )
+  87          if config_folder:
+  88:             save_user_prefs({"config_folder": config_folder})
+  89              return config_folder
+
+inspector.py:
+  30          self.validation_widget = ValidationWidgetContainer(self.query)
+  31:         self.main_widget.addTab(self.validation_widget, "Validation")
+  32:         self.tabs["validation"] = self.validation_widget
+  33  
+
+  35  
+  36:         if user_prefs.get("inspector_tab") is not None:
+  37:             self.main_widget.setCurrentIndex(user_prefs["inspector_tab"])
+  38  
+  39      def on_close(self):
+  40:         save_user_prefs({"inspector_tab": self.main_widget.currentIndex()})
+  41  
+
+query.py:
+   26  class FilterType(Enum):
+   27:     AND = "AND"
+   28:     OR = "OR"
+   29:     LEAF = "LEAF"
+   30  
+
+   41          if self.alias:
+   42:             return f"{self.name} {self.alias}"
+   43          return self.name
+
+   55      def __format__(self, format_spec: str) -> str:
+   56:         if format_spec == "q":
+   57              if self.table:
+   58:                 base = f'"{self.table.get_alias()}"."{self.name}"'
+   59                  if self.is_expression:
+
+   62                  if self.is_expression:
+   63:                     base = f"{self.name}"
+   64                  else:
+   65:                     base = f'"{self.name}"'
+   66  
+   67              if self.alias:
+   68:                 base = f"{base} AS {self.alias}"
+   69  
+
+   72              if self.table:
+   73:                 base = f"{self.table.get_alias()}.{self.name}"
+   74                  if self.is_expression:
+
+   76              else:
+   77:                 base = f"{self.name}"
+   78              if self.alias:
+   79:                 base = f"{base} AS {self.alias}"
+   80              return base
+
+   91          right_on: Field,
+   92:         join_type: str = "JOIN",
+   93      ):
+
+   99      def __str__(self):
+  100:         return f"{self.join_type} {self.table} ON {self.left_on:q} = {self.right_on:q}"
+  101  
+
+  107          expression: str = None,
+  108:         parent: "FilterExpression" = None,
+  109      ) -> None:
+
+  111          self.expression = expression
+  112:         self.children: List["FilterExpression"] = []
+  113          self.parent = parent
+
+  116  
+  117:     def add_child(self, child: "FilterExpression"):
+  118          self.children.append(child)
+
+  132                  return str(self.filter_type).join(
+  133:                     f"({str(child)})" for child in self.children
+  134                  )
+
+  160          if self.filter:
+  161:             filt = f" WHERE {self.filter}"
+  162  
+
+  164          if self.order_by:
+  165:             order = f" ORDER BY {', '.join(map(lambda f:f'{f[0]:q} {f[1]}', self.order_by))}"
+  166  
+
+  168          if self.joins:
+  169:             joins = " ".join(map(str, self.joins))
+  170  
+  171:         q = f"SELECT {', '.join(map(lambda f:f'{f:q}', self.fields))} FROM {self.main_table} {joins}{filt}{order} LIMIT {self.limit} OFFSET {self.offset}"
+  172  
+  173:         if format_spec == "p":
+  174:             q = f"({q})"
+  175          return q
+
+  180      def save(self, filename: Path):
+  181:         with open(filename, "w") as f:
+  182              pickle.dump(self, f)
+
+  185      def load(filename: Path):
+  186:         with open(filename, "r") as f:
+  187              return pickle.load(f)
+
+  211          if Query.instance_count > 1:
+  212:             print("Only one instance of Query is allowed")
+  213              sys.exit(1)
+
+  362          self.main_table = Table(
+  363:             f"read_parquet({duck_db_literal_string_list(files)})", "main_table"
+  364          )
+
+  390          right_on: Field,
+  391:         join_type: str = "JOIN",
+  392      ):
+
+  413      def count_query(self):
+  414:         field = Field("COUNT(*)", alias="count_star", is_expression=True)
+  415  
+
+  429          if not self.datalake_path:
+  430:             return "Please select a datalake path"
+  431          if not self.main_table:
+  432:             return "Please select a main table"
+  433          if not self.fields:
+  434:             return "Please select some fields"
+  435  
+
+  469              return
+  470:         self.row_count = run_sql(self.count_query(), self.conn)[0]["count_star"]
+  471          self.page_count = self.row_count // self.limit
+
+  486          self.datalake_path = path
+  487:         self.conn = db.connect(os.path.join(path, "validation.db"))
+  488          self.query_changed.emit()
+
+  491      def save(self, filename: Path):
+  492:         with open(filename, "wb") as f:
+  493              pickle.dump(
+  494                  {
+  495:                     "fields": self.fields,
+  496:                     "main_table": self.main_table,
+  497:                     "additional_tables": self.additional_tables,
+  498:                     "filter": self.filter,
+  499:                     "order_by": self.order_by,
+  500:                     "limit": self.limit,
+  501:                     "offset": self.offset,
+  502:                     "datalake_path": self.datalake_path,
+  503:                     "current_validation_name": self.current_validation_name,
+  504                  },
+
+  508      @staticmethod
+  509:     def load(filename: Path) -> "Query":
+  510:         with open(filename, "rb") as f:
+  511              self_dic = pickle.load(f)
+  512              q = Query()
+  513:             q.set_fields(self_dic["fields"])
+  514:             q.main_table = self_dic["main_table"]
+  515:             q.set_additional_tables(self_dic["additional_tables"])
+  516:             q.set_filter(self_dic["filter"])
+  517:             q.set_order_by(self_dic["order_by"])
+  518:             q.set_limit(self_dic["limit"])
+  519:             q.set_offset(self_dic["offset"])
+  520:             q.set_datalake_path(self_dic["datalake_path"])
+  521:             q.set_table_validation_name(self_dic["current_validation_name"])
+  522              return q
+
+  524  
+  525: if __name__ == "__main__":
+  526      pass
+
+validation_model.py:
+   11  VALIDATION_TABLE_COLUMNS = {
+   12:     "parquet_files": 0,
+   13:     "sample_names": 1,
+   14:     "username": 2,
+   15:     "validation_name": 3,
+   16:     "table_uuid": 4,
+   17:     "creation_date": 5,
+   18:     "completed": 6,
+   19:     "last_step": 7,
+   20  }
+
+   29      conn.sql(
+   30:         "CREATE TABLE validations (parquet_files TEXT[], sample_names TEXT[], username TEXT, validation_name TEXT, table_uuid TEXT, creation_date DATETIME, completed BOOLEAN, last_step INTEGER, validation_method TEXT)"
+   31      )
+   32      conn.sql(
+   33:         "CREATE TYPE COMMENT AS STRUCT(comment TEXT, username TEXT, creation_timestamp TIMESTAMP)"
+   34      )
+
+   46      table_uuid = (
+   47:         conn.sql("SELECT ('validation_' || uuid()) as uuid").pl().to_dicts()[0]["uuid"]
+   48      )
+   49      conn.sql(
+   50:         f"INSERT INTO validations VALUES ({duck_db_literal_string_list(parquet_files)}, {duck_db_literal_string_list(sample_names)}, '{username}', '{validation_name}', '{table_uuid}', NOW(), FALSE, 0, '{validation_method}')"
+   51      )
+   52      conn.sql(
+   53:         f"CREATE TABLE '{table_uuid}' (accepted BOOLEAN, comment COMMENT, tags TEXT[])"
+   54      )
+
+   58      return (
+   59:         conn.sql(f"SELECT * FROM validations WHERE table_uuid = '{table_uuid}'")
+   60          .pl()
+
+   74          if self.query.datalake_path:
+   75:             initialize_database(Path(self.query.datalake_path) / "validation.db")
+   76              self.update()
+
+   81              if isinstance(res, bool):
+   82:                 res = "Yes" if res else "No"
+   83              if isinstance(res, datetime.datetime):
+   84:                 res = res.strftime("%d/%m/%Y %H:%M:%S")
+   85              if (
+
+   90                  )
+   91:                 == "parquet_files"
+   92              ):
+   93:                 res = ", ".join([Path(r).stem for r in res])
+   94  
+   95              if isinstance(res, list):
+   96:                 res = ", ".join(res)
+   97              return res
+
+  140          else:
+  141:             print("No connection to database")
+  142  
+
+  151          if self.query.conn:
+  152:             query_res = self.query.conn.sql("SELECT * FROM validations").pl()
+  153              self.headers = query_res.columns
+
+  157      def on_datalake_changed(self):
+  158:         initialize_database(Path(self.query.datalake_path) / "validation.db")
+  159          self.update()
+
+validation_widget.py:
+   38  
+   39:         self.new_validation_button = qw.QPushButton("New Validation", self)
+   40          self.new_validation_button.clicked.connect(self.on_new_validation_clicked)
+   41  
+   42:         self.start_validation_button = qw.QPushButton("Start Validation", self)
+   43          self.start_validation_button.clicked.connect(self.on_start_validation_clicked)
+
+   57      def hide_unwanted_columns(self):
+   58:         self.table.view.hideColumn(VALIDATION_TABLE_COLUMNS["table_uuid"])
+   59  
+
+   64          userprefs = load_user_prefs()
+   65:         if "config_folder" not in userprefs:
+   66              qw.QMessageBox.warning(
+   67                  self,
+   68:                 "Validation",
+   69:                 "Pas de dossier de configuration trouvé, veuillez en choisir un.",
+   70              )
+   71              config_folder = qw.QFileDialog.getExistingDirectory(
+   72:                 self, "Pas de dossier de configuration trouvé, veuillez en choisir un."
+   73              )
+
+   75                  # config_folder will be read by the wizard
+   76:                 save_user_prefs({"config_folder": config_folder})
+   77              else:
+
+   81          if wizard.exec() == qw.QDialog.DialogCode.Accepted:
+   82:             file_names = wizard.data["file_names"]
+   83:             sample_names = wizard.data["sample_names"]
+   84:             validation_name = wizard.data["validation_name"]
+   85:             validation_method = wizard.data["validation_method"]
+   86:             if "config_folder" not in userprefs:
+   87                  return
+   88  
+   89:             config_folder = Path(userprefs["config_folder"])
+   90  
+
+  100              qw.QMessageBox.warning(
+  101:                 self, "Validation", "Veuillez sélectionner une validation à exécuter."
+  102              )
+
+  127          self.step_definition = step_definition
+  128:         self.title = step_definition["title"]
+  129:         self.description = step_definition["description"]
+  130  
+
+  136  
+  137:         self.tables["main_table"] = self.query.main_table
+  138  
+  139:         for table_def in step_definition["tables"]:
+  140:             self.tables[table_def["alias"]] = Table(
+  141:                 table_def["name"], table_def["alias"]
+  142              )
+
+  144                  Join(
+  145:                     self.tables[table_def["alias"]],
+  146                      left_on=Field(
+  147:                         table_def["join"]["left_on"],
+  148:                         self.tables[table_def["join"]["left_table"]],
+  149                      ),
+  150                      right_on=Field(
+  151:                         table_def["join"]["right_on"], self.tables[table_def["alias"]]
+  152                      ),
+
+  154              )
+  155:         for field in step_definition["fields"]:
+  156              self.fields.append(
+  157                  Field(
+  158:                     field["name"],
+  159:                     self.tables[field["table"]],
+  160:                     is_expression=field["is_expression"],
+  161                  ),
+
+  179  
+  180:         self.next_step_button = qw.QPushButton("Next Step", self)
+  181          self.next_step_button.clicked.connect(self.on_next_step_clicked)
+
+  183          self.return_to_validation_button = qw.QPushButton(
+  184:             "Back to validation selection", self
+  185          )
+
+  232          self.method_path = method_path
+  233:         with open(method_path, "r") as f:
+  234              self.method = json.load(f)
+
+  236      def setup_step(self):
+  237:         """Modifies the query to match the current step definition."""
+  238          if (
+
+  275  
+  276:         self.validation_name = selected_validation["validation_name"]
+  277:         self.validation_parquet_files = selected_validation["parquet_files"]
+  278  
+
+  282                  self,
+  283:                 "Erreur",
+  284:                 "Pas de dossier de configuration sélectionné, abandon.",
+  285              )
+
+  287  
+  288:         self.validation_table_uuid = selected_validation["table_uuid"]
+  289          self.set_method_path(
+  290              Path(config_folder)
+  291:             / "validation_methods"
+  292:             / (selected_validation["validation_method"] + ".json")
+  293          )
+
+  296                  self.query.conn.sql(
+  297:                     f"SELECT last_step FROM validations WHERE table_uuid = '{self.validation_table_uuid}'"
+  298                  )
+  299                  .pl()
+  300:                 .to_dicts()[0]["last_step"]
+  301              )
+
+  313                  {
+  314:                     "last_validation_table_uuid": self.validation_table_uuid,
+  315                  }
+
+  319          userprefs = load_user_prefs()
+  320:         if "last_validation_table_uuid" in userprefs:
+  321:             self.validation_table_uuid = userprefs["last_validation_table_uuid"]
+  322              if self.query.conn:
+
+  348          self.multi_widget = MultiWidgetHolder(self)
+  349:         self.multi_widget.add_widget(self.validation_welcome_widget, "welcome")
+  350:         self.multi_widget.add_widget(self.validation_widget, "validation")
+  351  
+  352:         self.multi_widget.set_current_widget("welcome")
+  353  
+
+  364                  self,
+  365:                 "Validation",
+  366:                 "Veuillez sélectionner une validation à exécuter.",
+  367              )
+  368              return
+  369:         self.multi_widget.set_current_widget("validation")
+  370  
+
+  374                  self,
+  375:                 "Erreur",
+  376:                 "Pas de dossier de configuration sélectionné, abandon.",
+  377              )
+
+  385          userprefs = load_user_prefs()
+  386:         if "last_widget_shown" in userprefs:
+  387:             self.multi_widget.set_current_widget(userprefs["last_widget_shown"])
+  388  
+
+  390          save_user_prefs(
+  391:             {"last_widget_shown": self.multi_widget.get_current_widget_name()}
+  392          )
+
+  398          super().__init__(parent)
+  399:         self.setTitle("Introduction")
+  400:         self.setSubTitle("Ce wizard vous permet de créer une nouvelle validation.")
+  401  
+  402          # Add a label with a lineedit to get the validation name
+  403:         self.validation_name_label = qw.QLabel("Nom de la validation:")
+  404          self.validation_name_lineedit = qw.QLineEdit()
+  405:         self.validation_name_lineedit.setPlaceholderText("Nom de la validation")
+  406          self.validation_name_lineedit.textChanged.connect(
+
+  409          self.validation_name_lineedit.setValidator(
+  410:             qg.QRegularExpressionValidator(qc.QRegularExpression(r"^(\p{L}| |[0-9])+$"))
+  411          )
+
+  415          validation_methods = []
+  416:         if "config_folder" in userprefs:
+  417:             config_folder = Path(userprefs["config_folder"])
+  418              validation_methods = [
+  419                  f.stem
+  420:                 for f in config_folder.glob("validation_methods/*.json")
+  421                  if f.is_file()
+
+  439          self.validation_name_lineedit.clear()
+  440:         self.data["validation_name"] = ""
+  441:         self.data["validation_method"] = ""
+  442  
+  443      def isComplete(self):
+  444:         return bool(self.data["validation_name"]) and bool(
+  445:             self.data["validation_method"]
+  446          )
+
+  452          self.validation_name_lineedit.clear()
+  453:         self.data["validation_name"] = ""
+  454:         self.data["validation_method"] = ""
+  455  
+
+  457          was_valid = self.isComplete()
+  458:         self.data["validation_name"] = text
+  459  
+
+  464          was_valid = self.isComplete()
+  465:         self.data["validation_method"] = text
+  466  
+
+  474          super().__init__(parent)
+  475:         self.setTitle("Run Selection")
+  476:         self.setSubTitle("Choisissez le(s) fichier(s) des runs à valider.")
+  477  
+  478:         self.select_parquet_button = qw.QPushButton("Choisir le(s) run(s)...")
+  479          self.select_parquet_button.clicked.connect(self.on_select_parquet_clicked)
+
+  491          filenames, _ = qw.QFileDialog.getOpenFileNames(
+  492:             self, "Open Parquet File", "", "Parquet Files (*.parquet)"
+  493          )
+
+  495          if filenames:
+  496:             self.data["file_names"] = filenames
+  497              self.selected_files_label.setText(
+  498:                 "Fichiers sélectionnés:\n" + "\n".join(filenames)
+  499              )
+
+  504      def initializePage(self):
+  505:         self.data["file_names"] = []
+  506          self.selected_files_label.setText("")
+
+  508      def isComplete(self):
+  509:         return bool(self.data["file_names"])
+  510  
+  511      def validatePage(self):
+  512:         return bool(self.data["file_names"])
+  513  
+  514      def cleanupPage(self):
+  515:         self.data["file_names"] = []
+  516          self.selected_files_label.setText("")
+
+  522          super().__init__(parent)
+  523:         self.setTitle("Samples Selection")
+  524:         self.setSubTitle("Choisissez le(s) échantillon(s) à valider.")
+  525  
+  526:         self.select_samples_button = qw.QPushButton("Select Samples")
+  527          self.select_samples_button.clicked.connect(self.on_select_samples_clicked)
+
+  540          samples_names = [
+  541:             d["sample_name"]
+  542              for d in db.sql(
+  543:                 f"SELECT DISTINCT sample_name FROM read_parquet({duck_db_literal_string_list(self.data['file_names'])})"
+  544              )
+
+  549          if sample_selector.exec() == qw.QDialog.DialogCode.Accepted:
+  550:             self.data["sample_names"] = sample_selector.get_selected()
+  551              self.selected_samples_label.setText(
+  552:                 "Echantillons sélectionnés:\n" + "\n".join(self.data["sample_names"])
+  553              )
+
+  558      def initializePage(self):
+  559:         self.data["sample_names"] = []
+  560          self.selected_samples_label.setText("")
+
+  562      def isComplete(self):
+  563:         return bool(self.data["sample_names"])
+  564  
+  565      def cleanupPage(self):
+  566:         self.data["sample_names"] = []
+  567  
+
+  575          self.data = {
+  576:             "file_names": [],
+  577:             "sample_names": [],
+  578:             "validation_name": "",
+  579:             "validation_method": "",
+  580          }
+
+viewer.py:
+  36  
+  37:         self.file_menu = self.menu.addMenu("File")
+  38:         self.file_menu.addAction("Open datalake", self.open_datalake)
+  39  
+
+  41          prefs = self.get_user_prefs()
+  42:         if "last_query" not in prefs:
+  43              self.query = Query()
+  44              return
+  45:         self.query = Query.load(Path(prefs["last_query"]))
+  46          self.query.query_changed.connect(self.on_query_changed)
+
+  53          # Save last query
+  54:         self.query.save(user_prefs_folder / "last_query.pickle")
+  55          self.save_user_prefs(
+  56:             {"last_query": str(user_prefs_folder / "last_query.pickle")}
+  57          )
+
+  60      def on_query_changed(self):
+  61:         self.setWindowTitle(f"ParquetViewer - {self.query.get_table_validation_name()}")
+  62  
+
+  69      def open_datalake(self):
+  70:         if "last_datalake" in self.get_user_prefs():
+  71:             last_datalake = self.get_user_prefs()["last_datalake"]
+  72              datalake_folder = qw.QFileDialog.getExistingDirectory(
+  73:                 self, "Open datalake", last_datalake
+  74              )
+
+  76              datalake_folder = qw.QFileDialog.getExistingDirectory(
+  77:                 self, "Open datalake", str(Path.home())
+  78              )
+  79:             self.save_user_prefs({"last_datalake": datalake_folder})
+  80          if not datalake_folder:
+
+  84  
+  85: if __name__ == "__main__":
+  86      app = qw.QApplication([])
+  87  
+  88:     app.setOrganizationName("CharlesMB")
+  89:     app.setApplicationName("ParquetViewer")
+  90  
+
+common_widgets/page_selector.py:
+  13          super().__init__(parent)
+  14:         self.rows_label = qw.QLabel("Rows per page")
+  15          self.rows_lineedit = qw.QLineEdit()
+  16:         self.rows_lineedit.setText("10")
+  17          self.rows_lineedit.setValidator(qg.QIntValidator(1, 100))
+
+  22          )
+  23:         self.first_page_button = qw.QPushButton("<<")
+  24          self.first_page_button.clicked.connect(self.goto_first_page)
+  25:         self.prev_button = qw.QPushButton("<")
+  26          self.prev_button.clicked.connect(self.goto_previous_page)
+  27:         self.page_label = qw.QLabel("Page")
+  28          self.page_lineedit = qw.QLineEdit()
+  29          self.page_lineedit.setFixedWidth(50)
+  30:         self.page_lineedit.setText("1")
+  31          self.page_lineedit.setValidator(qg.QIntValidator(1, 1))
+  32          self.page_lineedit.textChanged.connect(self.set_page)
+  33:         self.page_count_label = qw.QLabel("out of (unknown)")
+  34:         self.next_button = qw.QPushButton(">")
+  35          self.next_button.clicked.connect(self.goto_next_page)
+  36:         self.last_page_button = qw.QPushButton(">>")
+  37          self.last_page_button.clicked.connect(self.goto_last_page)
+
+  81          )
+  82:         self.page_count_label.setText(f"out of {self.query.get_page_count()}")
+  83  
+
+common_widgets/searchable_list.py:
+   9  
+  10:     def __init__(self, items: List[str], filter_type="fixed_string", parent=None):
+  11          super().__init__(parent)
+
+  29          self.filter_le = qw.QLineEdit()
+  30:         self.filter_le.setPlaceholderText("Filter list...")
+  31  
+
+  38          self.filter_le_callbacks = {
+  39:             "fixed_string": self.proxy_model.setFilterFixedString,
+  40:             "regexp": self.proxy_model.setFilterRegularExpression,
+  41          }
+
+  60  
+  61: if __name__ == "__main__":
+  62      app = qw.QApplication([])
+  63:     widget = SearchableList(["one", "two", "three"])
+  64      widget.show()
+
+common_widgets/searchable_table.py:
+   9      def __init__(
+  10:         self, model: qc.QAbstractItemModel, filter_type="fixed_string", parent=None
+  11      ):
+
+  27          self.filter_le = qw.QLineEdit()
+  28:         self.filter_le.setPlaceholderText("Search...")
+  29  
+
+  38          self.filter_le_callbacks = {
+  39:             "fixed_string": self.proxy_model.setFilterFixedString,
+  40:             "regexp": self.proxy_model.setFilterRegularExpression,
+  41          }

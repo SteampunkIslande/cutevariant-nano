@@ -1,11 +1,10 @@
 [
 	{
-		"step_id": 0,
 		"title": "Etape 1",
-		"description": "Première étape de la validation: Ici, vous voyez les variants annotés avec un impact HIGH et MODIFIER.",
+		"description": "Première étape de la validation: Ici, vous voyez les variants annotés avec un impact HIGH et MODIFIER.\nEt qu'est-ce que vous voyez? Vous voyez le nombre de variants par chromosome, position, référence et allèle alternatif.\nVous pouvez voir le nombre de variants par chromosome, position, référence et allèle alternatif. Un texte encore plus long juste pour tester la taille de la description.",
 		"tables": [
 			{
-				"name": "'{CWD}/aggregates/variants.parquet'",
+				"name": "'aggregates/variants.parquet'",
 				"alias": "agg",
 				"join": {
 					"left_table": "main_table",

@@ -58,7 +58,9 @@ class MainWindow(qw.QMainWindow):
         event.accept()
 
     def on_query_changed(self):
-        self.setWindowTitle(f"ParquetViewer - {self.query.get_table_validation_name()}")
+        self.setWindowTitle(
+            f"ParquetViewer - {self.query.get_table_validation_name() or 'No validation table selected'}"
+        )
 
     def save_user_prefs(self, prefs: dict):
         save_user_prefs(prefs)

@@ -46,11 +46,28 @@ def add_validation_table(
     table_uuid = (
         conn.sql("SELECT ('validation_' || uuid()) as uuid").pl().to_dicts()[0]["uuid"]
     )
-    conn.sql(
-        f"INSERT INTO validations VALUES ({duck_db_literal_string_list(parquet_files)}, {duck_db_literal_string_list(sample_names)}, '{username}', '{validation_name}', '{table_uuid}', NOW(), FALSE, 0, '{validation_method}')"
-    )
-    conn.sql(
-        f"CREATE TABLE '{table_uuid}' (accepted BOOLEAN, comment COMMENT, tags TEXT[])"
+    try:
+        conn.sql(
+            f"INSERT INTO validations VALUES ({duck_db_literal_string_list(parquet_files)}, {duck_db_literal_string_list(sample_names)}, '{username}', '{validation_name}', '{table_uuid}', NOW(), FALSE, 0, '{validation_method}')"
+        )
+        conn.sql(
+            f"CREATE TABLE '{table_uuid}' (validation_hash BIGINT,sample_name TEXT, main_table TEXT[], annotation_file TEXT, accepted BOOLEAN, comment COMMENT[], tags TEXT[])"
+        )
+    except db.Error as e:
+        print(e)
+        # No matter what the exact error is, we should rollback the transaction
+        # Manual rollback
+        conn.sql(f"""DROP TABLE IF EXISTS "{table_uuid}" """)
+        conn.sql(f"DELETE FROM validations WHERE table_uuid = '{table_uuid}'")
+
+
+def get_validation_from_table_uuid(
+    conn: db.DuckDBPyConnection, table_uuid: str
+) -> dict:
+    return (
+        conn.sql(f"SELECT * FROM validations WHERE table_uuid = '{table_uuid}'")
+        .pl()
+        .to_dicts()[0]
     )
 
 

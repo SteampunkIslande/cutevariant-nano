@@ -6,12 +6,22 @@ import PySide6.QtCore as qc
 import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
 
+from common_widgets.multiline_display import MultiLineDisplay
 from common_widgets.multiwidget_holder import MultiWidgetHolder
 from common_widgets.searchable_table import SearchableTable
 from common_widgets.string_list_chooser import StringListChooser
-from commons import duck_db_literal_string_list, load_user_prefs, save_user_prefs
+from commons import (
+    duck_db_literal_string_list,
+    get_config_folder,
+    load_user_prefs,
+    save_user_prefs,
+)
 from query import Field, Join, Query, Table
-from validation_model import VALIDATION_TABLE_COLUMNS, ValidationModel
+from validation_model import (
+    VALIDATION_TABLE_COLUMNS,
+    ValidationModel,
+    get_validation_from_table_uuid,
+)
 
 
 class ValidationWelcomeWidget(qw.QWidget):
@@ -155,16 +165,99 @@ class ValidationStep:
 
 class ValidationWidget(qw.QWidget):
 
+    return_to_validation = qc.Signal()
+
     def __init__(self, query: Query, parent=None):
         super().__init__(parent)
         self.query = query
 
-        self.current_step_id = 0
-        self.current_step = None
-        self.method_path = None
-        self.validation_table_uuid = None
+        self.init_state()
 
         self._layout = qw.QVBoxLayout(self)
+
+        self.title_label = qw.QLabel("")
+        self.description_text = MultiLineDisplay(self)
+
+        self.next_step_button = qw.QPushButton("Next Step", self)
+        self.next_step_button.clicked.connect(self.on_next_step_clicked)
+
+        self.return_to_validation_button = qw.QPushButton(
+            "Back to validation selection", self
+        )
+        self.return_to_validation_button.clicked.connect(self.on_return_to_validation)
+
+        qc.QCoreApplication.instance().aboutToQuit.connect(self.save_state)
+        self.load_state()
+
+        self.setup_layout()
+
+    def setup_layout(self):
+        self._layout.addWidget(self.title_label)
+        self._layout.addWidget(self.description_text)
+
+        # Add vertical spacer
+        self._layout.addStretch()
+
+        self._layout.addWidget(self.next_step_button)
+        self._layout.addWidget(self.return_to_validation_button)
+        self.setLayout(self._layout)
+
+    def init_state(self):
+
+        # The current step index
+        self.current_step_id = 0
+        # The current step object (a representation of fields, tables, joins, etc. for the current step)
+        self.current_step = None
+
+        # The path to the method file
+        self.method_path = None
+        # The method array (a list of steps, each step being a dict with fields, tables, joins, etc.)
+        self.method = None
+
+        # The table uuid of the selected validation
+        self.validation_table_uuid = None
+        self.validation_name = None
+        self.validation_parquet_files = None
+
+        self.is_finished = False
+
+    def on_finish(self):
+        self.is_finished = True
+        self.title_label.setText("Validation terminée")
+        self.description_text.text_edit.setText(
+            "Validation terminée. Les résultats peuvent être consultés en cliquant sur le bouton ci-dessous."
+        )
+        # Reached the end of the method, handle this case
+        self.query.conn.sql(
+            f"UPDATE validations SET last_step = {len(self.method)} WHERE table_uuid = '{self.validation_table_uuid}'"
+        )
+        self.next_step_button.setText("See validation results")
+
+    def on_return_to_validation(self):
+        self.init_state()
+        self.return_to_validation.emit()
+
+    def display_results(self):
+        qw.QMessageBox.information(
+            self,
+            "Validation",
+            "Validation terminée, les résultats seront affichés dans un dialog.",
+        )
+
+    def on_next_step_clicked(self):
+        # Show the final results (in the form of a dialog) if we reached the end of the method
+        if self.is_finished:
+            self.display_results()
+            return
+
+        # Increment the step index
+        self.current_step_id += 1
+
+        # Decide whether we continue or if we reached the end
+        if self.current_step_id >= len(self.method):
+            self.on_finish()
+        else:
+            self.setup_step()
 
     def set_method_path(self, method_path: Path):
         self.method_path = method_path
@@ -172,73 +265,102 @@ class ValidationWidget(qw.QWidget):
             self.method = json.load(f)
 
     def setup_step(self):
-        try:
-            step_definition = list(
-                filter(lambda x: x["step_id"] == self.current_step_id, self.method)
-            )[0]
-            self.current_step = ValidationStep(self.query, step_definition)
-            self.query.mute()
-
-            # CLEAR JOINS
-            self.query.clear_additional_tables()
-            # ADD JOINS
-            for join in self.current_step.joins:
-                self.query.add_join(join)
-
-            # CLEAR FIELDS
-            self.query.clear_fields()
-            # ADD FIELDS
-            for field in self.current_step.fields:
-                self.query.add_field(field)
-
-            self.query.unmute()
-            self.query.update()
-            if not self.query.is_valid():
-                print(self.query.to_do())
-        except IndexError:
-            print("Step not found")
+        """Modifies the query to match the current step definition."""
+        if (
+            not self.validation_name
+            or not self.validation_parquet_files
+            or not self.method
+            or not self.query
+            or not self.query.conn
+            or self.current_step_id >= len(self.method)
+            or self.current_step_id < 0
+        ):
             return
 
-    def start_validation(self, selected_validation: dict):
-        try:
-            config_folder = Path(load_user_prefs()["config_folder"])
-        except KeyError:
-            qw.QMessageBox.warning(
-                self,
-                "Validation",
-                "Pas de dossier de configuration trouvé, veuillez en choisir un.",
-            )
-            config_folder = qw.QFileDialog.getExistingDirectory(
-                self, "Pas de dossier de configuration trouvé, veuillez en choisir un."
-            )
-            if config_folder:
-                save_user_prefs({"config_folder": config_folder})
-            else:
-                return
+        step_definition = self.method[self.current_step_id]
+        self.query.mute()
+        self.query.set_main_files(self.validation_parquet_files)
+        self.query.set_table_validation_name(self.validation_name)
+        self.current_step = ValidationStep(self.query, step_definition)
 
-        validation_table_uuid = selected_validation["table_uuid"]
-        method_path = (
+        self.title_label.setText(self.current_step.title)
+        self.description_text.text_edit.setText(self.current_step.description)
+
+        # CLEAR JOINS
+        self.query.clear_additional_tables()
+        # ADD JOINS
+        for join in self.current_step.joins:
+            self.query.add_join(join)
+
+        # CLEAR FIELDS
+        self.query.clear_fields()
+        # ADD FIELDS
+        for field in self.current_step.fields:
+            self.query.add_field(field)
+
+        self.query.unmute()
+        self.query.update()
+        if not self.query.is_valid():
+            print(self.query.to_do())
+
+    def start_validation(self, selected_validation: dict):
+        if not self.query or not self.query.conn:
+            return
+
+        self.validation_name = selected_validation["validation_name"]
+        self.validation_parquet_files = selected_validation["parquet_files"]
+
+        config_folder = get_config_folder()
+        if not config_folder:
+            qw.QMessageBox.critical(
+                self,
+                "Erreur",
+                "Pas de dossier de configuration sélectionné, abandon.",
+            )
+            return
+
+        self.validation_table_uuid = selected_validation["table_uuid"]
+        self.set_method_path(
             Path(config_folder)
             / "validation_methods"
             / (selected_validation["validation_method"] + ".json")
         )
-        if not self.query or not self.query.conn:
-            return
-        self.validation_table_uuid = validation_table_uuid
-        self.set_method_path(method_path)
         try:
             self.current_step_id = (
                 self.query.conn.sql(
-                    f"SELECT last_step FROM validations WHERE table_uuid = '{validation_table_uuid}'"
+                    f"SELECT last_step FROM validations WHERE table_uuid = '{self.validation_table_uuid}'"
                 )
                 .pl()
                 .to_dicts()[0]["last_step"]
             )
-            self.query.set_main_files(selected_validation["parquet_files"])
-            self.query.set_table_validation_name(selected_validation["validation_name"])
-            self.setup_step()
+            if self.current_step_id >= len(self.method):
+                self.on_finish()
+            else:
+                self.setup_step()
         except IndexError:
             self.current_step_id = 0
+
+    def save_state(self):
+        if self.validation_table_uuid:
+            save_user_prefs(
+                {
+                    "last_validation_table_uuid": self.validation_table_uuid,
+                }
+            )
+
+    def load_state(self):
+        userprefs = load_user_prefs()
+        if "last_validation_table_uuid" in userprefs:
+            self.validation_table_uuid = userprefs["last_validation_table_uuid"]
+            if self.validation_table_uuid is not None and self.query.conn:
+                self.start_validation(
+                    get_validation_from_table_uuid(
+                        self.query.conn, self.validation_table_uuid
+                    )
+                )
+            else:
+                # TODO: handle this case (should not happen)
+                pass
 
 
 class ValidationWidgetContainer(qw.QWidget):
@@ -255,6 +377,9 @@ class ValidationWidgetContainer(qw.QWidget):
         )
 
         self.validation_widget = ValidationWidget(self.query, self)
+        self.validation_widget.return_to_validation.connect(
+            self.on_return_to_validation
+        )
 
         self.multi_widget = MultiWidgetHolder(self)
         self.multi_widget.add_widget(self.validation_welcome_widget, "welcome")
@@ -263,6 +388,9 @@ class ValidationWidgetContainer(qw.QWidget):
         self.multi_widget.set_current_widget("welcome")
 
         self._layout.addWidget(self.multi_widget)
+
+        qc.QCoreApplication.instance().aboutToQuit.connect(self.on_close)
+        self.load_previous_session()
 
         self.setLayout(self._layout)
 
@@ -275,25 +403,32 @@ class ValidationWidgetContainer(qw.QWidget):
             )
             return
         self.multi_widget.set_current_widget("validation")
-        try:
-            config_folder = Path(load_user_prefs()["config_folder"])
-        except KeyError:
-            qw.QMessageBox.warning(
+
+        config_folder = get_config_folder()
+        if not config_folder:
+            qw.QMessageBox.critical(
                 self,
-                "Validation",
-                "Pas de dossier de configuration trouvé, veuillez en choisir un.",
+                "Erreur",
+                "Pas de dossier de configuration sélectionné, abandon.",
             )
-            config_folder = qw.QFileDialog.getExistingDirectory(
-                self, "Pas de dossier de configuration trouvé, veuillez en choisir un."
-            )
-            if config_folder:
-                save_user_prefs({"config_folder": config_folder})
-            else:
-                return
+            return
 
         selected_validation = self.validation_welcome_widget.get_selected_validation()
 
         self.validation_widget.start_validation(selected_validation)
+
+    def on_return_to_validation(self):
+        self.multi_widget.set_current_widget("welcome")
+
+    def load_previous_session(self):
+        userprefs = load_user_prefs()
+        if "last_widget_shown" in userprefs:
+            self.multi_widget.set_current_widget(userprefs["last_widget_shown"])
+
+    def on_close(self):
+        save_user_prefs(
+            {"last_widget_shown": self.multi_widget.get_current_widget_name()}
+        )
 
 
 class IntroPage(qw.QWizardPage):

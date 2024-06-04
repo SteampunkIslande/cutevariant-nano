@@ -4,6 +4,7 @@ from pathlib import Path
 
 import duckdb as db
 import PySide6.QtCore as qc
+import PySide6.QtWidgets as qw
 
 
 def duck_db_literal_string_list(l: typing.List) -> str:
@@ -68,3 +69,23 @@ def table_exists(conn: db.DuckDBPyConnection, table_name: str) -> bool:
         return True
     except db.CatalogException as e:
         return False
+
+
+def get_config_folder():
+    try:
+        config_folder = Path(load_user_prefs()["config_folder"])
+        return config_folder
+    except KeyError:
+        qw.QMessageBox.warning(
+            None,
+            "Validation",
+            "Pas de dossier de configuration trouvé, veuillez en choisir un.",
+        )
+        config_folder = qw.QFileDialog.getExistingDirectory(
+            None, "Pas de dossier de configuration trouvé, veuillez en choisir un."
+        )
+        if config_folder:
+            save_user_prefs({"config_folder": config_folder})
+            return config_folder
+        else:
+            return None
