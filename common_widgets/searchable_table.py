@@ -47,6 +47,12 @@ class SearchableTable(qw.QWidget):
         self.model = model
         self.proxy_model.setSourceModel(model)
 
+    def set_filter_key_column(self, column: int):
+        self.proxy_model.setFilterKeyColumn(column)
+
+    def set_filter_role(self, role: int):
+        self.proxy_model.setFilterRole(role)
+
     def get_selected(self) -> List[qc.QModelIndex]:
         return self.view.selectedIndexes()
 
