@@ -15,6 +15,7 @@ class SearchableList(qw.QWidget):
         for i, item_text in enumerate(items):
             item = qg.QStandardItem(item_text)
             item.setCheckable(True)
+            item.setEditable(False)
             self.model.setItem(i, 0, item)
 
         self.proxy_model = qc.QSortFilterProxyModel()
