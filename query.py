@@ -30,17 +30,25 @@ class FilterType(Enum):
 
 
 class Table:
-    def __init__(self, name: str, alias: str) -> None:
+    def __init__(self, name: str, alias: str, quoted=False) -> None:
         self.name = name
         self.alias = alias
+        self.quoted = quoted
 
     def get_alias(self) -> str:
         return self.alias or self.name
 
-    def __str__(self) -> str:
+    def __format__(self, format_spec: str) -> str:
         if self.alias:
-            return f"{self.name} {self.alias}"
-        return self.name
+            base = f"{self.name} {self.alias}"
+        else:
+            base = self.name
+        if format_spec == "q":
+            base = f'"{base}"'
+        return base
+
+    def __str__(self) -> str:
+        return self.__format__("q" if self.quoted else "")
 
 
 class Field:
@@ -81,6 +89,14 @@ class Field:
 
     def __str__(self) -> str:
         return self.__format__("")
+
+    @staticmethod
+    def validation_hash_field() -> "Field":
+        return Field(
+            "hash(concat_ws('-',main_table.chromosome,main_table.position,main_table.reference,main_table.alternate,main_table.snpeff_Feature_ID,main_table.sample_name))",
+            alias="validation_hash",
+            is_expression=True,
+        )
 
 
 class Join:
@@ -130,10 +146,31 @@ class FilterExpression:
         else:
             if self.parent:
                 return str(self.filter_type).join(
-                    f"({str(child)})" for child in self.children
+                    f"({str(child)})" if child else "" for child in self.children
                 )
             else:
                 return str(self.filter_type).join(str(child) for child in self.children)
+
+    def to_json(self):
+        if self.filter_type == FilterType.LEAF:
+            return self.expression
+        else:
+            return {
+                "filter_type": self.filter_type,
+                "children": [child.to_json() for child in self.children],
+            }
+
+    @staticmethod
+    def from_json(json):
+        if isinstance(json, str):
+            return FilterExpression(expression=json)
+        else:
+            return FilterExpression(
+                filter_type=json["filter_type"],
+                children=[
+                    FilterExpression.from_json(child) for child in json["children"]
+                ],
+            )
 
 
 class Select:
@@ -212,6 +249,7 @@ class Query(qc.QObject):
             print("Only one instance of Query is allowed")
             sys.exit(1)
 
+        self.datalake_path = None
         self.init_state()
 
         self.fields_changed.connect(self.update)
@@ -221,12 +259,10 @@ class Query(qc.QObject):
         self.offset_changed.connect(self.update)
         self.from_changed.connect(self.update)
 
-        self.datalake_path = None
-
         self.conn = conn
 
     def init_state(self):
-        self.datalake_path = None
+        # When we create a new Query, we want to reset everything, except for the datalake path...
         self.fields = []
         self.main_table = None
         self.additional_tables = dict()
@@ -243,6 +279,7 @@ class Query(qc.QObject):
 
         self.current_validation_name = None
 
+    # Unused
     def add_field(self, field: Union[str, Field]):
         if isinstance(field, str):
             field = Field(field, None)
@@ -251,6 +288,7 @@ class Query(qc.QObject):
 
         return self
 
+    # Unused
     def get_fields(self) -> List[Field]:
         return self.fields
 
@@ -264,6 +302,7 @@ class Query(qc.QObject):
         self.fields.clear()
         return self
 
+    # Unused
     def get_filter(self) -> FilterExpression:
         return self.filter
 
@@ -421,7 +460,12 @@ class Query(qc.QObject):
         return str(q)
 
     def is_valid(self):
-        return bool(self.main_table) and bool(self.fields) and self.datalake_path
+        return (
+            bool(self.main_table)
+            and bool(self.fields)
+            and self.datalake_path
+            and self.conn
+        )
 
     def to_do(self):
         if not self.datalake_path:
@@ -430,6 +474,8 @@ class Query(qc.QObject):
             return "Please select a main table"
         if not self.fields:
             return "Please select some fields"
+        if not self.conn:
+            return "Please connect to the database"
 
     def update(self):
         self.blockSignals(True)
@@ -442,12 +488,14 @@ class Query(qc.QObject):
             self.blockSignals(False)
             # Now we can emit the signal: invalid query means no data
             self.query_changed.emit()
+            print(self.to_do())
             return
         # Running the query might throw an exception, we catch it and print it
         try:
             dict_data = run_sql(self.select_query(), self.conn)
-        except db.ParserException as e:
+        except db.Error as e:
             print(e)
+            print(self.select_query())
             self.blockSignals(False)
             self.query_changed.emit()
             # Return early, dict_data is not set
@@ -466,6 +514,9 @@ class Query(qc.QObject):
             self.query_changed.emit()
             return
         self.row_count = run_sql(self.count_query(), self.conn)[0]["count_star"]
+        print(self.row_count)
+        # print caller function (using python reflection)
+        print(sys._getframe().f_back.f_code.co_name)
         self.page_count = self.row_count // self.limit
         if self.row_count % self.limit > 0:
             self.page_count = self.page_count + 1
@@ -509,15 +560,17 @@ class Query(qc.QObject):
         with open(filename, "rb") as f:
             self_dic = pickle.load(f)
             q = Query()
-            q.set_fields(self_dic["fields"])
-            q.main_table = self_dic["main_table"]
-            q.set_additional_tables(self_dic["additional_tables"])
-            q.set_filter(self_dic["filter"])
-            q.set_order_by(self_dic["order_by"])
-            q.set_limit(self_dic["limit"])
-            q.set_offset(self_dic["offset"])
+            q.mute()
+            # q.set_fields(self_dic["fields"])
+            # q.main_table = self_dic["main_table"]
+            # q.set_additional_tables(self_dic["additional_tables"])
+            # q.set_filter(self_dic["filter"])
+            # q.set_order_by(self_dic["order_by"])
+            # q.set_limit(self_dic["limit"])
+            # q.set_offset(self_dic["offset"])
             q.set_datalake_path(self_dic["datalake_path"])
-            q.set_table_validation_name(self_dic["current_validation_name"])
+            # q.set_table_validation_name(self_dic["current_validation_name"])
+            q.unmute()
             return q
 
 

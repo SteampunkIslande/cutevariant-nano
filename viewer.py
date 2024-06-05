@@ -37,14 +37,15 @@ class MainWindow(qw.QMainWindow):
         self.file_menu = self.menu.addMenu("File")
         self.file_menu.addAction("Open datalake", self.open_datalake)
 
+        self.query.update()
+
     def load_previous_session(self):
         prefs = self.get_user_prefs()
         if "last_query" not in prefs:
             self.query = Query()
-            return
-        self.query = Query.load(Path(prefs["last_query"]))
+        else:
+            self.query = Query.load(Path(prefs["last_query"]))
         self.query.query_changed.connect(self.on_query_changed)
-        self.query.update()
 
     def closeEvent(self, event: qg.QCloseEvent):
         user_prefs_folder = get_user_prefs_file().parent

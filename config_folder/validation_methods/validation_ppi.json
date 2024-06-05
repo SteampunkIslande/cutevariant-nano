@@ -15,6 +15,11 @@
 		],
 		"fields": [
 			{
+				"name": "run_name",
+				"table": "main_table",
+				"is_expression": false
+			},
+			{
 				"name": "chromosome",
 				"table": "main_table",
 				"is_expression": false

@@ -24,6 +24,58 @@ from validation_model import (
 )
 
 
+def finish_validation(conn: db.DuckDBPyConnection, table_uuid: str, step_count: int):
+    conn.sql(
+        f"UPDATE validations SET last_step = {step_count} WHERE table_uuid = '{table_uuid}'"
+    )
+    conn.sql(
+        f"UPDATE validations SET completed = TRUE WHERE table_uuid = '{table_uuid}'"
+    )
+
+
+def show_finished_validation(query: Query, table_uuid: str):
+
+    if query and query.conn and table_uuid:
+
+        query.mute()
+        # Reset everything
+        query.init_state()
+
+        validation = get_validation_from_table_uuid(query.conn, table_uuid)
+
+        additional_tables = {}
+        additional_tables["validation_table"] = Table(
+            table_uuid, "validation_table", quoted=True
+        )
+
+        query.set_main_files(validation["parquet_files"])
+
+        query.add_table(
+            "validation_table",
+            additional_tables["validation_table"],
+            Field.validation_hash_field(),
+            Field("validation_hash", additional_tables["validation_table"]),
+        )
+
+        query.set_fields(
+            [
+                Field.validation_hash_field(),
+                Field("sample_name"),
+                Field("run_name"),
+                Field("chromosome"),
+                Field("position"),
+                Field("reference"),
+                Field("alternate"),
+                Field("snpeff_Gene_Name"),
+                Field("accepted", additional_tables["validation_table"]),
+                Field("comment", additional_tables["validation_table"]),
+                Field("tags", additional_tables["validation_table"]),
+            ]
+        )
+        query.unmute()
+        query.update()
+
+
 class ValidationWelcomeWidget(qw.QWidget):
 
     validation_start = qc.Signal()
@@ -122,47 +174,6 @@ class ValidationWelcomeWidget(qw.QWidget):
         return None
 
 
-class ValidationStep:
-
-    def __init__(self, query: Query, step_definition: dict):
-        self.step_definition = step_definition
-        self.title = step_definition["title"]
-        self.description = step_definition["description"]
-
-        self.query = query
-
-        self.tables = {}
-        self.joins = []
-        self.fields = []
-
-        self.tables["main_table"] = self.query.main_table
-
-        for table_def in step_definition["tables"]:
-            self.tables[table_def["alias"]] = Table(
-                table_def["name"], table_def["alias"]
-            )
-            self.joins.append(
-                Join(
-                    self.tables[table_def["alias"]],
-                    left_on=Field(
-                        table_def["join"]["left_on"],
-                        self.tables[table_def["join"]["left_table"]],
-                    ),
-                    right_on=Field(
-                        table_def["join"]["right_on"], self.tables[table_def["alias"]]
-                    ),
-                )
-            )
-        for field in step_definition["fields"]:
-            self.fields.append(
-                Field(
-                    field["name"],
-                    self.tables[field["table"]],
-                    is_expression=field["is_expression"],
-                ),
-            )
-
-
 class ValidationWidget(qw.QWidget):
 
     return_to_validation = qc.Signal()
@@ -189,7 +200,7 @@ class ValidationWidget(qw.QWidget):
 
         # Will be overwritten by load_state, but set to default values here in case load_state does nothing
         self.init_state()
-        self.load_state()
+        # self.load_state()
 
         self.setup_layout()
 
@@ -208,11 +219,7 @@ class ValidationWidget(qw.QWidget):
 
         # The current step index
         self.current_step_id = 0
-        # The current step object (a representation of fields, tables, joins, etc. for the current step)
-        self.current_step = None
 
-        # The path to the method file
-        self.method_path = None
         # The method array (a list of steps, each step being a dict with fields, tables, joins, etc.)
         self.method = None
 
@@ -230,29 +237,42 @@ class ValidationWidget(qw.QWidget):
         self.is_finished = True
         self.title_label.setText("Validation terminée")
         self.description_text.text_edit.setText(
-            "Validation terminée. Les résultats peuvent être consultés en cliquant sur le bouton ci-dessous."
+            "Validation terminée.\nLes résultats sont présentés dans la table ci-contre.\nVous pouvez exporter les résultats vers Genno en cliquant sur le bouton ci-dessous."
         )
-        # Reached the end of the method, handle this case
-        self.query.conn.sql(
-            f"UPDATE validations SET last_step = {len(self.method)} WHERE table_uuid = '{self.validation_table_uuid}'"
-        )
-        self.next_step_button.setText("See validation results")
+
+        finish_validation(self.query.conn, self.validation_table_uuid, len(self.method))
+        show_finished_validation(self.query, self.validation_table_uuid)
+        self.next_step_button.setText("Export to Genno")
 
     def on_return_to_validation(self):
         self.init_state()
         self.return_to_validation.emit()
 
-    def display_results(self):
-        qw.QMessageBox.information(
-            self,
-            "Validation",
-            "Validation terminée, les résultats seront affichés dans un dialog.",
-        )
+    def export_csv(self):
+        user_prefs = load_user_prefs()
+        if "genno_export_folder" not in user_prefs:
+            qw.QMessageBox.warning(
+                self,
+                "Export",
+                "No export folder selected, please select one using the next dialog.",
+            )
+            genno_export_folder = qw.QFileDialog.getExistingDirectory(
+                self, "Choose Genno export folder"
+            )
+            if genno_export_folder:
+                save_user_prefs({"genno_export_folder": genno_export_folder})
+            else:
+                qw.QMessageBox.warning(
+                    self,
+                    "Export",
+                    "No export folder selected, aborting export.",
+                )
+                return
 
     def on_next_step_clicked(self):
-        # Show the final results (in the form of a dialog) if we reached the end of the method
+        # Export to genno
         if self.is_finished:
-            self.display_results()
+            self.export_csv()
             return
 
         # Increment the step index
@@ -265,7 +285,6 @@ class ValidationWidget(qw.QWidget):
             self.setup_step()
 
     def set_method_path(self, method_path: Path):
-        self.method_path = method_path
         with open(method_path, "r") as f:
             self.method = json.load(f)
 
@@ -283,28 +302,47 @@ class ValidationWidget(qw.QWidget):
             return
 
         step_definition = self.method[self.current_step_id]
-        self.query.mute()
+
+        self.title_label.setText(step_definition["title"])
+        self.description_text.text_edit.setText(step_definition["description"])
+
         self.query.set_main_files(self.validation_parquet_files)
-        self.query.set_table_validation_name(self.validation_name)
-        self.current_step = ValidationStep(self.query, step_definition)
 
-        self.title_label.setText(self.current_step.title)
-        self.description_text.text_edit.setText(self.current_step.description)
+        tables = {}
+        joins = {}
+        fields = []
 
-        # CLEAR JOINS
-        self.query.clear_additional_tables()
-        # ADD JOINS
-        for join in self.current_step.joins:
-            self.query.add_join(join)
+        tables["main_table"] = self.query.main_table
 
-        # CLEAR FIELDS
-        self.query.clear_fields()
-        # ADD FIELDS
-        for field in self.current_step.fields:
-            self.query.add_field(field)
+        for table_def in step_definition["tables"]:
+            tables[table_def["alias"]] = Table(table_def["name"], table_def["alias"])
+            joins[table_def["alias"]] = Join(
+                tables[table_def["alias"]],
+                left_on=Field(
+                    table_def["join"]["left_on"],
+                    tables[table_def["join"]["left_table"]],
+                ),
+                right_on=Field(
+                    table_def["join"]["right_on"], tables[table_def["alias"]]
+                ),
+            )
+
+        for field in step_definition["fields"]:
+            fields.append(
+                Field(
+                    field["name"],
+                    tables[field["table"]],
+                    is_expression=field["is_expression"],
+                ),
+            )
+
+        self.query.mute()
+        self.query.set_additional_tables(joins)
+        self.query.set_fields(fields)
 
         self.query.unmute()
         self.query.update()
+
         if not self.query.is_valid():
             print(self.query.to_do())
 
@@ -395,7 +433,9 @@ class ValidationWidgetContainer(qw.QWidget):
         self._layout.addWidget(self.multi_widget)
 
         qc.QCoreApplication.instance().aboutToQuit.connect(self.on_close)
-        self.load_previous_session()
+
+        # Don't load previous session for now
+        # self.load_previous_session()
 
         self.setLayout(self._layout)
 
@@ -425,6 +465,8 @@ class ValidationWidgetContainer(qw.QWidget):
 
     def on_return_to_validation(self):
         self.multi_widget.set_current_widget("welcome")
+        self.query.init_state()
+        self.query.update()
         self.validation_widget.init_state()
         self.validation_welcome_widget.model.update()
 
