@@ -30,25 +30,37 @@ class FilterType(Enum):
 
 
 class Table:
-    def __init__(self, name: str, alias: str, quoted=False) -> None:
+    def __init__(self, name: str, alias: str) -> None:
         self.name = name
         self.alias = alias
-        self.quoted = quoted
 
     def get_alias(self) -> str:
         return self.alias or self.name
 
     def __format__(self, format_spec: str) -> str:
-        if self.alias:
-            base = f"{self.name} {self.alias}"
+
+        # Use alias or name (a takes precedence over all other format specifiers)
+        if "a" in format_spec:
+            base = self.alias
         else:
             base = self.name
-        if format_spec == "q":
+
+        # Quote
+        if "q" in format_spec:
             base = f'"{base}"'
+
+        # Use in join clause
+        if "j" in format_spec:
+            base = f"{base} {self.alias}"
+
+        # Use in select clause
+        if "s" in format_spec:
+            base = f"{base} {self.alias}"
+
         return base
 
     def __str__(self) -> str:
-        return self.__format__("q" if self.quoted else "")
+        return self.__format__("")
 
 
 class Field:
@@ -61,31 +73,39 @@ class Field:
         self.is_expression = is_expression
 
     def __format__(self, format_spec: str) -> str:
-        if format_spec == "q":
-            if self.table:
-                base = f'"{self.table.get_alias()}"."{self.name}"'
-                if self.is_expression:
-                    base = base.format(table=self.table.get_alias())
-            else:
-                if self.is_expression:
-                    base = f"{self.name}"
-                else:
-                    base = f'"{self.name}"'
+        # Format spec can be s if the field is in a select clause, j if it's in a join clause, and w if it's in a where clause
 
+        if len(set("sjw").intersection(format_spec)) > 1:
+            raise ValueError("Format specifiers s, j, and w are mutually exclusive")
+
+        if self.is_expression:
+            return self.name.format(table=f"{self.table:a}" if self.table else "")
+
+        if "s" in format_spec:
+            base = self.name if "q" not in format_spec else f'"{self.name}"'
+            if self.table:
+                base = f"{self.table:qa}.{base}"
             if self.alias:
                 base = f"{base} AS {self.alias}"
 
-            return base
+        elif "j" in format_spec:
+            base = self.name if not self.alias else self.alias
+            base = f'"{base}"' if "q" in format_spec else base
+            if self.table:
+                base = f"{self.table:qa}.{base}"
+
+        elif "w" in format_spec:
+            base = self.name if not self.alias else self.alias
+            if self.is_expression:
+                base = base.format(table=f"{self.table:a}")
+            if self.table:
+                base = f"{self.table:qa}.{base}"
+
         else:
-            if self.table:
-                base = f"{self.table.get_alias()}.{self.name}"
-                if self.is_expression:
-                    base = base.format(table=self.table.get_alias())
-            else:
-                base = f"{self.name}"
-            if self.alias:
-                base = f"{base} AS {self.alias}"
-            return base
+            base = self.name if not self.alias else self.alias
+            if "q" in format_spec:
+                base = f'"{base}"'
+        return base
 
     def __str__(self) -> str:
         return self.__format__("")
@@ -95,7 +115,7 @@ class Field:
         return Field(
             "hash(concat_ws('-',main_table.chromosome,main_table.position,main_table.reference,main_table.alternate,main_table.snpeff_Feature_ID,main_table.sample_name))",
             alias="validation_hash",
-            is_expression=True,
+            is_expression=False,
         )
 
 
@@ -113,7 +133,9 @@ class Join:
         self.join_type = join_type
 
     def __str__(self):
-        return f"{self.join_type} {self.table} ON {self.left_on:q} = {self.right_on:q}"
+        return (
+            f"{self.join_type} {self.table:j} ON {self.left_on:qj} = {self.right_on:qj}"
+        )
 
 
 class FilterExpression:
@@ -203,12 +225,13 @@ class Select:
 
         joins = ""
         if self.joins:
-            joins = " ".join(map(str, self.joins))
+            joins = " ".join(map(lambda e: f"{e}", self.joins))
 
-        q = f"SELECT {', '.join(map(lambda f:f'{f:q}', self.fields))} FROM {self.main_table} {joins}{filt}{order} LIMIT {self.limit} OFFSET {self.offset}"
+        q = f"SELECT {', '.join(map(lambda f:f'{f:qsa}', self.fields))} FROM {self.main_table:s} {joins}{filt}{order} LIMIT {self.limit} OFFSET {self.offset}"
 
         if format_spec == "p":
             q = f"({q})"
+        print(q)
         return q
 
     def __str__(self):
@@ -449,7 +472,7 @@ class Query(qc.QObject):
         return str(q)
 
     def count_query(self):
-        field = Field("COUNT(*)", alias="count_star", is_expression=True)
+        field = Field("COUNT(*) AS count_star", is_expression=True)
 
         q = Select(
             fields=[field],
@@ -488,7 +511,8 @@ class Query(qc.QObject):
             self.blockSignals(False)
             # Now we can emit the signal: invalid query means no data
             self.query_changed.emit()
-            print(self.to_do())
+            if self.main_table:
+                print(self.main_table.name, self.main_table.alias)
             return
         # Running the query might throw an exception, we catch it and print it
         try:

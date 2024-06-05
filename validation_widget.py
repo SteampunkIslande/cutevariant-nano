@@ -44,9 +44,7 @@ def show_finished_validation(query: Query, table_uuid: str):
         validation = get_validation_from_table_uuid(query.conn, table_uuid)
 
         additional_tables = {}
-        additional_tables["validation_table"] = Table(
-            table_uuid, "validation_table", quoted=True
-        )
+        additional_tables["validation_table"] = Table(table_uuid, "validation_table")
 
         query.set_main_files(validation["parquet_files"])
 
@@ -60,13 +58,13 @@ def show_finished_validation(query: Query, table_uuid: str):
         query.set_fields(
             [
                 Field.validation_hash_field(),
-                Field("sample_name"),
-                Field("run_name"),
-                Field("chromosome"),
-                Field("position"),
-                Field("reference"),
-                Field("alternate"),
-                Field("snpeff_Gene_Name"),
+                Field("sample_name", query.main_table),
+                Field("run_name", query.main_table),
+                Field("chromosome", query.main_table),
+                Field("position", query.main_table),
+                Field("reference", query.main_table),
+                Field("alternate", query.main_table),
+                Field("snpeff_Gene_Name", query.main_table),
                 Field("accepted", additional_tables["validation_table"]),
                 Field("comment", additional_tables["validation_table"]),
                 Field("tags", additional_tables["validation_table"]),
