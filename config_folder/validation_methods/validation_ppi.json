@@ -6,6 +6,7 @@
 			{
 				"name": "'aggregates/variants.parquet'",
 				"alias": "agg",
+				"quoted": false,
 				"join": {
 					"left_table": "main_table",
 					"left_on": "variant_hash",

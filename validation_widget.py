@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from typing import List
 
 import duckdb as db
 import PySide6.QtCore as qc
@@ -44,7 +45,9 @@ def show_finished_validation(query: Query, table_uuid: str):
         validation = get_validation_from_table_uuid(query.conn, table_uuid)
 
         additional_tables = {}
-        additional_tables["validation_table"] = Table(table_uuid, "validation_table")
+        additional_tables["validation_table"] = Table(
+            table_uuid, "validation_table", quoted=True
+        )
 
         query.set_main_files(validation["parquet_files"])
 
@@ -299,7 +302,7 @@ class ValidationWidget(qw.QWidget):
         ):
             return
 
-        step_definition = self.method[self.current_step_id]
+        step_definition: List[dict] = self.method[self.current_step_id]
 
         self.title_label.setText(step_definition["title"])
         self.description_text.text_edit.setText(step_definition["description"])
@@ -313,7 +316,11 @@ class ValidationWidget(qw.QWidget):
         tables["main_table"] = self.query.main_table
 
         for table_def in step_definition["tables"]:
-            tables[table_def["alias"]] = Table(table_def["name"], table_def["alias"])
+            tables[table_def["alias"]] = Table(
+                table_def["name"],
+                table_def["alias"],
+                quoted=table_def.get("quoted", False),
+            )
             joins[table_def["alias"]] = Join(
                 tables[table_def["alias"]],
                 left_on=Field(

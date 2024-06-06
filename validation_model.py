@@ -24,7 +24,7 @@ def initialize_database(database: Path):
 
     # If the database already exists, we shouldn't initialize it
     if database.exists():
-        return
+        return db.connect(str(database))
     conn = db.connect(str(database))
     conn.sql(
         "CREATE TABLE validations (parquet_files TEXT[], sample_names TEXT[], username TEXT, validation_name TEXT, table_uuid TEXT, creation_date DATETIME, completed BOOLEAN, last_step INTEGER, validation_method TEXT)"
@@ -51,7 +51,7 @@ def add_validation_table(
             f"INSERT INTO validations VALUES ({duck_db_literal_string_list(parquet_files)}, {duck_db_literal_string_list(sample_names)}, '{username}', '{validation_name}', '{table_uuid}', NOW(), FALSE, 0, '{validation_method}')"
         )
         conn.sql(
-            f"CREATE TABLE '{table_uuid}' (validation_hash BIGINT,sample_name TEXT, main_table TEXT[], annotation_file TEXT, accepted BOOLEAN, comment COMMENT[], tags TEXT[])"
+            f"CREATE TABLE '{table_uuid}' (validation_hash BIGINT,sample_name TEXT,run_name TEXT,transcript_ID TEXT,accepted BOOLEAN,comment COMMENT[], tags TEXT[])"
         )
     except db.Error as e:
         print(e)
@@ -81,7 +81,9 @@ class ValidationModel(qc.QAbstractTableModel):
 
         self.query.query_changed.connect(self.on_datalake_changed)
         if self.query.datalake_path:
-            initialize_database(Path(self.query.datalake_path) / "validation.db")
+            self.query.conn = initialize_database(
+                Path(self.query.datalake_path) / "validation.db"
+            )
             self.update()
 
     def data(self, index: qc.QModelIndex, role: int) -> str | None:
@@ -164,5 +166,9 @@ class ValidationModel(qc.QAbstractTableModel):
         self.endResetModel()
 
     def on_datalake_changed(self):
-        initialize_database(Path(self.query.datalake_path) / "validation.db")
+        if not self.query.datalake_path:
+            return
+        self.query.conn = initialize_database(
+            Path(self.query.datalake_path) / "validation.db"
+        )
         self.update()

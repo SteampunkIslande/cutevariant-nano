@@ -30,9 +30,10 @@ class FilterType(Enum):
 
 
 class Table:
-    def __init__(self, name: str, alias: str) -> None:
+    def __init__(self, name: str, alias: str, quoted=False) -> None:
         self.name = name
         self.alias = alias
+        self.quoted = quoted
 
     def get_alias(self) -> str:
         return self.alias or self.name
@@ -45,8 +46,7 @@ class Table:
         else:
             base = self.name
 
-        # Quote
-        if "q" in format_spec:
+        if self.quoted:
             base = f'"{base}"'
 
         # Use in join clause
@@ -79,7 +79,9 @@ class Field:
             raise ValueError("Format specifiers s, j, and w are mutually exclusive")
 
         if self.is_expression:
-            return self.name.format(table=f"{self.table:a}" if self.table else "")
+            base = self.name.format(table=f"{self.table:a}" if self.table else "")
+            if "a" in format_spec and self.alias:
+                return f"{base} AS {self.alias}"
 
         if "s" in format_spec:
             base = self.name if "q" not in format_spec else f'"{self.name}"'
@@ -115,7 +117,7 @@ class Field:
         return Field(
             "hash(concat_ws('-',main_table.chromosome,main_table.position,main_table.reference,main_table.alternate,main_table.snpeff_Feature_ID,main_table.sample_name))",
             alias="validation_hash",
-            is_expression=False,
+            is_expression=True,
         )
 
 
@@ -133,9 +135,7 @@ class Join:
         self.join_type = join_type
 
     def __str__(self):
-        return (
-            f"{self.join_type} {self.table:j} ON {self.left_on:qj} = {self.right_on:qj}"
-        )
+        return f"{self.join_type} {self.table:qj} ON {self.left_on:qj} = {self.right_on:qj}"
 
 
 class FilterExpression:
@@ -422,7 +422,9 @@ class Query(qc.QObject):
         if not files:
             return self
         self.main_table = Table(
-            f"read_parquet({duck_db_literal_string_list(files)})", "main_table"
+            f"read_parquet({duck_db_literal_string_list(files)})",
+            "main_table",
+            quoted=False,
         )
         self.from_changed.emit()
         return self
@@ -472,7 +474,7 @@ class Query(qc.QObject):
         return str(q)
 
     def count_query(self):
-        field = Field("COUNT(*) AS count_star", is_expression=True)
+        field = Field("COUNT(*)", alias="count_star", is_expression=True)
 
         q = Select(
             fields=[field],
@@ -511,8 +513,6 @@ class Query(qc.QObject):
             self.blockSignals(False)
             # Now we can emit the signal: invalid query means no data
             self.query_changed.emit()
-            if self.main_table:
-                print(self.main_table.name, self.main_table.alias)
             return
         # Running the query might throw an exception, we catch it and print it
         try:
@@ -556,9 +556,10 @@ class Query(qc.QObject):
         return self
 
     def set_datalake_path(self, path: str):
+        if not os.path.isdir(path):
+            return self
         os.chdir(path)
         self.datalake_path = path
-        self.conn = db.connect(os.path.join(path, "validation.db"))
         self.query_changed.emit()
         return self
 
