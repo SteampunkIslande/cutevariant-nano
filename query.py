@@ -112,14 +112,6 @@ class Field:
     def __str__(self) -> str:
         return self.__format__("")
 
-    @staticmethod
-    def validation_hash_field() -> "Field":
-        return Field(
-            "hash(concat_ws('-',main_table.chromosome,main_table.position,main_table.reference,main_table.alternate,main_table.snpeff_Feature_ID,main_table.sample_name))",
-            alias="validation_hash",
-            is_expression=True,
-        )
-
 
 class Join:
     def __init__(

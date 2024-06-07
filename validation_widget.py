@@ -54,13 +54,13 @@ def show_finished_validation(query: Query, table_uuid: str):
         query.add_table(
             "validation_table",
             additional_tables["validation_table"],
-            Field.validation_hash_field(),
+            Field("validation_hash", query.main_table),
             Field("validation_hash", additional_tables["validation_table"]),
         )
 
         query.set_fields(
             [
-                Field.validation_hash_field(),
+                Field("validation_hash", query.main_table),
                 Field("sample_name", query.main_table),
                 Field("run_name", query.main_table),
                 Field("chromosome", query.main_table),
