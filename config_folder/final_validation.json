@@ -1,0 +1,71 @@
+{
+    "tables": [
+        {
+            "name": "'aggregates/variants.parquet'",
+            "alias": "agg",
+            "quoted": false,
+            "join": {
+                "left_table": "main_table",
+                "left_on": "variant_hash",
+                "right_on": "variant_hash"
+            }
+        }
+    ],
+    "fields": [
+        {
+            "name": "reference_genome",
+            "value": "'hg19'",
+            "is_expression": true
+        },
+        {
+            "name": "run_name",
+            "table": "main_table",
+            "is_expression": false
+        },
+        {
+            "name": "chromosome",
+            "table": "main_table",
+            "is_expression": false
+        },
+        {
+            "name": "position",
+            "table": "main_table",
+            "is_expression": false
+        },
+        {
+            "name": "reference",
+            "table": "main_table",
+            "is_expression": false
+        },
+        {
+            "name": "alternate",
+            "table": "main_table",
+            "is_expression": false
+        },
+        {
+            "name": "snpeff_Annotation_Impact",
+            "table": "main_table",
+            "is_expression": false
+        },
+        {
+            "name": "ref_count",
+            "table": "agg",
+            "is_expression": false
+        },
+        {
+            "name": "var_count",
+            "table": "agg",
+            "is_expression": false
+        }
+    ],
+    "filters": {
+        "$and": [
+            {
+                "expression": "(agg.var_count / agg.total_count) < 0.01"
+            },
+            {
+                "expression": "main_table.snpeff_Annotation_Impact IN ('HIGH','MODERATE')"
+            }
+        ]
+    }
+}

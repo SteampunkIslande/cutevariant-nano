@@ -1,7 +1,7 @@
 [
 	{
 		"title": "Etape 1",
-		"description": "Première étape de la validation: Ici, vous voyez les variants annotés avec un impact HIGH et MODIFIER.\nEt qu'est-ce que vous voyez? Vous voyez le nombre de variants par chromosome, position, référence et allèle alternatif.\nVous pouvez voir le nombre de variants par chromosome, position, référence et allèle alternatif. Un texte encore plus long juste pour tester la taille de la description.",
+		"description": "Première étape de la validation.\nLes filtres appliqués montrent uniquement les variants dont la fréquence allélique en population générale est inférieure à 1%.",
 		"tables": [
 			{
 				"name": "'aggregates/variants.parquet'",
@@ -17,6 +17,21 @@
 		"fields": [
 			{
 				"name": "run_name",
+				"table": "main_table",
+				"is_expression": false
+			},
+			{
+				"name": "sample_name",
+				"table": "main_table",
+				"is_expression": false
+			},
+			{
+				"name": "snpeff_Gene_Name",
+				"table": "main_table",
+				"is_expression": false
+			},
+			{
+				"name": "snpeff_Feature_ID",
 				"table": "main_table",
 				"is_expression": false
 			},
@@ -41,6 +56,21 @@
 				"is_expression": false
 			},
 			{
+				"name": "cv_AF",
+				"table": "main_table",
+				"is_expression": false
+			},
+			{
+				"name": "snpeff_Annotation",
+				"table": "main_table",
+				"is_expression": false
+			},
+			{
+				"name": "cv_GT",
+				"table": "main_table",
+				"is_expression": false
+			},
+			{
 				"name": "snpeff_Annotation_Impact",
 				"table": "main_table",
 				"is_expression": false
@@ -54,6 +84,22 @@
 				"name": "var_count",
 				"table": "agg",
 				"is_expression": false
+			}
+		],
+		"filters": {
+			"$and": [
+				{
+					"expression": "(agg.var_count / agg.total_count) < 0.01"
+				},
+				{
+					"expression": "main_table.snpeff_Annotation_Impact IN ('HIGH','MODERATE')"
+				}
+			]
+		},
+		"order": [
+			{
+				"field": "agg.total_count",
+				"direction": "desc"
 			}
 		]
 	}
