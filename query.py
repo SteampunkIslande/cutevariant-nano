@@ -73,7 +73,7 @@ class Field:
         self.is_expression = is_expression
 
     def __format__(self, format_spec: str) -> str:
-        # Format spec can be s if the field is in a select clause, j if it's in a join clause, and w if it's in a where clause
+        # Format spec can be s if the field is used in a select clause, j if it's used in a join clause, and w if it's used in a where clause (or an on clause)
 
         if len(set("sjw").intersection(format_spec)) > 1:
             raise ValueError("Format specifiers s, j, and w are mutually exclusive")
