@@ -6,7 +6,7 @@ import duckdb as db
 import PySide6.QtCore as qc
 
 from commons import duck_db_literal_string_list
-from query import Query
+from query import DataLake
 
 VALIDATION_TABLE_COLUMNS = {
     "parquet_files": 0,
@@ -73,16 +73,16 @@ def get_validation_from_table_uuid(
 
 class ValidationModel(qc.QAbstractTableModel):
 
-    def __init__(self, query: Query, parent: qc.QObject | None = ...) -> None:
+    def __init__(self, datalake: DataLake, parent: qc.QObject | None = ...) -> None:
         super().__init__(parent)
-        self.query = query
+        self.datalake = datalake
         self.headers = []
         self._data = []
 
-        self.query.query_changed.connect(self.on_datalake_changed)
-        if self.query.datalake_path:
-            self.query.conn = initialize_database(
-                Path(self.query.datalake_path) / "validation.db"
+        self.datalake.query_changed.connect(self.on_datalake_changed)
+        if self.datalake.datalake_path:
+            self.datalake.conn = initialize_database(
+                Path(self.datalake.datalake_path) / "validation.db"
             )
             self.update()
 
@@ -138,9 +138,9 @@ class ValidationModel(qc.QAbstractTableModel):
         sample_names: List[str],
         validation_method: str,
     ):
-        if self.query.conn:
+        if self.datalake.conn:
             add_validation_table(
-                self.query.conn,
+                self.datalake.conn,
                 validation_name,
                 username,
                 parquet_files,
@@ -151,24 +151,20 @@ class ValidationModel(qc.QAbstractTableModel):
         else:
             print("No connection to database")
 
-    def set_query(self, query: Query):
-        self.query = query
-        self.update()
-
     def update(self) -> None:
         self.beginResetModel()
         self.headers = []
         self._data = []
-        if self.query.conn:
-            query_res = self.query.conn.sql("SELECT * FROM validations").pl()
+        if self.datalake.conn:
+            query_res = self.datalake.conn.sql("SELECT * FROM validations").pl()
             self.headers = query_res.columns
             self._data = [tuple(v for v in d.values()) for d in query_res.to_dicts()]
         self.endResetModel()
 
     def on_datalake_changed(self):
-        if not self.query.datalake_path:
+        if not self.datalake.datalake_path:
             return
-        self.query.conn = initialize_database(
-            Path(self.query.datalake_path) / "validation.db"
+        self.datalake.conn = initialize_database(
+            Path(self.datalake.datalake_path) / "validation.db"
         )
         self.update()

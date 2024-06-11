@@ -17,11 +17,12 @@ from commons import (
     load_user_prefs,
     save_user_prefs,
 )
-from query import Field, Join, Query, Table
+from query import DataLake, Query
 from validation_model import (
     VALIDATION_TABLE_COLUMNS,
     ValidationModel,
     get_validation_from_table_uuid,
+    initialize_database,
 )
 
 
@@ -36,57 +37,27 @@ def finish_validation(conn: db.DuckDBPyConnection, table_uuid: str, step_count: 
 
 def show_finished_validation(query: Query, table_uuid: str):
 
-    if query and query.conn and table_uuid:
+    if query and table_uuid:
 
-        query.mute()
-        # Reset everything
-        query.init_state()
+        db_path = (Path(query.datalake_path) / "validation.db").resolve()
+        conn = initialize_database(db_path)
 
-        validation = get_validation_from_table_uuid(query.conn, table_uuid)
-
-        additional_tables = {}
-        additional_tables["validation_table"] = Table(
-            table_uuid, "validation_table", quoted=True
-        )
-
-        query.set_main_files(validation["parquet_files"])
-
-        query.add_table(
-            "validation_table",
-            additional_tables["validation_table"],
-            Field("validation_hash", query.main_table),
-            Field("validation_hash", additional_tables["validation_table"]),
-        )
-
-        query.set_fields(
-            [
-                Field("validation_hash", query.main_table),
-                Field("sample_name", query.main_table),
-                Field("run_name", query.main_table),
-                Field("chromosome", query.main_table),
-                Field("position", query.main_table),
-                Field("reference", query.main_table),
-                Field("alternate", query.main_table),
-                Field("snpeff_Gene_Name", query.main_table),
-                Field("accepted", additional_tables["validation_table"]),
-                Field("comment", additional_tables["validation_table"]),
-                Field("tags", additional_tables["validation_table"]),
-            ]
-        )
-        query.unmute()
-        query.update()
+        validation = get_validation_from_table_uuid(conn, table_uuid)
+        if not validation:
+            return
+        query.update_data()
 
 
 class ValidationWelcomeWidget(qw.QWidget):
 
     validation_start = qc.Signal()
 
-    def __init__(self, query: Query, parent=None):
+    def __init__(self, datalake: Query, parent=None):
         super().__init__(parent)
-        self.query = query
-        self.model = ValidationModel(self.query, self)
+        self.datalake = datalake
+        self.model = ValidationModel(self.datalake, self)
 
-        self.query.query_changed.connect(self.on_query_changed)
+        self.datalake.query_changed.connect(self.on_query_changed)
 
         self._layout = qw.QVBoxLayout(self)
 
@@ -96,10 +67,10 @@ class ValidationWelcomeWidget(qw.QWidget):
         self.start_validation_button = qw.QPushButton("Start Validation", self)
         self.start_validation_button.clicked.connect(self.on_start_validation_clicked)
 
-        if not self.query:
+        if not self.datalake:
             self.new_validation_button.setEnabled(False)
             self.start_validation_button.setEnabled(False)
-        if not self.query.datalake_path:
+        if not self.datalake.datalake_path:
             self.new_validation_button.setEnabled(False)
             self.start_validation_button.setEnabled(False)
 
@@ -112,7 +83,7 @@ class ValidationWelcomeWidget(qw.QWidget):
         self.table.view.hideColumn(VALIDATION_TABLE_COLUMNS["table_uuid"])
 
     def on_new_validation_clicked(self):
-        if not self.query:
+        if not self.datalake:
             return
         username = Path.home().name
         userprefs = load_user_prefs()
@@ -164,7 +135,7 @@ class ValidationWelcomeWidget(qw.QWidget):
     def on_query_changed(self):
         self.model.update()
         self.hide_unwanted_columns()
-        if self.query and self.query.datalake_path:
+        if self.datalake and self.datalake.datalake_path:
             self.new_validation_button.setEnabled(True)
             self.start_validation_button.setEnabled(True)
 
@@ -179,9 +150,9 @@ class ValidationWidget(qw.QWidget):
 
     return_to_validation = qc.Signal()
 
-    def __init__(self, query: Query, parent=None):
+    def __init__(self, datalake: Query, parent=None):
         super().__init__(parent)
-        self.query = query
+        self.datalake = datalake
 
         self._layout = qw.QVBoxLayout(self)
 
@@ -241,8 +212,10 @@ class ValidationWidget(qw.QWidget):
             "Validation terminée.\nLes résultats sont présentés dans la table ci-contre.\nVous pouvez exporter les résultats vers Genno en cliquant sur le bouton ci-dessous."
         )
 
-        finish_validation(self.query.conn, self.validation_table_uuid, len(self.method))
-        show_finished_validation(self.query, self.validation_table_uuid)
+        finish_validation(
+            self.datalake.conn, self.validation_table_uuid, len(self.method)
+        )
+        show_finished_validation(self.datalake, self.validation_table_uuid)
         self.next_step_button.setText("Export to Genno")
 
     def on_return_to_validation(self):
@@ -295,8 +268,8 @@ class ValidationWidget(qw.QWidget):
             not self.validation_name
             or not self.validation_parquet_files
             or not self.method
-            or not self.query
-            or not self.query.conn
+            or not self.datalake
+            or not self.datalake.conn
             or self.current_step_id >= len(self.method)
             or self.current_step_id < 0
         ):
@@ -307,52 +280,18 @@ class ValidationWidget(qw.QWidget):
         self.title_label.setText(step_definition["title"])
         self.description_text.text_edit.setText(step_definition["description"])
 
-        self.query.set_main_files(self.validation_parquet_files)
+        self.datalake.set_main_files(self.validation_parquet_files)
 
-        tables = {}
-        joins = {}
-        fields = []
+        self.datalake.mute()
 
-        tables["main_table"] = self.query.main_table
+        self.datalake.unmute()
+        self.datalake.update_data()
 
-        for table_def in step_definition["tables"]:
-            tables[table_def["alias"]] = Table(
-                table_def["name"],
-                table_def["alias"],
-                quoted=table_def.get("quoted", False),
-            )
-            joins[table_def["alias"]] = Join(
-                tables[table_def["alias"]],
-                left_on=Field(
-                    table_def["join"]["left_on"],
-                    tables[table_def["join"]["left_table"]],
-                ),
-                right_on=Field(
-                    table_def["join"]["right_on"], tables[table_def["alias"]]
-                ),
-            )
-
-        for field in step_definition["fields"]:
-            fields.append(
-                Field(
-                    field["name"],
-                    tables[field["table"]],
-                    is_expression=field["is_expression"],
-                ),
-            )
-
-        self.query.mute()
-        self.query.set_additional_tables(joins)
-        self.query.set_fields(fields)
-
-        self.query.unmute()
-        self.query.update()
-
-        if not self.query.is_valid():
-            print(self.query.to_do())
+        if not self.datalake.is_valid():
+            print(self.datalake.to_do())
 
     def start_validation(self, selected_validation: dict):
-        if not self.query or not self.query.conn:
+        if not self.datalake or not self.datalake.conn:
             return
 
         self.validation_name = selected_validation["validation_name"]
@@ -375,7 +314,7 @@ class ValidationWidget(qw.QWidget):
         )
         try:
             self.current_step_id = (
-                self.query.conn.sql(
+                self.datalake.conn.sql(
                     f"SELECT last_step FROM validations WHERE table_uuid = '{self.validation_table_uuid}'"
                 )
                 .pl()
@@ -400,10 +339,10 @@ class ValidationWidget(qw.QWidget):
         userprefs = load_user_prefs()
         if "last_validation_table_uuid" in userprefs:
             self.validation_table_uuid = userprefs["last_validation_table_uuid"]
-            if self.validation_table_uuid is not None and self.query.conn:
+            if self.validation_table_uuid is not None and self.datalake.conn:
                 self.start_validation(
                     get_validation_from_table_uuid(
-                        self.query.conn, self.validation_table_uuid
+                        self.datalake.conn, self.validation_table_uuid
                     )
                 )
             else:
@@ -413,18 +352,22 @@ class ValidationWidget(qw.QWidget):
 
 class ValidationWidgetContainer(qw.QWidget):
 
-    def __init__(self, query: Query, parent=None):
+    def __init__(self, datalake: DataLake, parent=None):
         super().__init__(parent)
-        self.query = query
+        self.datalake = datalake
+
+        self.validation_query = self.datalake.get_query("validation")
 
         self._layout = qw.QVBoxLayout(self)
 
-        self.validation_welcome_widget = ValidationWelcomeWidget(self.query, self)
+        self.validation_welcome_widget = ValidationWelcomeWidget(
+            self.validation_query, self
+        )
         self.validation_welcome_widget.validation_start.connect(
             self.on_validation_start
         )
 
-        self.validation_widget = ValidationWidget(self.query, self)
+        self.validation_widget = ValidationWidget(self.validation_query, self)
         self.validation_widget.return_to_validation.connect(
             self.on_return_to_validation
         )
@@ -470,8 +413,6 @@ class ValidationWidgetContainer(qw.QWidget):
 
     def on_return_to_validation(self):
         self.multi_widget.set_current_widget("welcome")
-        self.query.init_state()
-        self.query.update()
         self.validation_widget.init_state()
         self.validation_welcome_widget.model.update()
 

@@ -9,7 +9,7 @@ import PySide6.QtWidgets as qw
 
 from commons import get_user_prefs_file, load_user_prefs, save_user_prefs
 from inspector import Inspector
-from query import Query
+from query import DataLake
 from query_table_widget import QueryTableWidget
 
 
@@ -18,13 +18,10 @@ class MainWindow(qw.QMainWindow):
     def __init__(self):
         super().__init__()
 
-        # Avoid creating a new query if we already have one
         self.load_previous_session()
 
-        self.query_table_widget = QueryTableWidget(self.query)
-        self.inspector = Inspector(self.query)
-
-        self.database = None
+        self.query_table_widget = QueryTableWidget(self.datalake)
+        self.inspector = Inspector(self.datalake)
 
         self.main_widget = qw.QSplitter(qc.Qt.Orientation.Horizontal)
         self.main_widget.addWidget(self.inspector)
@@ -37,22 +34,23 @@ class MainWindow(qw.QMainWindow):
         self.file_menu = self.menu.addMenu("File")
         self.file_menu.addAction("Open datalake", self.open_datalake)
 
-        self.query.update()
+        self.validation_query = self.datalake.get_query("validation")
+        self.validation_query.query_changed.connect(self.on_query_changed)
+        self.on_query_changed()
 
     def load_previous_session(self):
         prefs = self.get_user_prefs()
         if "last_query" not in prefs:
-            self.query = Query()
+            self.datalake = DataLake()
         else:
-            self.query = Query.load(Path(prefs["last_query"]))
-        self.query.query_changed.connect(self.on_query_changed)
+            self.datalake = DataLake.load(Path(prefs["last_query"]))
 
     def closeEvent(self, event: qg.QCloseEvent):
         user_prefs_folder = get_user_prefs_file().parent
         user_prefs_folder.mkdir(parents=True, exist_ok=True)
 
         # Save last query
-        self.query.save(user_prefs_folder / "last_query.pickle")
+        self.datalake.save(user_prefs_folder / "last_query.pickle")
         self.save_user_prefs(
             {"last_query": str(user_prefs_folder / "last_query.pickle")}
         )
@@ -60,7 +58,7 @@ class MainWindow(qw.QMainWindow):
 
     def on_query_changed(self):
         self.setWindowTitle(
-            f"ParquetViewer - {self.query.get_table_validation_name() or 'No validation table selected'}"
+            f"ParquetViewer - {self.validation_query.get_editable_table_name() or 'No validation table selected'}"
         )
 
     def save_user_prefs(self, prefs: dict):
@@ -82,7 +80,7 @@ class MainWindow(qw.QMainWindow):
             self.save_user_prefs({"last_datalake": datalake_folder})
         if not datalake_folder:
             return
-        self.query.set_datalake_path(datalake_folder)
+        self.datalake.set_datalake_path(datalake_folder)
 
 
 if __name__ == "__main__":

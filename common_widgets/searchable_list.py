@@ -25,8 +25,6 @@ class SearchableList(qw.QWidget):
         self.view = qw.QListView()
         self.view.setModel(self.proxy_model)
 
-        self.view.setSelectionMode(qw.QAbstractItemView.SelectionMode.NoSelection)
-
         self.filter_le = qw.QLineEdit()
         self.filter_le.setPlaceholderText("Filter list...")
 

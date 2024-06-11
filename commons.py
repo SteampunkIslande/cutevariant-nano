@@ -67,7 +67,7 @@ def table_exists(conn: db.DuckDBPyConnection, table_name: str) -> bool:
     try:
         conn.table(table_name)
         return True
-    except db.CatalogException as e:
+    except db.CatalogException:
         return False
 
 

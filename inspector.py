@@ -2,18 +2,18 @@ import PySide6.QtCore as qc
 import PySide6.QtWidgets as qw
 
 from commons import load_user_prefs, save_user_prefs
-from query import Query
+from query import DataLake
 from validation_widget import ValidationWidgetContainer
 
 
 class Inspector(qw.QWidget):
 
-    def __init__(self, query: Query, parent=None):
+    def __init__(self, datalake: DataLake, parent=None):
         super().__init__(parent)
 
         self._layout = qw.QVBoxLayout()
 
-        self.query = query
+        self.datalake = datalake
 
         self.main_widget = qw.QTabWidget()
         self._layout.addWidget(self.main_widget)
@@ -27,7 +27,7 @@ class Inspector(qw.QWidget):
         self.setup()
 
     def setup(self):
-        self.validation_widget = ValidationWidgetContainer(self.query)
+        self.validation_widget = ValidationWidgetContainer(self.datalake)
         self.main_widget.addTab(self.validation_widget, "Validation")
         self.tabs["validation"] = self.validation_widget
 
