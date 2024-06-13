@@ -6,7 +6,7 @@ import duckdb as db
 import PySide6.QtCore as qc
 
 from commons import duck_db_literal_string_list
-from query import DataLake
+from datalake import DataLake, get_database
 
 VALIDATION_TABLE_COLUMNS = {
     "parquet_files": 0,
@@ -18,21 +18,6 @@ VALIDATION_TABLE_COLUMNS = {
     "completed": 6,
     "last_step": 7,
 }
-
-
-def initialize_database(database: Path):
-
-    # If the database already exists, we shouldn't initialize it
-    if database.exists():
-        return db.connect(str(database))
-    conn = db.connect(str(database))
-    conn.sql(
-        "CREATE TABLE validations (parquet_files TEXT[], sample_names TEXT[], username TEXT, validation_name TEXT, table_uuid TEXT, creation_date DATETIME, completed BOOLEAN, last_step INTEGER, validation_method TEXT)"
-    )
-    conn.sql(
-        "CREATE TYPE COMMENT AS STRUCT(comment TEXT, username TEXT, creation_timestamp TIMESTAMP)"
-    )
-    return conn
 
 
 def add_validation_table(
@@ -71,6 +56,16 @@ def get_validation_from_table_uuid(
     )
 
 
+def get_validation_name_from_table_uuid(conn: db.DuckDBPyConnection, table_uuid: str):
+    return (
+        conn.sql(
+            f"SELECT validation_name FROM validations WHERE table_uuid = '{table_uuid}'"
+        )
+        .pl()
+        .to_dicts()[0]["validation_name"]
+    )
+
+
 class ValidationModel(qc.QAbstractTableModel):
 
     def __init__(self, datalake: DataLake, parent: qc.QObject | None = ...) -> None:
@@ -79,11 +74,8 @@ class ValidationModel(qc.QAbstractTableModel):
         self.headers = []
         self._data = []
 
-        self.datalake.query_changed.connect(self.on_datalake_changed)
+        self.datalake.folder_changed.connect(self.update)
         if self.datalake.datalake_path:
-            self.datalake.conn = initialize_database(
-                Path(self.datalake.datalake_path) / "validation.db"
-            )
             self.update()
 
     def data(self, index: qc.QModelIndex, role: int) -> str | None:
@@ -138,9 +130,10 @@ class ValidationModel(qc.QAbstractTableModel):
         sample_names: List[str],
         validation_method: str,
     ):
-        if self.datalake.conn:
+        if self.datalake.datalake_path:
+            conn = get_database(Path(self.datalake.datalake_path) / "validation.db")
             add_validation_table(
-                self.datalake.conn,
+                conn,
                 validation_name,
                 username,
                 parquet_files,
@@ -148,6 +141,7 @@ class ValidationModel(qc.QAbstractTableModel):
                 validation_method,
             )
             self.update()
+            conn.close()
         else:
             print("No connection to database")
 
@@ -155,16 +149,9 @@ class ValidationModel(qc.QAbstractTableModel):
         self.beginResetModel()
         self.headers = []
         self._data = []
-        if self.datalake.conn:
-            query_res = self.datalake.conn.sql("SELECT * FROM validations").pl()
-            self.headers = query_res.columns
-            self._data = [tuple(v for v in d.values()) for d in query_res.to_dicts()]
+        conn = get_database(Path(self.datalake.datalake_path) / "validation.db")
+        query_res = conn.sql("SELECT * FROM validations").pl()
+        self.headers = query_res.columns
+        self._data = [tuple(v for v in d.values()) for d in query_res.to_dicts()]
         self.endResetModel()
-
-    def on_datalake_changed(self):
-        if not self.datalake.datalake_path:
-            return
-        self.datalake.conn = initialize_database(
-            Path(self.datalake.datalake_path) / "validation.db"
-        )
-        self.update()
+        conn.close()

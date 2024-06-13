@@ -57,6 +57,7 @@ def save_user_prefs(prefs: dict):
 def load_user_prefs():
     user_prefs = get_user_prefs_file()
     prefs = {}
+    print(user_prefs)
     if user_prefs.exists():
         with open(user_prefs, "r") as f:
             prefs = json.load(f)

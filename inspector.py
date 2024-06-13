@@ -2,7 +2,7 @@ import PySide6.QtCore as qc
 import PySide6.QtWidgets as qw
 
 from commons import load_user_prefs, save_user_prefs
-from query import DataLake
+from datalake import DataLake
 from validation_widget import ValidationWidgetContainer
 
 

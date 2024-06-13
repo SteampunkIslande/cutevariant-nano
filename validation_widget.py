@@ -7,6 +7,7 @@ import PySide6.QtCore as qc
 import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
 
+from common_widgets.any_widget_dialog import AnyWidgetDialog
 from common_widgets.multiline_display import MultiLineDisplay
 from common_widgets.multiwidget_holder import MultiWidgetHolder
 from common_widgets.searchable_table import SearchableTable
@@ -17,12 +18,11 @@ from commons import (
     load_user_prefs,
     save_user_prefs,
 )
-from query import DataLake, Query
+from datalake import DataLake, get_database
 from validation_model import (
     VALIDATION_TABLE_COLUMNS,
     ValidationModel,
     get_validation_from_table_uuid,
-    initialize_database,
 )
 
 
@@ -35,29 +35,25 @@ def finish_validation(conn: db.DuckDBPyConnection, table_uuid: str, step_count: 
     )
 
 
-def show_finished_validation(query: Query, table_uuid: str):
+def show_finished_validation(full_database_path: Path, table_uuid: str):
 
-    if query and table_uuid:
-
-        db_path = (Path(query.datalake_path) / "validation.db").resolve()
-        conn = initialize_database(db_path)
+    if full_database_path.exists() and table_uuid:
+        conn = get_database(full_database_path)
 
         validation = get_validation_from_table_uuid(conn, table_uuid)
         if not validation:
             return
-        query.update_data()
 
 
 class ValidationWelcomeWidget(qw.QWidget):
 
     validation_start = qc.Signal()
 
-    def __init__(self, datalake: Query, parent=None):
+    def __init__(self, datalake: DataLake, parent=None):
         super().__init__(parent)
         self.datalake = datalake
         self.model = ValidationModel(self.datalake, self)
-
-        self.datalake.query_changed.connect(self.on_query_changed)
+        self.query = self.datalake.get_query("validation")
 
         self._layout = qw.QVBoxLayout(self)
 
@@ -67,12 +63,11 @@ class ValidationWelcomeWidget(qw.QWidget):
         self.start_validation_button = qw.QPushButton("Start Validation", self)
         self.start_validation_button.clicked.connect(self.on_start_validation_clicked)
 
-        if not self.datalake:
-            self.new_validation_button.setEnabled(False)
-            self.start_validation_button.setEnabled(False)
         if not self.datalake.datalake_path:
             self.new_validation_button.setEnabled(False)
             self.start_validation_button.setEnabled(False)
+
+        self.datalake.folder_changed.connect(self.on_datalake_changed)
 
         self.table = SearchableTable(self.model, parent=self)
         self.hide_unwanted_columns()
@@ -102,7 +97,7 @@ class ValidationWelcomeWidget(qw.QWidget):
             else:
                 return
 
-        wizard = ValidationWizard(self, self)
+        wizard = ValidationWizard(self.datalake, self)
         if wizard.exec() == qw.QDialog.DialogCode.Accepted:
             file_names = wizard.data["file_names"]
             sample_names = wizard.data["sample_names"]
@@ -132,7 +127,7 @@ class ValidationWelcomeWidget(qw.QWidget):
         self._layout.addWidget(self.start_validation_button)
         self.setLayout(self._layout)
 
-    def on_query_changed(self):
+    def on_datalake_changed(self):
         self.model.update()
         self.hide_unwanted_columns()
         if self.datalake and self.datalake.datalake_path:
@@ -150,9 +145,10 @@ class ValidationWidget(qw.QWidget):
 
     return_to_validation = qc.Signal()
 
-    def __init__(self, datalake: Query, parent=None):
+    def __init__(self, datalake: DataLake, parent=None):
         super().__init__(parent)
         self.datalake = datalake
+        self.query = self.datalake.get_query("validation")
 
         self._layout = qw.QVBoxLayout(self)
 
@@ -269,7 +265,6 @@ class ValidationWidget(qw.QWidget):
             or not self.validation_parquet_files
             or not self.method
             or not self.datalake
-            or not self.datalake.conn
             or self.current_step_id >= len(self.method)
             or self.current_step_id < 0
         ):
@@ -360,14 +355,12 @@ class ValidationWidgetContainer(qw.QWidget):
 
         self._layout = qw.QVBoxLayout(self)
 
-        self.validation_welcome_widget = ValidationWelcomeWidget(
-            self.validation_query, self
-        )
+        self.validation_welcome_widget = ValidationWelcomeWidget(self.datalake, self)
         self.validation_welcome_widget.validation_start.connect(
             self.on_validation_start
         )
 
-        self.validation_widget = ValidationWidget(self.validation_query, self)
+        self.validation_widget = ValidationWidget(self.datalake, self)
         self.validation_widget.return_to_validation.connect(
             self.on_return_to_validation
         )
@@ -505,7 +498,7 @@ class IntroPage(qw.QWizardPage):
 
 class ParquetSelectPage(qw.QWizardPage):
 
-    def __init__(self, data: dict, parent=None):
+    def __init__(self, datalake: DataLake, data: dict, parent=None):
         super().__init__(parent)
         self.setTitle("Run Selection")
         self.setSubTitle("Choisissez le(s) fichier(s) des runs à valider.")
@@ -521,20 +514,47 @@ class ParquetSelectPage(qw.QWizardPage):
         self.setLayout(layout)
 
         self.data = data
+        self.datalake = datalake
 
     def on_select_parquet_clicked(self):
-        filenames, _ = qw.QFileDialog.getOpenFileNames(
-            self, "Open Parquet File", "", "Parquet Files (*.parquet)"
-        )
-        is_complete_before = self.isComplete()
-        if filenames:
-            self.data["file_names"] = filenames
-            self.selected_files_label.setText(
-                "Fichiers sélectionnés:\n" + "\n".join(filenames)
-            )
 
-        if is_complete_before != self.isComplete():
-            self.completeChanged.emit()
+        valid_parquet_files_model = qg.QStandardItemModel()
+        for f in Path(self.datalake.datalake_path).glob("genotypes/runs/*.parquet"):
+            item = qg.QStandardItem(f.resolve().stem)
+            item.setData(f.resolve().as_posix(), qc.Qt.ItemDataRole.UserRole)
+            item.setEditable(False)
+            item.setCheckable(True)
+            valid_parquet_files_model.appendRow(item)
+        table = SearchableTable(valid_parquet_files_model)
+        table.view.setSelectionMode(qw.QAbstractItemView.SelectionMode.MultiSelection)
+        table.view.verticalHeader().hide()
+        table.view.horizontalHeader().hide()
+        dlg = AnyWidgetDialog(table, "Please select one or more run to validate", self)
+        if dlg.exec_() == qw.QDialog.DialogCode.Accepted:
+            filenames = [
+                (
+                    valid_parquet_files_model.data(
+                        valid_parquet_files_model.index(i, 0),
+                        qc.Qt.ItemDataRole.UserRole,
+                    ),
+                    valid_parquet_files_model.data(
+                        valid_parquet_files_model.index(i, 0),
+                        qc.Qt.ItemDataRole.DisplayRole,
+                    ),
+                )
+                for i in range(valid_parquet_files_model.rowCount())
+                if valid_parquet_files_model.item(i).checkState()
+                == qc.Qt.CheckState.Checked
+            ]
+            is_complete_before = self.isComplete()
+            if filenames:
+                self.data["file_names"] = filenames
+                self.selected_files_label.setText(
+                    "Fichiers sélectionnés:\n" + "\n".join(filenames)
+                )
+
+            if is_complete_before != self.isComplete():
+                self.completeChanged.emit()
 
     def initializePage(self):
         self.data["file_names"] = []
@@ -603,9 +623,8 @@ class SamplesSelectPage(qw.QWizardPage):
 
 class ValidationWizard(qw.QWizard):
 
-    def __init__(self, validation_widget: ValidationWelcomeWidget, parent=None):
+    def __init__(self, datalake: DataLake, parent=None):
         super().__init__(parent)
-        self.validation_widget = validation_widget
 
         self.data = {
             "file_names": [],
@@ -614,6 +633,8 @@ class ValidationWizard(qw.QWizard):
             "validation_method": "",
         }
 
+        self.datalake = datalake
+
         self.addPage(self.createIntroPage())
         self.addPage(self.createParquetSelectPage())
         self.addPage(self.createSamplesSelectPage())
@@ -621,13 +642,13 @@ class ValidationWizard(qw.QWizard):
         self.setOption(qw.QWizard.WizardOption.IndependentPages, False)
 
     def createIntroPage(self):
-        page = IntroPage(self.data)
+        page = IntroPage(self.data, self)
         return page
 
     def createParquetSelectPage(self):
-        page = ParquetSelectPage(self.data)
+        page = ParquetSelectPage(self.datalake, self.data, self)
         return page
 
     def createSamplesSelectPage(self):
-        page = SamplesSelectPage(self.data)
+        page = SamplesSelectPage(self.data, self)
         return page

@@ -8,8 +8,9 @@ import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
 
 from commons import get_user_prefs_file, load_user_prefs, save_user_prefs
+from datalake import DataLake
 from inspector import Inspector
-from query import DataLake
+from query import Query
 from query_table_widget import QueryTableWidget
 
 
@@ -20,7 +21,7 @@ class MainWindow(qw.QMainWindow):
 
         self.load_previous_session()
 
-        self.query_table_widget = QueryTableWidget(self.datalake)
+        self.query_table_widget = QueryTableWidget(self.validation_query)
         self.inspector = Inspector(self.datalake)
 
         self.main_widget = qw.QSplitter(qc.Qt.Orientation.Horizontal)
@@ -34,25 +35,27 @@ class MainWindow(qw.QMainWindow):
         self.file_menu = self.menu.addMenu("File")
         self.file_menu.addAction("Open datalake", self.open_datalake)
 
-        self.validation_query = self.datalake.get_query("validation")
         self.validation_query.query_changed.connect(self.on_query_changed)
         self.on_query_changed()
 
     def load_previous_session(self):
         prefs = self.get_user_prefs()
-        if "last_query" not in prefs:
+        if "last_datalake" not in prefs:
             self.datalake = DataLake()
+            self.validation_query = Query(self.datalake, self)
+            self.datalake.add_query("validation", self.validation_query)
         else:
-            self.datalake = DataLake.load(Path(prefs["last_query"]))
+            self.datalake = DataLake.load(Path(prefs["last_datalake"]))
+            self.validation_query = self.datalake.get_query("validation")
 
     def closeEvent(self, event: qg.QCloseEvent):
         user_prefs_folder = get_user_prefs_file().parent
         user_prefs_folder.mkdir(parents=True, exist_ok=True)
 
         # Save last query
-        self.datalake.save(user_prefs_folder / "last_query.pickle")
+        self.datalake.save(user_prefs_folder / "last_datalake.pickle")
         self.save_user_prefs(
-            {"last_query": str(user_prefs_folder / "last_query.pickle")}
+            {"last_datalake": str(user_prefs_folder / "last_datalake.pickle")}
         )
         event.accept()
 
@@ -68,16 +71,14 @@ class MainWindow(qw.QMainWindow):
         return load_user_prefs()
 
     def open_datalake(self):
-        if "last_datalake" in self.get_user_prefs():
-            last_datalake = self.get_user_prefs()["last_datalake"]
+        if self.datalake.datalake_path:
             datalake_folder = qw.QFileDialog.getExistingDirectory(
-                self, "Open datalake", last_datalake
+                self, "Open datalake", self.datalake.datalake_path
             )
         else:
             datalake_folder = qw.QFileDialog.getExistingDirectory(
                 self, "Open datalake", str(Path.home())
             )
-            self.save_user_prefs({"last_datalake": datalake_folder})
         if not datalake_folder:
             return
         self.datalake.set_datalake_path(datalake_folder)

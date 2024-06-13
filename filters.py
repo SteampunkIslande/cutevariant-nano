@@ -64,15 +64,19 @@ class FilterExpression:
             }
 
     @staticmethod
-    def from_json(json):
+    def from_json(json) -> "FilterExpression":
         if "filter_type" in json:
             filter_type = FilterType(json["filter_type"])
             new_filter = FilterExpression(filter_type)
             for child in json["children"]:
                 new_filter.add_child(FilterExpression.from_json(child))
             return new_filter
-        else:
+        elif "expression" in json:
             return FilterExpression(FilterType.LEAF, json["expression"])
+        else:
+            raise ValueError(
+                "Cannot deserialize filter expression from this JSON, malformed!"
+            )
 
 
 if __name__ == "__main__":
