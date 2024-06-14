@@ -62,7 +62,7 @@ class MainWindow(qw.QMainWindow):
 
     def on_query_changed(self):
         self.setWindowTitle(
-            f"ParquetViewer - {self.validation_query.get_editable_table_human_readable_name() or 'No validation table selected'}"
+            f"ParquetViewer - {self.validation_query.get_editable_table_human_readable_name()}"
         )
 
     def get_user_prefs(self):
