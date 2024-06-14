@@ -150,7 +150,6 @@ class Query(qc.QObject):
 
     def set_offset(self, offset: int):
         self.offset = offset
-        self.internal_changed.emit()
         return self
 
     def get_page(self) -> int:
@@ -165,23 +164,19 @@ class Query(qc.QObject):
     def previous_page(self):
         if self.current_page > 1:
             self.set_page(self.current_page - 1)
-            self.internal_changed.emit()
         return self
 
     def next_page(self):
         if self.current_page < self.page_count:
             self.set_page(self.current_page + 1)
-            self.internal_changed.emit()
         return self
 
     def first_page(self):
         self.set_page(1)
-        self.internal_changed.emit()
         return self
 
     def last_page(self):
         self.set_page(self.page_count)
-        self.internal_changed.emit()
         return self
 
     def get_page_count(self):
@@ -200,6 +195,7 @@ class Query(qc.QObject):
         if not files:
             return self
         self.readonly_table = f"read_parquet({duck_db_literal_string_list(files)})"
+        self.query_changed.emit()
         return self
 
     def get_editable_table_human_readable_name(self) -> str:
