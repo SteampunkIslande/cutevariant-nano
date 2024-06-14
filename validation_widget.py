@@ -196,13 +196,13 @@ class ValidationWidget(qw.QWidget):
 
         parquet_files = validation["parquet_files"]
         validation_name = validation["validation_name"]
+        conn.close()
 
         last_step_definition = self.method["final"]
 
-        self.query.set_readonly_table(parquet_files).set_editable_table_name(
+        self.query.mute().set_readonly_table(parquet_files).set_editable_table_name(
             self.validation_table_uuid
-        ).generate_query_template_from_json(last_step_definition["query"]).update_data()
-        conn.close()
+        ).unmute().generate_query_template_from_json(last_step_definition["query"])
 
     def on_return_to_validation(self):
         self.init_state()
@@ -271,13 +271,13 @@ class ValidationWidget(qw.QWidget):
         self.title_label.setText(step_definition["title"])
         self.description_text.text_edit.setText(step_definition["description"])
 
-        self.query.set_readonly_table(
+        self.query.mute().set_readonly_table(
             self.validation_parquet_files
         ).set_editable_table_name(
             self.validation_table_uuid
-        ).generate_query_template_from_json(
+        ).unmute().generate_query_template_from_json(
             step_definition["query"]
-        ).update_data()
+        )
 
     def start_validation(self, selected_validation: dict):
         if not self.datalake:
@@ -318,7 +318,6 @@ class ValidationWidget(qw.QWidget):
         except IndexError:
             self.current_step_id = 0
             print(self.validation_table_uuid)
-        finally:
             conn.close()
 
 
@@ -353,6 +352,8 @@ class ValidationWidgetContainer(qw.QWidget):
         # Don't load previous session for now
         # self.load_previous_session()
 
+        self.validation_query = self.datalake.get_query("validation")
+
         self.setLayout(self._layout)
 
     def on_validation_start(self):
@@ -378,6 +379,8 @@ class ValidationWidgetContainer(qw.QWidget):
         self.multi_widget.set_current_widget("welcome")
         self.validation_widget.init_state()
         self.validation_welcome_widget.model.update()
+
+        self.validation_query.init_state()
 
     def load_previous_session(self):
         userprefs = load_user_prefs()

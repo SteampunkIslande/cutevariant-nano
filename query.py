@@ -75,13 +75,18 @@ class Query(qc.QObject):
 
     RESERVED_VARIABLES = ["main_table", "user_table", "pwd"]
 
-    # Signals for external use
+    # Signal for external use (tell the UI to update)
     query_changed = qc.Signal()
+
+    # Signal for internal use (tell the model to update)
+    internal_changed = qc.Signal()
 
     def __init__(self, datalake: "dl.DataLake", parent=None):
         super().__init__(parent)
         self.datalake = datalake
         self.init_state()
+
+        self.internal_changed.connect(self.update_data)
 
     def init_state(self):
         # When we create a new Query, we want to reset everything, except for the datalake path...
@@ -105,10 +110,15 @@ class Query(qc.QObject):
 
         self.variables = dict()
 
+        self.internal_changed.emit()
+
+        return self
+
     def add_variable(self, key: str, value: str):
         if key in Query.RESERVED_VARIABLES:
             raise ValueError(f"Variable name {key} is reserved")
         self.variables[key] = value
+        self.internal_changed.emit()
         return self
 
     def get_variable(self, key: str) -> str:
@@ -123,6 +133,8 @@ class Query(qc.QObject):
         else:
             self.root_filter.add_child(new_filter)
 
+        self.internal_changed.emit()
+
         return self
 
     def get_limit(self) -> int:
@@ -130,6 +142,7 @@ class Query(qc.QObject):
 
     def set_limit(self, limit: int):
         self.limit = limit
+        self.internal_changed.emit()
         return self
 
     def get_offset(self) -> int:
@@ -137,6 +150,7 @@ class Query(qc.QObject):
 
     def set_offset(self, offset: int):
         self.offset = offset
+        self.internal_changed.emit()
         return self
 
     def get_page(self) -> int:
@@ -145,24 +159,29 @@ class Query(qc.QObject):
     def set_page(self, page: int):
         self.current_page = page
         self.set_offset((page - 1) * self.limit)
+        self.internal_changed.emit()
         return self
 
     def previous_page(self):
         if self.current_page > 1:
             self.set_page(self.current_page - 1)
+            self.internal_changed.emit()
         return self
 
     def next_page(self):
         if self.current_page < self.page_count:
             self.set_page(self.current_page + 1)
+            self.internal_changed.emit()
         return self
 
     def first_page(self):
         self.set_page(1)
+        self.internal_changed.emit()
         return self
 
     def last_page(self):
         self.set_page(self.page_count)
+        self.internal_changed.emit()
         return self
 
     def get_page_count(self):
@@ -194,7 +213,7 @@ class Query(qc.QObject):
                 .to_dicts()[0]["validation_name"]
             )
         except:
-            name = ""
+            name = "No current validation"
         finally:
             conn.close()
         return name
@@ -204,6 +223,7 @@ class Query(qc.QObject):
 
     def set_editable_table_name(self, name: str):
         self.editable_table_name = name
+        self.internal_changed.emit()
         return self
 
     def generate_query_template_from_json(self, data: dict) -> "Query":
@@ -214,6 +234,7 @@ class Query(qc.QObject):
             data (dict): The json object to build the query template from
         """
         self.query_template = build_query_template(data)
+        self.internal_changed.emit()
         return self
 
     def select_query(self):
@@ -243,7 +264,7 @@ class Query(qc.QObject):
         return bool(self.readonly_table) and self.datalake
 
     def to_do(self):
-        if not self.datalake:
+        if not self.datalake.datalake_path:
             return "Please select a datalake"
         if not self.readonly_table:
             return "Please select a main table"
@@ -256,7 +277,6 @@ class Query(qc.QObject):
         self.data = []
         self.row_count = 0
         self.page_count = 1
-        self.first_page()
 
         # Query is not valid, do nothing. Previous lines are for cleanup
         if not self.is_valid():
@@ -266,6 +286,7 @@ class Query(qc.QObject):
 
         # Running the query might throw an exception, we catch it and print it
         conn = dl.get_database(Path(self.datalake.datalake_path) / "validation.db")
+
         try:
             dict_data = run_sql(self.select_query(), conn)
         except db.Error as e:
@@ -283,6 +304,7 @@ class Query(qc.QObject):
         # There is no data, we can return early
         else:
             self.query_changed.emit()
+            conn.close()
             return
         self.row_count = run_sql(self.count_query(), conn)[0]["count_star"]
         conn.close()
@@ -290,10 +312,16 @@ class Query(qc.QObject):
             self.row_count // self.limit, ceil(self.row_count / self.limit)
         )
         if self.current_page > self.page_count:
-            self.set_page(1)
-            self.update_data()  # TODO: Fix edge case
-        self.blockSignals(False)
+            self.offset = 0
         self.query_changed.emit()
+
+    def mute(self):
+        self.blockSignals(True)
+        return self
+
+    def unmute(self):
+        self.blockSignals(False)
+        return self
 
     def to_json(self):
         return {
