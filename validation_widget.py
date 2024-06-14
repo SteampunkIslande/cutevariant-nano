@@ -1,6 +1,5 @@
 import json
 from pathlib import Path
-from typing import List
 
 import duckdb as db
 import PySide6.QtCore as qc
@@ -26,16 +25,6 @@ def finish_validation(conn: db.DuckDBPyConnection, table_uuid: str, step_count: 
     conn.sql(
         f"UPDATE validations SET completed = TRUE WHERE table_uuid = '{table_uuid}'"
     )
-
-
-def show_finished_validation(full_database_path: Path, table_uuid: str):
-
-    if full_database_path.exists() and table_uuid:
-        conn = get_database(full_database_path)
-
-        validation = get_validation_from_table_uuid(conn, table_uuid)
-        if not validation:
-            return
 
 
 class ValidationWelcomeWidget(qw.QWidget):
@@ -157,11 +146,8 @@ class ValidationWidget(qw.QWidget):
 
         self.return_to_validation_button.clicked.connect(self.on_return_to_validation)
 
-        qc.QCoreApplication.instance().aboutToQuit.connect(self.save_state)
-
         # Will be overwritten by load_state, but set to default values here in case load_state does nothing
         self.init_state()
-        # self.load_state()
 
         self.setup_layout()
 
@@ -198,14 +184,25 @@ class ValidationWidget(qw.QWidget):
         self.is_finished = True
         self.title_label.setText("Validation terminée")
         self.description_text.text_edit.setText(
-            "Validation terminée.\nLes résultats sont présentés dans la table ci-contre.\nVous pouvez exporter les résultats vers Genno en cliquant sur le bouton ci-dessous."
+            "Validation terminée.\nLes résultats sont présentés dans la table ci-contre.\nVous pouvez exporter ces résultats vers Genno en cliquant sur le bouton ci-dessous."
         )
-
-        finish_validation(
-            self.datalake.conn, self.validation_table_uuid, len(self.method)
-        )
-        show_finished_validation(self.datalake, self.validation_table_uuid)
         self.next_step_button.setText("Export to Genno")
+
+        conn = get_database(Path(self.datalake.datalake_path) / "validation.db")
+
+        validation = get_validation_from_table_uuid(conn, self.validation_table_uuid)
+        if not validation:
+            return
+
+        parquet_files = validation["parquet_files"]
+        validation_name = validation["validation_name"]
+
+        last_step_definition = self.method["final"]
+
+        self.query.set_readonly_table(parquet_files).set_editable_table_name(
+            self.validation_table_uuid
+        ).generate_query_template_from_json(last_step_definition["query"]).update_data()
+        conn.close()
 
     def on_return_to_validation(self):
         self.init_state()
@@ -248,6 +245,12 @@ class ValidationWidget(qw.QWidget):
             self.setup_step()
 
     def set_method_path(self, method_path: Path):
+        if not method_path.exists():
+            qw.QMessageBox.critical(
+                self,
+                "Erreur",
+                f"Le fichier de méthode {method_path} n'existe pas.",
+            )
         with open(method_path, "r") as f:
             self.method = json.load(f)
 
@@ -263,23 +266,21 @@ class ValidationWidget(qw.QWidget):
         ):
             return
 
-        step_definition: List[dict] = self.method[self.current_step_id]
+        step_definition = self.method["steps"][self.current_step_id]
 
         self.title_label.setText(step_definition["title"])
         self.description_text.text_edit.setText(step_definition["description"])
 
-        self.datalake.set_main_files(self.validation_parquet_files)
-
-        self.datalake.mute()
-
-        self.datalake.unmute()
-        self.datalake.update_data()
-
-        if not self.datalake.is_valid():
-            print(self.datalake.to_do())
+        self.query.set_readonly_table(
+            self.validation_parquet_files
+        ).set_editable_table_name(
+            self.validation_table_uuid
+        ).generate_query_template_from_json(
+            step_definition["query"]
+        ).update_data()
 
     def start_validation(self, selected_validation: dict):
-        if not self.datalake or not self.datalake.conn:
+        if not self.datalake:
             return
 
         self.validation_name = selected_validation["validation_name"]
@@ -301,41 +302,24 @@ class ValidationWidget(qw.QWidget):
             / (selected_validation["validation_method"] + ".json")
         )
         try:
+            conn = get_database(Path(self.datalake.datalake_path) / "validation.db")
             self.current_step_id = (
-                self.datalake.conn.sql(
+                conn.sql(
                     f"SELECT last_step FROM validations WHERE table_uuid = '{self.validation_table_uuid}'"
                 )
                 .pl()
                 .to_dicts()[0]["last_step"]
             )
-            if self.current_step_id >= len(self.method):
+            conn.close()
+            if self.current_step_id >= len(self.method["steps"]):
                 self.on_finish()
             else:
                 self.setup_step()
         except IndexError:
             self.current_step_id = 0
-
-    def save_state(self):
-        if self.validation_table_uuid:
-            save_user_prefs(
-                {
-                    "last_validation_table_uuid": self.validation_table_uuid,
-                }
-            )
-
-    def load_state(self):
-        userprefs = load_user_prefs()
-        if "last_validation_table_uuid" in userprefs:
-            self.validation_table_uuid = userprefs["last_validation_table_uuid"]
-            if self.validation_table_uuid is not None and self.datalake.conn:
-                self.start_validation(
-                    get_validation_from_table_uuid(
-                        self.datalake.conn, self.validation_table_uuid
-                    )
-                )
-            else:
-                # TODO: handle this case (should not happen)
-                pass
+            print(self.validation_table_uuid)
+        finally:
+            conn.close()
 
 
 class ValidationWidgetContainer(qw.QWidget):
@@ -343,8 +327,6 @@ class ValidationWidgetContainer(qw.QWidget):
     def __init__(self, datalake: DataLake, parent=None):
         super().__init__(parent)
         self.datalake = datalake
-
-        self.validation_query = self.datalake.get_query("validation")
 
         self._layout = qw.QVBoxLayout(self)
 
@@ -375,11 +357,6 @@ class ValidationWidgetContainer(qw.QWidget):
 
     def on_validation_start(self):
         if not self.validation_welcome_widget.get_selected_validation():
-            qw.QMessageBox.warning(
-                self,
-                "Validation",
-                "Veuillez sélectionner une validation à exécuter.",
-            )
             return
         self.multi_widget.set_current_widget("validation")
         self.validation_widget.init_state()

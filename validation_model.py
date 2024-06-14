@@ -142,8 +142,6 @@ class ValidationModel(qc.QAbstractTableModel):
             )
             self.update()
             conn.close()
-        else:
-            print("No connection to database")
 
     def update(self) -> None:
         self.beginResetModel()

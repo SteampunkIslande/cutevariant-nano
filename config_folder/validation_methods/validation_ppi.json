@@ -1,106 +1,135 @@
-[
-	{
-		"title": "Etape 1",
-		"description": "Première étape de la validation.\nLes filtres appliqués montrent uniquement les variants dont la fréquence allélique en population générale est inférieure à 1%.",
-		"tables": [
-			{
-				"name": "'aggregates/variants.parquet'",
-				"alias": "agg",
-				"quoted": false,
-				"join": {
-					"left_table": "main_table",
-					"left_on": "variant_hash",
-					"right_on": "variant_hash"
+{
+	"steps": [
+		{
+			"title": "Etape 1",
+			"description": "Première étape de la validation.\nLes filtres appliqués montrent uniquement les variants dont la fréquence allélique en population générale est inférieure à 1%.",
+			"query": {
+				"select": {
+					"fields": [
+						"main_table.run_name",
+						"main_table.sample_name",
+						"main_table.snpeff_Gene_Name",
+						"main_table.snpeff_Feature_ID",
+						"main_table.chromosome",
+						"main_table.position",
+						"main_table.reference",
+						"main_table.alternate",
+						"main_table.cv_AF",
+						"main_table.snpeff_Annotation",
+						"main_table.cv_GT",
+						"main_table.snpeff_Annotation_Impact",
+						"agg.ref_count",
+						"agg.var_count",
+						"recur.count"
+					],
+					"tables": [
+						{
+							"expression": "{main_table}",
+							"alias": "main_table"
+						},
+						{
+							"expression": "read_parquet('{pwd}/aggregates/variants.parquet')",
+							"alias": "agg",
+							"on": "main_table.variant_hash = agg.variant_hash",
+							"how": ""
+						},
+						{
+							"select": {
+								"fields": [
+									"variant_hash",
+									"COUNT(*) as count"
+								],
+								"tables": [
+									{
+										"select": {
+											"fields": [
+												"DISTINCT(sample_name)",
+												"variant_hash"
+											],
+											"tables": [
+												{
+													"expression": "{main_table}",
+													"alias": ""
+												}
+											]
+										},
+										"alias": ""
+									}
+								],
+								"group_by": [
+									"variant_hash"
+								]
+							},
+							"alias": "recur",
+							"on": "main_table.variant_hash = recur.variant_hash",
+							"how": ""
+						}
+					],
+					"filter": {
+						"filter_type": "AND",
+						"children": [
+							{
+								"expression": "main_table.cv_GT = 1",
+								"children": []
+							},
+							{
+								"expression": "main_table.snpeff_Gene_Name IN ('CFTR','COPA')",
+								"children": []
+							}
+						]
+					},
+					"order_by": [
+						{
+							"field": "main_table.chromosome",
+							"order": "ASC"
+						},
+						{
+							"field": "main_table.position",
+							"order": "ASC"
+						}
+					]
 				}
 			}
-		],
-		"fields": [
-			{
-				"name": "run_name",
-				"table": "main_table",
-				"is_expression": false
-			},
-			{
-				"name": "sample_name",
-				"table": "main_table",
-				"is_expression": false
-			},
-			{
-				"name": "snpeff_Gene_Name",
-				"table": "main_table",
-				"is_expression": false
-			},
-			{
-				"name": "snpeff_Feature_ID",
-				"table": "main_table",
-				"is_expression": false
-			},
-			{
-				"name": "chromosome",
-				"table": "main_table",
-				"is_expression": false
-			},
-			{
-				"name": "position",
-				"table": "main_table",
-				"is_expression": false
-			},
-			{
-				"name": "reference",
-				"table": "main_table",
-				"is_expression": false
-			},
-			{
-				"name": "alternate",
-				"table": "main_table",
-				"is_expression": false
-			},
-			{
-				"name": "cv_AF",
-				"table": "main_table",
-				"is_expression": false
-			},
-			{
-				"name": "snpeff_Annotation",
-				"table": "main_table",
-				"is_expression": false
-			},
-			{
-				"name": "cv_GT",
-				"table": "main_table",
-				"is_expression": false
-			},
-			{
-				"name": "snpeff_Annotation_Impact",
-				"table": "main_table",
-				"is_expression": false
-			},
-			{
-				"name": "ref_count",
-				"table": "agg",
-				"is_expression": false
-			},
-			{
-				"name": "var_count",
-				"table": "agg",
-				"is_expression": false
+		}
+	],
+	"final": {
+		"query": {
+			"select": {
+				"fields": [
+					"'hg19' AS reference_genome",
+					"main_table.run_name",
+					"main_table.chromosome",
+					"main_table.position",
+					"main_table.reference",
+					"main_table.alternate",
+					"main_table.snpeff_Annotation_Impact",
+					"main_table.snpeff_Gene_Name",
+					"main_table.snpeff_Gene_ID",
+					"main_table.snpeff_Feature_Type",
+					"main_table.snpeff_Feature_ID",
+					"agg.ref_count",
+					"agg.var_count",
+					"user_table.validation_hash"
+				],
+				"tables": [
+					{
+						"expression": "{main_table}",
+						"alias": "main_table"
+					},
+					{
+						"expression": "'{pwd}/aggregates/variants.parquet'",
+						"alias": "agg",
+						"on": "main_table.variant_hash = agg.variant_hash",
+						"how": ""
+					},
+					{
+						"expression": "{user_table}",
+						"alias": "user_table",
+						"on": "main_table.validation_hash = user_table.validation_hash",
+						"how": ""
+					}
+				]
 			}
-		],
-		"filters": {
-			"$and": [
-				{
-					"expression": "(agg.var_count / agg.total_count) < 0.01"
-				},
-				{
-					"expression": "main_table.snpeff_Annotation_Impact IN ('HIGH','MODERATE')"
-				}
-			]
-		},
-		"order": [
-			{
-				"field": "agg.total_count",
-				"direction": "desc"
-			}
-		]
+		}
 	}
-]
+}

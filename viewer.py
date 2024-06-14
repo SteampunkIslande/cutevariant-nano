@@ -47,6 +47,7 @@ class MainWindow(qw.QMainWindow):
         else:
             self.datalake = DataLake.load(Path(prefs["last_datalake"]))
             self.validation_query = self.datalake.get_query("validation")
+            self.validation_query.init_state()
 
     def closeEvent(self, event: qg.QCloseEvent):
         user_prefs_folder = get_user_prefs_file().parent
@@ -54,18 +55,15 @@ class MainWindow(qw.QMainWindow):
 
         # Save last query
         self.datalake.save(user_prefs_folder / "last_datalake.pickle")
-        self.save_user_prefs(
+        save_user_prefs(
             {"last_datalake": str(user_prefs_folder / "last_datalake.pickle")}
         )
         event.accept()
 
     def on_query_changed(self):
         self.setWindowTitle(
-            f"ParquetViewer - {self.validation_query.get_editable_table_name() or 'No validation table selected'}"
+            f"ParquetViewer - {self.validation_query.get_editable_table_human_readable_name() or 'No validation table selected'}"
         )
-
-    def save_user_prefs(self, prefs: dict):
-        save_user_prefs(prefs)
 
     def get_user_prefs(self):
         return load_user_prefs()

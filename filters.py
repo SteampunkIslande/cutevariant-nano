@@ -8,12 +8,12 @@ class FilterType(Enum):
     LEAF = "LEAF"
 
 
-class FilterExpression:
+class FilterItem:
     def __init__(
         self,
         filter_type=FilterType.LEAF,
         expression: str = None,
-        parent: "FilterExpression" = None,
+        parent: "FilterItem" = None,
     ) -> None:
         if filter_type is FilterType.LEAF and not expression:
             raise ValueError("Leaf filter must have an expression")
@@ -21,14 +21,14 @@ class FilterExpression:
             raise ValueError("Non-leaf filter must not have an expression")
         self.filter_type = filter_type
         self.expression = expression
-        self.children: List["FilterExpression"] = []
-        self.parent = parent
-        if self.parent:
-            self.parent.add_child(self)
+        self.children: List["FilterItem"] = []
+        self._parent = parent
+        if self._parent:
+            self._parent.add_child(self)
 
-    def add_child(self, child: "FilterExpression"):
+    def add_child(self, child: "FilterItem"):
         self.children.append(child)
-        child.parent = self
+        child._parent = self
         return child
 
     def __bool__(self) -> bool:
@@ -37,11 +37,14 @@ class FilterExpression:
         else:
             return bool(self.children)
 
+    def row(self) -> int:
+        return self._parent.children.index(self)
+
     def __str__(self) -> str:
         if self.filter_type == FilterType.LEAF:
             return self.expression
         else:
-            if self.parent:
+            if self._parent:
                 return (
                     "("
                     + f" {self.filter_type.value} ".join(
@@ -64,15 +67,15 @@ class FilterExpression:
             }
 
     @staticmethod
-    def from_json(json) -> "FilterExpression":
+    def from_json(json) -> "FilterItem":
         if "filter_type" in json:
             filter_type = FilterType(json["filter_type"])
-            new_filter = FilterExpression(filter_type)
+            new_filter = FilterItem(filter_type)
             for child in json["children"]:
-                new_filter.add_child(FilterExpression.from_json(child))
+                new_filter.add_child(FilterItem.from_json(child))
             return new_filter
         elif "expression" in json:
-            return FilterExpression(FilterType.LEAF, json["expression"])
+            return FilterItem(FilterType.LEAF, json["expression"])
         else:
             raise ValueError(
                 "Cannot deserialize filter expression from this JSON, malformed!"
@@ -80,12 +83,12 @@ class FilterExpression:
 
 
 if __name__ == "__main__":
-    root = FilterExpression(FilterType.AND)
-    aeq_5 = root.add_child(FilterExpression(FilterType.LEAF, "a = 5"))
-    beq_6 = root.add_child(FilterExpression(FilterType.LEAF, "b = 6"))
-    first_or = root.add_child(FilterExpression(FilterType.OR))
-    first_or.add_child(FilterExpression(FilterType.LEAF, "c = 7"))
-    first_or.add_child(FilterExpression(FilterType.LEAF, "d = 8"))
+    root = FilterItem(FilterType.AND)
+    aeq_5 = root.add_child(FilterItem(FilterType.LEAF, "a = 5"))
+    beq_6 = root.add_child(FilterItem(FilterType.LEAF, "b = 6"))
+    first_or = root.add_child(FilterItem(FilterType.OR))
+    first_or.add_child(FilterItem(FilterType.LEAF, "c = 7"))
+    first_or.add_child(FilterItem(FilterType.LEAF, "d = 8"))
     serialized = root.to_json()
     assert serialized == {
         "filter_type": "AND",
@@ -98,6 +101,6 @@ if __name__ == "__main__":
             },
         ],
     }
-    new_root = FilterExpression.from_json(serialized)
+    new_root = FilterItem.from_json(serialized)
     assert str(new_root) == str(root)
     assert str(root) == "a = 5 AND b = 6 AND (c = 7 OR d = 8)"

@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import json
 from math import ceil
 from pathlib import Path
 from typing import List, Union
@@ -9,7 +10,53 @@ import PySide6.QtCore as qc
 
 import datalake as dl
 from commons import duck_db_literal_string_list
-from filters import FilterExpression, FilterType
+from filters import FilterItem, FilterType
+
+
+def build_query_template(data: dict) -> str:
+    select_def = data["select"]
+    fields = select_def["fields"]
+    result = ""
+    tables = []
+    for i, table_def in enumerate(select_def["tables"]):
+        if "select" in table_def:
+            expr_and_alias = f"({build_query_template(table_def)}) {table_def['alias']}"
+        if "expression" in table_def:
+            expr_and_alias = f"{table_def['expression']} {table_def['alias']}"
+
+        tables.append(
+            (
+                expr_and_alias,
+                table_def["on"] if i != 0 else None,
+                table_def["how"] if i != 0 else None,
+            )
+        )
+
+    result += f"SELECT {', '.join(fields)} FROM {tables[0][0]} "
+    for table, on, how in tables[1:]:
+        if isinstance(on, dict):
+            on = str(FilterItem.from_json(on))
+        result += f" {how} JOIN {table} ON {on} "
+
+    if "filter" in select_def:
+        filter_def = select_def["filter"]
+        filter_str = str(FilterItem.from_json(filter_def))
+        result += f" WHERE {filter_str} "
+
+    if "group_by" in select_def:
+        group_by = select_def["group_by"]
+        if isinstance(group_by, list):
+            group_by = ",".join(group_by)
+        result += f" GROUP BY {group_by} "
+
+    if "order_by" in select_def:
+        order_by = select_def["order_by"]
+
+        result += " ORDER BY " + ", ".join(
+            [f"{ob['field']} {ob['order']} " for ob in order_by]
+        )
+
+    return result
 
 
 def run_sql(query: str, conn: db.DuckDBPyConnection = None) -> Union[List[dict], None]:
@@ -26,7 +73,7 @@ def run_sql(query: str, conn: db.DuckDBPyConnection = None) -> Union[List[dict],
 
 class Query(qc.QObject):
 
-    RESERVED_VARIABLES = ["main_table", "user_table"]
+    RESERVED_VARIABLES = ["main_table", "user_table", "pwd"]
 
     # Signals for external use
     query_changed = qc.Signal()
@@ -41,7 +88,7 @@ class Query(qc.QObject):
         self.query_template = None
         self.order_by = None
         self.readonly_table = None
-        self.root_filter = FilterExpression(FilterType.AND)
+        self.root_filter = FilterItem(FilterType.AND)
         self.editable_table_name = None
 
         self.limit = 10
@@ -70,7 +117,7 @@ class Query(qc.QObject):
     def list_variables(self) -> List[str]:
         return list(self.variables.keys())
 
-    def add_filter(self, new_filter: FilterExpression, parent: FilterExpression = None):
+    def add_filter(self, new_filter: FilterItem, parent: FilterItem = None):
         if parent:
             parent.add_child(new_filter)
         else:
@@ -130,18 +177,27 @@ class Query(qc.QObject):
     def get_readonly_table(self) -> str:
         return self.readonly_table
 
-    def set_readonly_table(self, files: List[Path]):
+    def set_readonly_table(self, files: List[str]):
         if not files:
             return self
-        self.readonly_table = duck_db_literal_string_list(files)
+        self.readonly_table = f"read_parquet({duck_db_literal_string_list(files)})"
         return self
 
-    def get_database_path(self) -> str:
-        return self.database_path
-
-    def set_database_path(self, path: str):
-        self.database_path = path
-        return self
+    def get_editable_table_human_readable_name(self) -> str:
+        conn = dl.get_database(Path(self.datalake.datalake_path) / "validation.db")
+        try:
+            name = (
+                conn.sql(
+                    f"SELECT * FROM validations WHERE table_uuid = '{self.editable_table_name}'"
+                )
+                .pl()
+                .to_dicts()[0]["validation_name"]
+            )
+        except:
+            name = ""
+        finally:
+            conn.close()
+        return name
 
     def get_editable_table_name(self) -> str:
         return self.editable_table_name
@@ -150,23 +206,35 @@ class Query(qc.QObject):
         self.editable_table_name = name
         return self
 
+    def generate_query_template_from_json(self, data: dict) -> "Query":
+        """Builds a query template from a json object.
+        Provided json object must have a select key at the root level.
+
+        Args:
+            data (dict): The json object to build the query template from
+        """
+        self.query_template = build_query_template(data)
+        return self
+
     def select_query(self):
         if not self.readonly_table:
             return ""
 
-        return f"{self.query_template} WHERE {str(self.root_filter)} LIMIT {self.limit} OFFSET {self.offset} ORDER BY {self.order_by}".format(
+        return f"{self.query_template} LIMIT {self.limit} OFFSET {self.offset}".format(
             **{
                 "main_table": self.readonly_table,
-                "user_table": self.editable_table_name,
+                "user_table": f'"{self.editable_table_name}"',
+                "pwd": self.datalake.datalake_path,
                 **{k: v for k, v in self.variables.items()},
             }
         )
 
     def count_query(self):
-        return f"SELECT COUNT(*) AS count_star FROM {self.query_template} WHERE {str(self.root_filter)}".format(
+        return f"SELECT COUNT(*) AS count_star FROM ({self.query_template})".format(
             **{
                 "main_table": self.readonly_table,
-                "user_table": self.editable_table_name,
+                "user_table": f'"{self.editable_table_name}"',
+                "pwd": self.datalake.datalake_path,
                 **{k: v for k, v in self.variables.items()},
             }
         )
@@ -197,9 +265,7 @@ class Query(qc.QObject):
             return
 
         # Running the query might throw an exception, we catch it and print it
-        conn = dl.get_database(
-            Path(self.datalake.datalake_path) / self.get_database_path()
-        )
+        conn = dl.get_database(Path(self.datalake.datalake_path) / "validation.db")
         try:
             dict_data = run_sql(self.select_query(), conn)
         except db.Error as e:
@@ -246,22 +312,25 @@ class Query(qc.QObject):
         }
 
     @staticmethod
-    def from_json(json: dict, datalake: "dl.DataLake") -> "Query":
+    def from_json(data: dict, datalake: "dl.DataLake") -> "Query":
         query = Query(datalake)
-        query.query_template = json["query_template"]
-        query.order_by = json["order_by"]
-        query.readonly_table = json["readonly_table"]
-        query.root_filter = FilterExpression.from_json(json["root_filter"])
-        query.editable_table_name = json["editable_table_name"]
-        query.limit = json["limit"]
-        query.offset = json["offset"]
-        query.current_page = json["current_page"]
-        query.page_count = json["page_count"]
-        query.data = json["data"]
-        query.header = json["header"]
-        query.variables = json["variables"]
+        query.query_template = data["query_template"]
+        query.order_by = data["order_by"]
+        query.readonly_table = data["readonly_table"]
+        query.root_filter = FilterItem.from_json(data["root_filter"])
+        query.editable_table_name = data["editable_table_name"]
+        query.limit = data["limit"]
+        query.offset = data["offset"]
+        query.current_page = data["current_page"]
+        query.page_count = data["page_count"]
+        query.data = data["data"]
+        query.header = data["header"]
+        query.variables = data["variables"]
         return query
 
 
 if __name__ == "__main__":
-    pass
+    with open("config_folder/validation_methods/validation_ppi.json", "r") as f:
+        data = json.load(f)
+        q = build_query_template(data[0]["query"])
+        print(q)
