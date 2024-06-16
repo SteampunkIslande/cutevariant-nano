@@ -113,7 +113,10 @@ class ParquetSelectPage(qw.QWizardPage):
         valid_parquet_files_model = qg.QStandardItemModel()
         for f in Path(self.datalake.datalake_path).glob("genotypes/runs/*.parquet"):
             item = qg.QStandardItem(f.resolve().stem)
-            item.setData(f.resolve().as_posix(), qc.Qt.ItemDataRole.UserRole)
+            item.setData(
+                str(f.relative_to(self.datalake.datalake_path)),
+                qc.Qt.ItemDataRole.UserRole,
+            )
             item.setEditable(False)
             item.setCheckable(True)
             valid_parquet_files_model.appendRow(item)
@@ -167,7 +170,7 @@ class ParquetSelectPage(qw.QWizardPage):
 
 class SamplesSelectPage(qw.QWizardPage):
 
-    def __init__(self, data: dict, parent=None):
+    def __init__(self, datalake: DataLake, data: dict, parent=None):
         super().__init__(parent)
         self.setTitle("Samples Selection")
         self.setSubTitle("Choisissez le(s) échantillon(s) à valider.")
@@ -182,6 +185,7 @@ class SamplesSelectPage(qw.QWizardPage):
         layout.addWidget(self.selected_samples_label)
         self.setLayout(layout)
 
+        self.datalake = datalake
         self.data = data
 
     def on_select_samples_clicked(self):
@@ -189,7 +193,7 @@ class SamplesSelectPage(qw.QWizardPage):
         samples_names = [
             d["sample_name"]
             for d in db.sql(
-                f"SELECT DISTINCT sample_name FROM read_parquet({duck_db_literal_string_list(self.data['file_names'])})"
+                f"SELECT DISTINCT sample_name FROM read_parquet({duck_db_literal_string_list(self.datalake.relative_to_absolute(f) for f in self.data['file_names'])})"
             )
             .pl()
             .to_dicts()
@@ -244,5 +248,5 @@ class ValidationWizard(qw.QWizard):
         return page
 
     def createSamplesSelectPage(self):
-        page = SamplesSelectPage(self.data, self)
+        page = SamplesSelectPage(self.datalake, self.data, self)
         return page

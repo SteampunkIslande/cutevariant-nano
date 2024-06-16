@@ -38,6 +38,9 @@ class DataLake(qc.QObject):
     def get_query(self, name: str) -> "q.Query":
         return self.queries.get(name)
 
+    def relative_to_absolute(self, path: str) -> str:
+        return str(Path(self.datalake_path) / path)
+
     def save(self, filename: Path):
         with open(filename, "wb") as f:
             pickle.dump(
@@ -60,19 +63,18 @@ class DataLake(qc.QObject):
                 datalake.add_query(name, query)
             return datalake
 
+    def get_database(self, database_name: str):
 
-def get_database(database: Path):
+        database = Path(self.datalake_path) / f"{database_name}.db"
 
-    database = database.resolve()
-
-    # If the database already exists, we shouldn't initialize it
-    if database.exists():
-        return db.connect(str(database))
-    conn = db.connect(str(database))
-    conn.sql(
-        "CREATE TABLE validations (parquet_files TEXT[], sample_names TEXT[], username TEXT, validation_name TEXT, table_uuid TEXT, creation_date DATETIME, completed BOOLEAN, last_step INTEGER, validation_method TEXT)"
-    )
-    conn.sql(
-        "CREATE TYPE COMMENT AS STRUCT(comment TEXT, username TEXT, creation_timestamp TIMESTAMP)"
-    )
-    return conn
+        # If the database already exists, we shouldn't initialize it
+        if database.exists():
+            return db.connect(str(database))
+        conn = db.connect(str(database))
+        conn.sql(
+            "CREATE TABLE validations (parquet_files TEXT[], sample_names TEXT[], username TEXT, validation_name TEXT, table_uuid TEXT, creation_date DATETIME, completed BOOLEAN, last_step INTEGER, validation_method TEXT)"
+        )
+        conn.sql(
+            "CREATE TYPE COMMENT AS STRUCT(comment TEXT, username TEXT, creation_timestamp TIMESTAMP)"
+        )
+        return conn

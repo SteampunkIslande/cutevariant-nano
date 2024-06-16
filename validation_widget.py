@@ -9,7 +9,7 @@ from common_widgets.multiline_display import MultiLineDisplay
 from common_widgets.multiwidget_holder import MultiWidgetHolder
 from common_widgets.searchable_table import SearchableTable
 from commons import get_config_folder, load_user_prefs, save_user_prefs
-from datalake import DataLake, get_database
+import datalake as dl
 from validation_model import (
     VALIDATION_TABLE_COLUMNS,
     ValidationModel,
@@ -31,7 +31,7 @@ class ValidationWelcomeWidget(qw.QWidget):
 
     validation_start = qc.Signal()
 
-    def __init__(self, datalake: DataLake, parent=None):
+    def __init__(self, datalake: dl.DataLake, parent=None):
         super().__init__(parent)
         self.datalake = datalake
         self.model = ValidationModel(self.datalake, self)
@@ -127,7 +127,7 @@ class ValidationWidget(qw.QWidget):
 
     return_to_validation = qc.Signal()
 
-    def __init__(self, datalake: DataLake, parent=None):
+    def __init__(self, datalake: dl.DataLake, parent=None):
         super().__init__(parent)
         self.datalake = datalake
         self.query = self.datalake.get_query("validation")
@@ -188,7 +188,7 @@ class ValidationWidget(qw.QWidget):
         )
         self.next_step_button.setText("Export to Genno")
 
-        conn = get_database(Path(self.datalake.datalake_path) / "validation.db")
+        conn = self.datalake.get_database("validation")
 
         validation = get_validation_from_table_uuid(conn, self.validation_table_uuid)
         if not validation:
@@ -302,7 +302,7 @@ class ValidationWidget(qw.QWidget):
             / (selected_validation["validation_method"] + ".json")
         )
         try:
-            conn = get_database(Path(self.datalake.datalake_path) / "validation.db")
+            conn = self.datalake.get_database("validation")
             self.current_step_id = (
                 conn.sql(
                     f"SELECT last_step FROM validations WHERE table_uuid = '{self.validation_table_uuid}'"
@@ -310,7 +310,6 @@ class ValidationWidget(qw.QWidget):
                 .pl()
                 .to_dicts()[0]["last_step"]
             )
-            conn.close()
             if self.current_step_id >= len(self.method["steps"]):
                 self.on_finish()
             else:
@@ -318,12 +317,13 @@ class ValidationWidget(qw.QWidget):
         except IndexError:
             self.current_step_id = 0
             print(self.validation_table_uuid)
+        finally:
             conn.close()
 
 
 class ValidationWidgetContainer(qw.QWidget):
 
-    def __init__(self, datalake: DataLake, parent=None):
+    def __init__(self, datalake: dl.DataLake, parent=None):
         super().__init__(parent)
         self.datalake = datalake
 

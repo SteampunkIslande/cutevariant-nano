@@ -6,7 +6,7 @@ import duckdb as db
 import PySide6.QtCore as qc
 
 from commons import duck_db_literal_string_list
-from datalake import DataLake, get_database
+import datalake as dl
 
 VALIDATION_TABLE_COLUMNS = {
     "parquet_files": 0,
@@ -22,6 +22,7 @@ VALIDATION_TABLE_COLUMNS = {
 
 def add_validation_table(
     conn: db.DuckDBPyConnection,
+    datalake: dl.DataLake,
     validation_name: str,
     username: str,
     parquet_files: List[str],
@@ -32,6 +33,12 @@ def add_validation_table(
         conn.sql("SELECT ('validation_' || uuid()) as uuid").pl().to_dicts()[0]["uuid"]
     )
     try:
+        if not all(
+            (Path(datalake.datalake_path) / Path(p)).exists() for p in parquet_files
+        ):
+            raise ValueError(
+                "All parquet files must be in the datalake and relative to it"
+            )
         conn.sql(
             f"INSERT INTO validations VALUES ({duck_db_literal_string_list(parquet_files)}, {duck_db_literal_string_list(sample_names)}, '{username}', '{validation_name}', '{table_uuid}', NOW(), FALSE, 0, '{validation_method}')"
         )
@@ -42,8 +49,12 @@ def add_validation_table(
         print(e)
         # No matter what the exact error is, we should rollback the transaction
         # Manual rollback
-        conn.sql(f"""DROP TABLE IF EXISTS "{table_uuid}" """)
         conn.sql(f"DELETE FROM validations WHERE table_uuid = '{table_uuid}'")
+        conn.sql(f"""DROP TABLE IF EXISTS "{table_uuid}" """)
+    except ValueError as e:
+        print(e)
+        conn.sql(f"DELETE FROM validations WHERE table_uuid = '{table_uuid}'")
+        conn.sql(f"""DROP TABLE IF EXISTS "{table_uuid}" """)
 
 
 def get_validation_from_table_uuid(
@@ -68,7 +79,7 @@ def get_validation_name_from_table_uuid(conn: db.DuckDBPyConnection, table_uuid:
 
 class ValidationModel(qc.QAbstractTableModel):
 
-    def __init__(self, datalake: DataLake, parent: qc.QObject | None = ...) -> None:
+    def __init__(self, datalake: dl.DataLake, parent: qc.QObject | None = ...) -> None:
         super().__init__(parent)
         self.datalake = datalake
         self.headers = []
@@ -131,9 +142,10 @@ class ValidationModel(qc.QAbstractTableModel):
         validation_method: str,
     ):
         if self.datalake.datalake_path:
-            conn = get_database(Path(self.datalake.datalake_path) / "validation.db")
+            conn = self.datalake.get_database("validations")
             add_validation_table(
                 conn,
+                self.datalake,
                 validation_name,
                 username,
                 parquet_files,
@@ -147,7 +159,7 @@ class ValidationModel(qc.QAbstractTableModel):
         self.beginResetModel()
         self.headers = []
         self._data = []
-        conn = get_database(Path(self.datalake.datalake_path) / "validation.db")
+        conn = self.datalake.get_database("validations")
         query_res = conn.sql("SELECT * FROM validations").pl()
         self.headers = query_res.columns
         self._data = [tuple(v for v in d.values()) for d in query_res.to_dicts()]

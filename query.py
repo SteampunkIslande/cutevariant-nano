@@ -2,7 +2,6 @@
 
 import json
 from math import ceil
-from pathlib import Path
 from typing import List, Union
 
 import duckdb as db
@@ -194,12 +193,14 @@ class Query(qc.QObject):
     def set_readonly_table(self, files: List[str]):
         if not files:
             return self
-        self.readonly_table = f"read_parquet({duck_db_literal_string_list(files)})"
+        self.readonly_table = f"read_parquet({duck_db_literal_string_list(self.datalake.relative_to_absolute(f) for f in files)})"
         self.query_changed.emit()
         return self
 
     def get_editable_table_human_readable_name(self) -> str:
-        conn = dl.get_database(Path(self.datalake.datalake_path) / "validation.db")
+        if not self.datalake.datalake_path:
+            return "No datalake selected"
+        conn = self.datalake.get_database("validation")
         try:
             name = (
                 conn.sql(
@@ -208,7 +209,7 @@ class Query(qc.QObject):
                 .pl()
                 .to_dicts()[0]["validation_name"]
             )
-        except:
+        except IndexError:
             name = "No current validation"
         finally:
             conn.close()
@@ -281,7 +282,7 @@ class Query(qc.QObject):
             return
 
         # Running the query might throw an exception, we catch it and print it
-        conn = dl.get_database(Path(self.datalake.datalake_path) / "validation.db")
+        conn = self.datalake.get_database("validation")
 
         try:
             dict_data = run_sql(self.select_query(), conn)
