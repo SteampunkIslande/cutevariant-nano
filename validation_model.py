@@ -142,7 +142,7 @@ class ValidationModel(qc.QAbstractTableModel):
         validation_method: str,
     ):
         if self.datalake.datalake_path:
-            conn = self.datalake.get_database("validations")
+            conn = self.datalake.get_database("validation")
             add_validation_table(
                 conn,
                 self.datalake,
@@ -159,7 +159,7 @@ class ValidationModel(qc.QAbstractTableModel):
         self.beginResetModel()
         self.headers = []
         self._data = []
-        conn = self.datalake.get_database("validations")
+        conn = self.datalake.get_database("validation")
         query_res = conn.sql("SELECT * FROM validations").pl()
         self.headers = query_res.columns
         self._data = [tuple(v for v in d.values()) for d in query_res.to_dicts()]
