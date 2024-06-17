@@ -238,7 +238,11 @@ class Query(qc.QObject):
         if not self.readonly_table:
             return ""
 
-        return f"{self.query_template} LIMIT {self.limit} OFFSET {self.offset}".format(
+        additional_where = (
+            f" WHERE {str(self.root_filter)} " if self.root_filter else ""
+        )
+
+        return f"SELECT * FROM ({self.query_template}) {additional_where} LIMIT {self.limit} OFFSET {self.offset}".format(
             **{
                 "main_table": self.readonly_table,
                 "user_table": f'"{self.editable_table_name}"',
@@ -248,7 +252,10 @@ class Query(qc.QObject):
         )
 
     def count_query(self):
-        return f"SELECT COUNT(*) AS count_star FROM ({self.query_template})".format(
+        additional_where = (
+            f" WHERE {str(self.root_filter)} " if self.root_filter else ""
+        )
+        return f"SELECT COUNT(*) AS count_star FROM ({self.query_template}) {additional_where}".format(
             **{
                 "main_table": self.readonly_table,
                 "user_table": f'"{self.editable_table_name}"',

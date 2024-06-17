@@ -26,7 +26,7 @@ class QueryTableModel(qc.QAbstractTableModel):
             return len(self.query.get_data()[0])
         return 0
 
-    def data(self, index, role):
+    def data(self, index, role=qc.Qt.ItemDataRole.DisplayRole):
         if role == qc.Qt.ItemDataRole.DisplayRole:
             if index.row() < 0 or index.row() >= len(self.query.get_data()):
                 return None
@@ -34,7 +34,7 @@ class QueryTableModel(qc.QAbstractTableModel):
                 return None
             return self.query.get_data()[index.row()][index.column()]
 
-    def headerData(self, section, orientation, role):
+    def headerData(self, section, orientation, role=qc.Qt.ItemDataRole.DisplayRole):
         if section >= len(self.query.get_header()):
             return None
         if role == qc.Qt.ItemDataRole.DisplayRole:

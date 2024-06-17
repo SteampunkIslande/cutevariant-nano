@@ -1,6 +1,8 @@
 from enum import Enum
 from typing import List
 
+import PySide6.QtCore as qc
+
 
 class FilterType(Enum):
     AND = "AND"
@@ -8,13 +10,17 @@ class FilterType(Enum):
     LEAF = "LEAF"
 
 
-class FilterItem:
+class FilterItem(qc.QObject):
+
+    child_added = qc.Signal(object, int)
+
     def __init__(
         self,
         filter_type=FilterType.LEAF,
         expression: str = None,
         parent: "FilterItem" = None,
     ) -> None:
+        super().__init__(parent)
         if filter_type is FilterType.LEAF and not expression:
             raise ValueError("Leaf filter must have an expression")
         if filter_type is not FilterType.LEAF and expression:
@@ -26,10 +32,22 @@ class FilterItem:
         if self._parent:
             self._parent.add_child(self)
 
+    def internal_move(self, new_parent: "FilterItem", new_row: int):
+        self._parent.children.remove(self)
+        new_parent.children.insert(new_row, self)
+        self._parent = new_parent
+
     def add_child(self, child: "FilterItem"):
         self.children.append(child)
         child._parent = self
+        self.child_added.emit(self, child.row())
         return child
+
+    def child_count(self) -> int:
+        return len(self.children)
+
+    def column_count(self) -> int:
+        return 1
 
     def __bool__(self) -> bool:
         if self.filter_type == FilterType.LEAF:
@@ -38,7 +56,9 @@ class FilterItem:
             return bool(self.children)
 
     def row(self) -> int:
-        return self._parent.children.index(self)
+        if self._parent:
+            return self._parent.children.index(self)
+        return 0
 
     def __str__(self) -> str:
         if self.filter_type == FilterType.LEAF:

@@ -1,6 +1,7 @@
 import PySide6.QtWidgets as qw
 
 from datalake import DataLake
+from filters_widget import FiltersWidget
 from validation_widget import ValidationWidgetContainer
 
 
@@ -14,6 +15,7 @@ class Inspector(qw.QWidget):
         self.datalake = datalake
 
         self.main_widget = qw.QTabWidget()
+
         self._layout.addWidget(self.main_widget)
 
         self.tabs = {}
@@ -24,5 +26,10 @@ class Inspector(qw.QWidget):
 
     def setup(self):
         self.validation_widget = ValidationWidgetContainer(self.datalake)
+        self.filters_widget = FiltersWidget(
+            self.datalake.get_query("validation").root_filter
+        )
         self.main_widget.addTab(self.validation_widget, "Validation")
+        self.main_widget.addTab(self.filters_widget, "Filters")
         self.tabs["validation"] = self.validation_widget
+        self.tabs["filters"] = self.filters_widget
