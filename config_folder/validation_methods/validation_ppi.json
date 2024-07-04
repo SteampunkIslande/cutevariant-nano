@@ -1,4 +1,72 @@
 {
+	"genes_list": {
+		"BGL": [
+			"PKLR",
+			"HBB",
+			"HBA2",
+			"HBA1"
+		],
+		"SURF": [
+			"COPA",
+			"SFTPB",
+			"SFTPC",
+			"NKX2-1",
+			"ABCA3",
+			"FOXF1",
+			"TBX4",
+			"MARS"
+		],
+		"SCN": [
+			"SCN9A",
+			"SCN10A",
+			"SCN11A"
+		],
+		"LMNA": [
+			"LMNA"
+		],
+		"HFE": [
+			"HFE"
+		],
+		"GILBERT": [
+			"UGT1A1"
+		],
+		"CFTR": [
+			"CFTR"
+		],
+		"TTR": [
+			"TTR"
+		],
+		"HBG2": [
+			"HBG2"
+		],
+		"TPI1": [
+			"TPI1"
+		],
+		"GPI": [
+			"GPI"
+		],
+		"BPGM": [
+			"BPGM"
+		],
+		"HMOX1": [
+			"HMOX1"
+		],
+		"CYB5R3": [
+			"CYB5R3"
+		],
+		"ALAS2": [
+			"ALAS2"
+		],
+		"GLA": [
+			"GLA"
+		],
+		"G6PD": [
+			"G6PD"
+		],
+		"SRY": [
+			"SRY"
+		]
+	},
 	"steps": [
 		{
 			"title": "Etape 1",
@@ -104,13 +172,13 @@
 					"main_table.snpeff_Gene_Name",
 					"main_table.snpeff_Feature_ID",
 					"'exon' AS 'Type region'",
-					"format('{:01d}',2) AS 'Sequence region'",
+					"format('{{:01d}}',2) AS 'Sequence region'",
 					"main_table.position AS 'Start'",
 					"main_table.position AS 'End'",
 					"main_table.reference AS Ref",
 					"main_table.alternate AS Alt",
-					"main_table.format_DP-main_table.format_AD AS 'Ref allele count'",
-					"main_table.format_AD AS 'Alt allele count'",
+					"main_table.format_AD[1] AS 'Ref allele count'",
+					"main_table.format_AD[2] AS 'Alt allele count'",
 					"main_table.cv_AF AS 'VAF'",
 					"main_table.\"snpeff_HGVS.c\" AS 'c. de l anomalie'",
 					"main_table.\"snpeff_HGVS.p\" AS 'p. de l anomalie'",

@@ -219,6 +219,67 @@ class SamplesSelectPage(qw.QWizardPage):
         self.data["sample_names"] = []
 
 
+class GeneListSelectPage(qw.QWizardPage):
+    def __init__(self, datalake: DataLake, data: dict, parent=None):
+        super().__init__(parent)
+        self.setTitle("Gene list Selection")
+        self.setSubTitle("Choisissez la liste de gènes à valider.")
+
+        self.select_genes_button = qw.QPushButton("Select Genes")
+        self.select_genes_button.clicked.connect(self.on_select_genes_clicked)
+
+        self.selected_genes_label = qw.QLabel("")
+
+        layout = qw.QVBoxLayout()
+        layout.addWidget(self.select_genes_button)
+        layout.addWidget(self.selected_genes_label)
+        self.setLayout(layout)
+
+        self.datalake = datalake
+        self.data = data
+
+    def on_select_genes_clicked(self):
+        is_complete_before = self.isComplete()
+        import json
+
+        validation_method = dict()
+        if "validation_method" in self.data:
+            with open(
+                Path(load_user_prefs()["config_folder"])
+                / Path("validation_methods")
+                / Path(self.data["validation_method"] + ".json")
+            ) as f:
+                validation_method: dict[str, dict] = json.load(f)
+                gene_sets = validation_method.get("genes_list", dict()).keys()
+        else:
+            gene_sets = []
+
+        gene_selector = StringListChooser(gene_sets, self)
+        if gene_selector.exec() == qw.QDialog.DialogCode.Accepted:
+            selected_gene_sets = gene_selector.get_selected()
+            self.data["gene_names"] = []
+            for selected_gene_set in selected_gene_sets:
+                self.data["gene_names"].extend(
+                    validation_method["genes_list"][selected_gene_set]
+                )
+            self.selected_genes_label.setText(
+                "Genes sélectionnés:\n" + "\n".join(self.data["gene_names"])
+            )
+
+        if is_complete_before != self.isComplete():
+            self.completeChanged.emit()
+
+    def initializePage(self):
+        self.data["gene_names"] = []
+        self.selected_genes_label.setText("")
+
+    def isComplete(self):
+        return bool(self.data["gene_names"])
+
+    def cleanupPage(self):
+        self.data["gene_names"] = []
+
+
 class ValidationWizard(qw.QWizard):
 
     def __init__(self, datalake: DataLake, parent=None):
@@ -227,6 +288,7 @@ class ValidationWizard(qw.QWizard):
         self.data = {
             "file_names": [],
             "sample_names": [],
+            "gene_names": [],
             "validation_name": "",
             "validation_method": "",
         }
@@ -234,6 +296,7 @@ class ValidationWizard(qw.QWizard):
         self.datalake = datalake
 
         self.addPage(self.createIntroPage())
+        self.addPage(self.createGeneListSelectPage())
         self.addPage(self.createParquetSelectPage())
         self.addPage(self.createSamplesSelectPage())
 
@@ -241,6 +304,10 @@ class ValidationWizard(qw.QWizard):
 
     def createIntroPage(self):
         page = IntroPage(self.data, self)
+        return page
+
+    def createGeneListSelectPage(self):
+        page = GeneListSelectPage(self.datalake, self.data, self)
         return page
 
     def createParquetSelectPage(self):

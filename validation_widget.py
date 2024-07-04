@@ -5,11 +5,11 @@ import duckdb as db
 import PySide6.QtCore as qc
 import PySide6.QtWidgets as qw
 
+import datalake as dl
 from common_widgets.multiline_display import MultiLineDisplay
 from common_widgets.multiwidget_holder import MultiWidgetHolder
 from common_widgets.searchable_table import SearchableTable
 from commons import get_config_folder, load_user_prefs, save_user_prefs
-import datalake as dl
 from validation_model import (
     VALIDATION_TABLE_COLUMNS,
     ValidationModel,
@@ -83,6 +83,7 @@ class ValidationWelcomeWidget(qw.QWidget):
         if wizard.exec() == qw.QDialog.DialogCode.Accepted:
             file_names = wizard.data["file_names"]
             sample_names = wizard.data["sample_names"]
+            genes_list = wizard.data["genes_list"]
             validation_name = wizard.data["validation_name"]
             validation_method = wizard.data["validation_method"]
             if "config_folder" not in userprefs:
@@ -181,6 +182,9 @@ class ValidationWidget(qw.QWidget):
         self.is_finished = False
 
     def on_finish(self):
+        if self.is_finished:
+            return
+
         self.is_finished = True
         self.title_label.setText("Validation terminée")
         self.description_text.text_edit.setText(
@@ -235,14 +239,14 @@ class ValidationWidget(qw.QWidget):
             self.export_csv()
             return
 
-        # Increment the step index
-        self.current_step_id += 1
-
         # Decide whether we continue or if we reached the end
-        if self.current_step_id >= len(self.method):
-            self.on_finish()
-        else:
+        if self.current_step_id < len(self.method["steps"]):
             self.setup_step()
+            # Increment the step index
+            self.current_step_id += 1
+            return
+        else:
+            self.on_finish()
 
     def set_method_path(self, method_path: Path):
         if not method_path.exists():
@@ -261,7 +265,7 @@ class ValidationWidget(qw.QWidget):
             or not self.validation_parquet_files
             or not self.method
             or not self.datalake
-            or self.current_step_id >= len(self.method)
+            or self.current_step_id >= len(self.method["steps"])
             or self.current_step_id < 0
         ):
             return
@@ -283,9 +287,6 @@ class ValidationWidget(qw.QWidget):
         if not self.datalake:
             return
 
-        self.validation_name = selected_validation["validation_name"]
-        self.validation_parquet_files = selected_validation["parquet_files"]
-
         config_folder = get_config_folder()
         if not config_folder:
             qw.QMessageBox.critical(
@@ -295,7 +296,10 @@ class ValidationWidget(qw.QWidget):
             )
             return
 
+        self.validation_name = selected_validation["validation_name"]
+        self.validation_parquet_files = selected_validation["parquet_files"]
         self.validation_table_uuid = selected_validation["table_uuid"]
+
         self.set_method_path(
             Path(config_folder)
             / "validation_methods"
