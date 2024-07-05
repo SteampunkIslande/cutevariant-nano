@@ -199,7 +199,7 @@ class Query(qc.QObject):
 
     def get_editable_table_human_readable_name(self) -> str:
         if not self.datalake.datalake_path:
-            return "No datalake selected"
+            return qc.QCoreApplication.tr("Pas de datalake sélectionné")
         conn = self.datalake.get_database("validation")
         try:
             name = (
@@ -210,7 +210,7 @@ class Query(qc.QObject):
                 .to_dicts()[0]["validation_name"]
             )
         except IndexError:
-            name = "No current validation"
+            name = qc.QCoreApplication.tr("Table de validation introuvable")
         finally:
             conn.close()
         return name

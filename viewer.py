@@ -32,8 +32,10 @@ class MainWindow(qw.QMainWindow):
 
         self.menu = self.menuBar()
 
-        self.file_menu = self.menu.addMenu("File")
-        self.file_menu.addAction("Open datalake", self.open_datalake)
+        self.file_menu = self.menu.addMenu(qc.QCoreApplication.tr("Fichier"))
+        self.file_menu.addAction(
+            qc.QCoreApplication.tr("Ouvrir un datalake"), self.open_datalake
+        )
 
         self.validation_query.query_changed.connect(self.on_query_changed)
         self.on_query_changed()
@@ -71,11 +73,13 @@ class MainWindow(qw.QMainWindow):
     def open_datalake(self):
         if self.datalake.datalake_path:
             datalake_folder = qw.QFileDialog.getExistingDirectory(
-                self, "Open datalake", self.datalake.datalake_path
+                self,
+                qc.QCoreApplication.tr("Ouvrir un datalake"),
+                self.datalake.datalake_path,
             )
         else:
             datalake_folder = qw.QFileDialog.getExistingDirectory(
-                self, "Open datalake", str(Path.home())
+                self, qc.QCoreApplication.tr("Ouvrir un datalake"), str(Path.home())
             )
         if not datalake_folder:
             return

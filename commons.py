@@ -78,11 +78,16 @@ def get_config_folder():
     except KeyError:
         qw.QMessageBox.warning(
             None,
-            "Validation",
-            "Pas de dossier de configuration trouvé, veuillez en choisir un.",
+            qc.QCoreApplication.tr("Validation"),
+            qc.QCoreApplication.tr(
+                "Pas de dossier de configuration trouvé, veuillez en choisir un.",
+            ),
         )
         config_folder = qw.QFileDialog.getExistingDirectory(
-            None, "Pas de dossier de configuration trouvé, veuillez en choisir un."
+            None,
+            qc.QCoreApplication.tr(
+                "Pas de dossier de configuration trouvé, veuillez en choisir un."
+            ),
         )
         if config_folder:
             save_user_prefs({"config_folder": config_folder})

@@ -16,13 +16,21 @@ class IntroPage(qw.QWizardPage):
 
     def __init__(self, data: dict, parent=None):
         super().__init__(parent)
-        self.setTitle("Introduction")
-        self.setSubTitle("Ce wizard vous permet de créer une nouvelle validation.")
+        self.setTitle(qc.QCoreApplication.tr("Introduction"))
+        self.setSubTitle(
+            qc.QCoreApplication.tr(
+                "Ce wizard vous permet de créer une nouvelle validation."
+            )
+        )
 
         # Add a label with a lineedit to get the validation name
-        self.validation_name_label = qw.QLabel("Nom de la validation:")
+        self.validation_name_label = qw.QLabel(
+            qc.QCoreApplication.tr("Nom de la validation:")
+        )
         self.validation_name_lineedit = qw.QLineEdit()
-        self.validation_name_lineedit.setPlaceholderText("Nom de la validation")
+        self.validation_name_lineedit.setPlaceholderText(
+            qc.QCoreApplication.tr("Nom de la validation")
+        )
         self.validation_name_lineedit.textChanged.connect(
             self.on_validation_name_changed
         )
@@ -92,10 +100,14 @@ class ParquetSelectPage(qw.QWizardPage):
 
     def __init__(self, datalake: DataLake, data: dict, parent=None):
         super().__init__(parent)
-        self.setTitle("Run Selection")
-        self.setSubTitle("Choisissez le(s) fichier(s) des runs à valider.")
+        self.setTitle(qc.QCoreApplication.tr("Sélection du run"))
+        self.setSubTitle(
+            qc.QCoreApplication.tr("Choisissez le(s) fichier(s) des runs à valider.")
+        )
 
-        self.select_parquet_button = qw.QPushButton("Choisir le(s) run(s)...")
+        self.select_parquet_button = qw.QPushButton(
+            qc.QCoreApplication.tr("Choisir le(s) run(s)...")
+        )
         self.select_parquet_button.clicked.connect(self.on_select_parquet_clicked)
 
         self.selected_files_label = qw.QLabel("")
@@ -124,7 +136,13 @@ class ParquetSelectPage(qw.QWizardPage):
         table.view.setSelectionMode(qw.QAbstractItemView.SelectionMode.SingleSelection)
         table.view.verticalHeader().hide()
         table.view.horizontalHeader().hide()
-        dlg = AnyWidgetDialog(table, "Please select one or more run to validate", self)
+        dlg = AnyWidgetDialog(
+            table,
+            qc.QCoreApplication.tr(
+                "Veuillez sélectionner un ou plusieurs runs à valider"
+            ),
+            self,
+        )
         if dlg.exec_() == qw.QDialog.DialogCode.Accepted:
             filenames_full_path, filenames = zip(
                 *[
@@ -147,7 +165,8 @@ class ParquetSelectPage(qw.QWizardPage):
             if filenames:
                 self.data["file_names"] = filenames_full_path
                 self.selected_files_label.setText(
-                    "Fichiers sélectionnés:\n" + "\n".join(filenames)
+                    qc.QCoreApplication.tr("Fichiers sélectionnés:\n")
+                    + "\n".join(filenames)
                 )
 
             if is_complete_before != self.isComplete():
@@ -172,10 +191,14 @@ class SamplesSelectPage(qw.QWizardPage):
 
     def __init__(self, datalake: DataLake, data: dict, parent=None):
         super().__init__(parent)
-        self.setTitle("Samples Selection")
-        self.setSubTitle("Choisissez le(s) échantillon(s) à valider.")
+        self.setTitle(qc.QCoreApplication.tr("Sélection des échantillons"))
+        self.setSubTitle(
+            qc.QCoreApplication.tr("Choisissez le(s) échantillon(s) à valider.")
+        )
 
-        self.select_samples_button = qw.QPushButton("Select Samples")
+        self.select_samples_button = qw.QPushButton(
+            qc.QCoreApplication.tr("Sélectionner les échantillons")
+        )
         self.select_samples_button.clicked.connect(self.on_select_samples_clicked)
 
         self.selected_samples_label = qw.QLabel("")
@@ -202,7 +225,8 @@ class SamplesSelectPage(qw.QWizardPage):
         if sample_selector.exec() == qw.QDialog.DialogCode.Accepted:
             self.data["sample_names"] = sample_selector.get_selected()
             self.selected_samples_label.setText(
-                "Echantillons sélectionnés:\n" + "\n".join(self.data["sample_names"])
+                qc.QCoreApplication.tr("Echantillons sélectionnés:\n")
+                + "\n".join(self.data["sample_names"])
             )
 
         if is_complete_before != self.isComplete():
@@ -222,10 +246,14 @@ class SamplesSelectPage(qw.QWizardPage):
 class GeneListSelectPage(qw.QWizardPage):
     def __init__(self, datalake: DataLake, data: dict, parent=None):
         super().__init__(parent)
-        self.setTitle("Gene list Selection")
-        self.setSubTitle("Choisissez la liste de gènes à valider.")
+        self.setTitle(qc.QCoreApplication.tr("Sélection de la liste de gènes"))
+        self.setSubTitle(
+            qc.QCoreApplication.tr("Choisissez la liste de gènes à valider.")
+        )
 
-        self.select_genes_button = qw.QPushButton("Select Genes")
+        self.select_genes_button = qw.QPushButton(
+            qc.QCoreApplication.tr("Sélectionner les gènes")
+        )
         self.select_genes_button.clicked.connect(self.on_select_genes_clicked)
 
         self.selected_genes_label = qw.QLabel("")
@@ -264,7 +292,13 @@ class GeneListSelectPage(qw.QWizardPage):
                 )
             CR = "\n"
             self.selected_genes_label.setText(
-                f"Panel(s): {', '.join(selected_gene_sets)}{CR}Gènes sélectionnés:{CR}{CR.join(self.data['gene_names'])}"
+                qc.QCoreApplication.tr(
+                    "Panel(s): {0}{CR}Gène(s) sélectionné(s):{CR}{1}".format(
+                        ", ".join(selected_gene_sets),
+                        CR.join(self.data["gene_names"]),
+                        CR=CR,
+                    )
+                )
             )
 
         if is_complete_before != self.isComplete():

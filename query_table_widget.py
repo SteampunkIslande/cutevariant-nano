@@ -51,9 +51,10 @@ class QueryTableWidget(qw.QWidget):
         menu = qw.QMenu()
 
         index = self.table_view.indexAt(pos)
-        print(index.model().headerData(index.column(), qc.Qt.Orientation.Horizontal))
 
-        filter_action = menu.addAction("Filtrer cette colonne (simple expression)")
+        filter_action = menu.addAction(
+            qc.QCoreApplication.tr("Filtrer cette colonne (simple expression)")
+        )
         filter_action.triggered.connect(partial(self.filter_column, index))
         menu.exec_(self.table_view.mapToGlobal(pos))
 
@@ -64,10 +65,9 @@ class QueryTableWidget(qw.QWidget):
         )
         dialog = qw.QInputDialog(self)
         dialog.setInputMode(qw.QInputDialog.InputMode.TextInput)
-        dialog.setLabelText(f"Filter {col_name}")
-        dialog.setWindowTitle("Filter column")
-        dialog.setOkButtonText("Filter")
-        dialog.setCancelButtonText("Cancel")
+        dialog.setLabelText(qc.QCoreApplication.tr(f"Filter {col_name}"))
+        dialog.setWindowTitle(qc.QCoreApplication.tr("Filtrer une colonne"))
+        dialog.setOkButtonText(qc.QCoreApplication.tr("Filtrer"))
 
         if dialog.exec_() == qw.QDialog.DialogCode.Accepted:
             filter_text = dialog.textValue()

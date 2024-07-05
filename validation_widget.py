@@ -39,10 +39,14 @@ class ValidationWelcomeWidget(qw.QWidget):
 
         self._layout = qw.QVBoxLayout(self)
 
-        self.new_validation_button = qw.QPushButton("New Validation", self)
+        self.new_validation_button = qw.QPushButton(
+            qc.QCoreApplication.tr("Nouvelle validation"), self
+        )
         self.new_validation_button.clicked.connect(self.on_new_validation_clicked)
 
-        self.start_validation_button = qw.QPushButton("Start Validation", self)
+        self.start_validation_button = qw.QPushButton(
+            qc.QCoreApplication.tr("Démarrer/Continuer une validation"), self
+        )
         self.start_validation_button.clicked.connect(self.on_start_validation_clicked)
 
         if not self.datalake.datalake_path:
@@ -67,11 +71,16 @@ class ValidationWelcomeWidget(qw.QWidget):
         if "config_folder" not in userprefs:
             qw.QMessageBox.warning(
                 self,
-                "Validation",
-                "Pas de dossier de configuration trouvé, veuillez en choisir un.",
+                qc.QCoreApplication.tr("Validation"),
+                qc.QCoreApplication.tr(
+                    "Pas de dossier de configuration trouvé, veuillez en choisir un."
+                ),
             )
             config_folder = qw.QFileDialog.getExistingDirectory(
-                self, "Pas de dossier de configuration trouvé, veuillez en choisir un."
+                self,
+                qc.QCoreApplication.tr(
+                    "Pas de dossier de configuration trouvé, veuillez en choisir un."
+                ),
             )
             if config_folder:
                 # config_folder will be read by the wizard
@@ -101,7 +110,11 @@ class ValidationWelcomeWidget(qw.QWidget):
             self.validation_start.emit()
         else:
             qw.QMessageBox.warning(
-                self, "Validation", "Veuillez sélectionner une validation à exécuter."
+                self,
+                qc.QCoreApplication.tr("Validation"),
+                qc.QCoreApplication.tr(
+                    "Veuillez sélectionner une validation à exécuter."
+                ),
             )
 
     def init_layout(self):
@@ -138,12 +151,10 @@ class ValidationWidget(qw.QWidget):
         self.title_label = qw.QLabel("")
         self.description_text = MultiLineDisplay(self)
 
-        self.next_step_button = qw.QPushButton("Next Step", self)
+        self.next_step_button = qw.QPushButton("", self)
         self.next_step_button.clicked.connect(self.on_next_step_clicked)
 
-        self.return_to_validation_button = qw.QPushButton(
-            "Back to validation selection", self
-        )
+        self.return_to_validation_button = qw.QPushButton("", self)
 
         self.return_to_validation_button.clicked.connect(self.on_return_to_validation)
 
@@ -176,8 +187,10 @@ class ValidationWidget(qw.QWidget):
         self.validation_name = None
         self.validation_parquet_files = None
 
-        self.next_step_button.setText("Next Step")
-        self.return_to_validation_button.setText("Back to validation selection")
+        self.next_step_button.setText(qc.QCoreApplication.tr("Prochaine étape"))
+        self.return_to_validation_button.setText(
+            qc.QCoreApplication.tr("Retour à la sélection des validations")
+        )
 
         self.is_finished = False
 
@@ -186,11 +199,13 @@ class ValidationWidget(qw.QWidget):
             return
 
         self.is_finished = True
-        self.title_label.setText("Validation terminée")
+        self.title_label.setText(qc.QCoreApplication.tr("Validation terminée"))
         self.description_text.text_edit.setText(
-            "Validation terminée.\nLes résultats sont présentés dans la table ci-contre.\nVous pouvez exporter ces résultats vers Genno en cliquant sur le bouton ci-dessous."
+            qc.QCoreApplication.tr(
+                "Validation terminée.\nLes résultats sont présentés dans la table ci-contre.\nVous pouvez exporter ces résultats vers Genno en cliquant sur le bouton ci-dessous."
+            )
         )
-        self.next_step_button.setText("Export to Genno")
+        self.next_step_button.setText(qc.QCoreApplication.tr("Exporter vers Genno"))
 
         conn = self.datalake.get_database("validation")
 
@@ -217,19 +232,23 @@ class ValidationWidget(qw.QWidget):
         if "genno_export_folder" not in user_prefs:
             qw.QMessageBox.warning(
                 self,
-                "Export",
-                "No export folder selected, please select one using the next dialog.",
+                qc.QCoreApplication.tr("Export"),
+                qc.QCoreApplication.tr(
+                    "Pas de dossier d'export Genno sélectionné, veuillez en choisir un."
+                ),
             )
             genno_export_folder = qw.QFileDialog.getExistingDirectory(
-                self, "Choose Genno export folder"
+                self, qc.QCoreApplication.tr("Choisir le dossier d'export Genno")
             )
             if genno_export_folder:
                 save_user_prefs({"genno_export_folder": genno_export_folder})
             else:
                 qw.QMessageBox.warning(
                     self,
-                    "Export",
-                    "No export folder selected, aborting export.",
+                    qc.QCoreApplication.tr("Export"),
+                    qc.QCoreApplication.tr(
+                        "Pas de dossier d'export Genno sélectionné. Abandon."
+                    ),
                 )
                 return
 
@@ -252,8 +271,12 @@ class ValidationWidget(qw.QWidget):
         if not method_path.exists():
             qw.QMessageBox.critical(
                 self,
-                "Erreur",
-                f"Le fichier de méthode {method_path} n'existe pas.",
+                qc.QCoreApplication.tr("Erreur"),
+                qc.QCoreApplication.tr(
+                    "Le fichier de méthode {method_path} n'existe pas.".format(
+                        method_path=method_path
+                    )
+                ),
             )
         with open(method_path, "r") as f:
             self.method = json.load(f)
@@ -291,8 +314,10 @@ class ValidationWidget(qw.QWidget):
         if not config_folder:
             qw.QMessageBox.critical(
                 self,
-                "Erreur",
-                "Pas de dossier de configuration sélectionné, abandon.",
+                qc.QCoreApplication.tr("Erreur"),
+                qc.QCoreApplication.tr(
+                    "Pas de dossier de configuration sélectionné, abandon."
+                ),
             )
             return
 
@@ -370,8 +395,10 @@ class ValidationWidgetContainer(qw.QWidget):
         if not config_folder:
             qw.QMessageBox.critical(
                 self,
-                "Erreur",
-                "Pas de dossier de configuration sélectionné, abandon.",
+                qc.QCoreApplication.tr("Erreur"),
+                qc.QCoreApplication.tr(
+                    "Pas de dossier de configuration sélectionné, abandon."
+                ),
             )
             return
 
