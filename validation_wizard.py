@@ -262,8 +262,9 @@ class GeneListSelectPage(qw.QWizardPage):
                 self.data["gene_names"].extend(
                     validation_method["genes_list"][selected_gene_set]
                 )
+            CR = "\n"
             self.selected_genes_label.setText(
-                "Genes sélectionnés:\n" + "\n".join(self.data["gene_names"])
+                f"Panel(s): {', '.join(selected_gene_sets)}{CR}Gènes sélectionnés:{CR}{CR.join(self.data['gene_names'])}"
             )
 
         if is_complete_before != self.isComplete():
