@@ -88,7 +88,9 @@
 						"main_table.snpeff_Annotation_Impact",
 						"agg.ref_count",
 						"agg.var_count",
-						"recur.count"
+						"recur.count",
+						"clinvar.CLNACC",
+						"clinvar.CLNSIG"
 					],
 					"tables": [
 						{
@@ -131,6 +133,24 @@
 							"alias": "recur",
 							"on": "main_table.variant_hash = recur.variant_hash",
 							"how": ""
+						},
+						{
+							"select": {
+								"fields": [
+									"variant_hash",
+									"rcvAcc AS CLNACC",
+									"clinSign AS CLNSIG"
+								],
+								"tables": [
+									{
+										"expression": "read_parquet('{pwd}/annotations/clinvarMain.parquet')",
+										"alias": ""
+									}
+								]
+							},
+							"alias": "clinvar",
+							"on": "main_table.variant_hash = clinvar.variant_hash",
+							"how": ""
 						}
 					],
 					"filter": {
@@ -164,15 +184,16 @@
 		"query": {
 			"select": {
 				"fields": [
-					"'hg19' AS reference_genome",
-					"main_table.sample_name",
-					"'Mutation ponctuelle' AS 'Famille de l anomalie'",
+					"'hg19' AS 'Version genome'",
+					"main_table.sample_name AS 'Sample ID'",
+					"clinvar._allTypeCode AS 'Famille de l anomalie'",
 					"main_table.chromosome||':'||main_table.position||':'||main_table.reference||'>'||main_table.alternate AS 'Libelle de l anomalie'",
-					"main_table.chromosome",
-					"main_table.snpeff_Gene_Name",
-					"main_table.snpeff_Feature_ID",
+					"main_table.chromosome AS Chr",
+					"main_table.snpeff_Gene_Name AS 'Nom du gene'",
+					"'WHATEVER' AS 'Code HGNC'",
+					"main_table.snpeff_Feature_ID AS 'NM'",
 					"'exon' AS 'Type region'",
-					"format('{{:01d}}',2) AS 'Sequence region'",
+					"format('{{:02d}}',2) AS 'Sequence region'",
 					"main_table.position AS 'Start'",
 					"main_table.position AS 'End'",
 					"main_table.reference AS Ref",
@@ -200,6 +221,24 @@
 						"expression": "{user_table}",
 						"alias": "user_table",
 						"on": "main_table.validation_hash = user_table.validation_hash",
+						"how": ""
+					},
+					{
+						"select": {
+							"fields": [
+								"variant_hash",
+								"rcvAcc AS CLNACC",
+								"clinSign AS CLNSIG"
+							],
+							"tables": [
+								{
+									"expression": "read_parquet('{pwd}/clinvarMain.parquet')",
+									"alias": ""
+								}
+							]
+						},
+						"alias": "clinvar",
+						"on": "main_table.variant_hash = clinvar.variant_hash",
 						"how": ""
 					}
 				]
