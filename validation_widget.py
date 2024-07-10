@@ -333,11 +333,10 @@ class ValidationWidget(qw.QWidget):
         try:
             conn = self.datalake.get_database("validation")
             self.current_step_id = (
-                conn.sql(
-                    f"SELECT last_step FROM validations WHERE table_uuid = '{self.validation_table_uuid}'"
-                )
-                .pl()
-                .to_dicts()[0]["last_step"]
+                conn.sql(f"SELECT last_step FROM validations WHERE table_uuid = '{self.validation_table_uuid}'").pl().to_dicts()[0]["last_step"]
+            )
+            self.completed = (
+                conn.sql(f"SELECT last_step FROM validations WHERE table_uuid = '{self.validation_table_uuid}'").pl().to_dicts()[0]["completed"]
             )
             if self.current_step_id >= len(self.method["steps"]):
                 self.on_finish()
