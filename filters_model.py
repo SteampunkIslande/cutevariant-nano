@@ -7,33 +7,38 @@ class FiltersItemModel(qc.QAbstractItemModel):
 
     def __init__(self, root_item: FilterItem, parent: qc.QObject = None):
         super().__init__(parent)
+        self.invisible_root = FilterItem(FilterType.AND)
         self.root = root_item
-
-        self.root.child_added.connect(self.on_child_added)
+        self.invisible_root.add_child(self.root)
 
     def index(self, row: int, column: int, parent: qc.QModelIndex = qc.QModelIndex()):
         if not self.hasIndex(row, column, parent):
             return qc.QModelIndex()
-        parent_item = parent.internalPointer() if parent.isValid() else self.root
+        if not parent.isValid():
+            parent_item = self.invisible_root
+        else:
+            parent_item = parent.internalPointer()
         child_item = parent_item.children[row]
         if child_item:
             return self.createIndex(row, column, child_item)
-        else:
-            return qc.QModelIndex()
+        return qc.QModelIndex()
 
     def parent(self, index: qc.QModelIndex):
         if not index.isValid():
             return qc.QModelIndex()
         child_item: FilterItem = index.internalPointer()
         parent_item = child_item._parent
-        if parent_item == self.root:
+        if parent_item == self.invisible_root or parent_item is None:
             return qc.QModelIndex()
         return self.createIndex(parent_item.row(), 0, parent_item)
 
     def rowCount(self, parent: qc.QModelIndex):
         if parent.column() > 0:
             return 0
-        parent_item = parent.internalPointer() if parent.isValid() else self.root
+        if not parent.isValid():
+            parent_item = self.invisible_root
+        else:
+            parent_item = parent.internalPointer()
         return parent_item.child_count()
 
     def columnCount(self, parent: qc.QModelIndex):
@@ -59,11 +64,16 @@ class FiltersItemModel(qc.QAbstractItemModel):
             return "Filters"
         return None
 
-    def on_child_added(self, parent: FilterItem, row: int):
-        self.beginInsertRows(self.createIndex(parent.row(), 0, parent), row, row)
-        self.endInsertRows()
-
     def flags(self, index: qc.QModelIndex):
         if not index.isValid():
             return qc.Qt.ItemFlag.NoItemFlags
         return qc.Qt.ItemFlag.ItemIsEnabled | qc.Qt.ItemFlag.ItemIsSelectable
+
+    def add_filter(
+        self, parent: qc.QModelIndex, filter_type: FilterType, expression: str
+    ):
+        self.beginInsertRows(parent, 0, 0)
+        parent_item = parent.internalPointer() if parent.isValid() else self.root
+        new_filter = FilterItem(filter_type, expression)
+        parent_item.add_child(new_filter)
+        self.endInsertRows()
