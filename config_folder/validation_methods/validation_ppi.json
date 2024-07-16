@@ -90,7 +90,8 @@
 						"agg.var_count",
 						"recur.count",
 						"clinvar.CLNACC",
-						"clinvar.CLNSIG"
+						"clinvar.CLNSIG",
+						"main_table.\"snpeff_HGVS.c\" AS 'c. de l anomalie'"
 					],
 					"tables": [
 						{
@@ -153,19 +154,6 @@
 							"how": ""
 						}
 					],
-					"filter": {
-						"filter_type": "AND",
-						"children": [
-							{
-								"expression": "main_table.cv_GT = 1",
-								"children": []
-							},
-							{
-								"expression": "main_table.snpeff_Gene_Name IN ('CFTR','COPA')",
-								"children": []
-							}
-						]
-					},
 					"order_by": [
 						{
 							"field": "main_table.chromosome",
