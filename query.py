@@ -8,6 +8,7 @@ import duckdb as db
 import PySide6.QtCore as qc
 
 import datalake as dl
+import filters_model as fm
 from commons import duck_db_literal_string_list
 from filters import FilterItem, FilterType
 
@@ -95,7 +96,6 @@ class Query(qc.QObject):
         self.query_template = None
         self.order_by = None
         self.readonly_table = None
-        self.root_filter = FilterItem(FilterType.AND)
         self.editable_table_name = None
 
         self.limit = 10
@@ -112,6 +112,12 @@ class Query(qc.QObject):
 
         self.internal_changed.emit()
 
+        self.filter_model = fm.FiltersItemModel(FilterItem(FilterType.AND))
+        self.filter_model.dataChanged.connect(self.internal_changed)
+        self.filter_model.rowsInserted.connect(self.internal_changed)
+        self.filter_model.rowsRemoved.connect(self.internal_changed)
+        self.filter_model.modelReset.connect(self.internal_changed)
+
         return self
 
     def add_variable(self, key: str, value: str):
@@ -126,16 +132,6 @@ class Query(qc.QObject):
 
     def list_variables(self) -> List[str]:
         return list(self.variables.keys())
-
-    def add_filter(self, new_filter: FilterItem, parent: FilterItem = None):
-        if parent:
-            parent.add_child(new_filter)
-        else:
-            self.root_filter.add_child(new_filter)
-
-        self.internal_changed.emit()
-
-        return self
 
     def get_limit(self) -> int:
         return self.limit
@@ -240,7 +236,7 @@ class Query(qc.QObject):
             return ""
 
         additional_where = (
-            f" WHERE {str(self.root_filter)} " if self.root_filter else ""
+            f" WHERE {str(self.filter_model.root)} " if self.filter_model.root else ""
         )
 
         return f"SELECT * FROM ({self.query_template}){additional_where}LIMIT {self.limit} OFFSET {self.offset}".format(
@@ -254,7 +250,7 @@ class Query(qc.QObject):
 
     def count_query(self):
         additional_where = (
-            f" WHERE {str(self.root_filter)} " if self.root_filter else ""
+            f" WHERE {str(self.filter_model.root)} " if self.filter_model.root else ""
         )
         return f"SELECT COUNT(*) AS count_star FROM ({self.query_template}) {additional_where}".format(
             **{
@@ -277,6 +273,7 @@ class Query(qc.QObject):
             return "Please select a validation table"
 
     def update_data(self):
+        print("Updating data")
         # Empty data before updating
         self.header = []
         self.data = []
@@ -333,7 +330,6 @@ class Query(qc.QObject):
             "query_template": self.query_template,
             "order_by": self.order_by,
             "readonly_table": self.readonly_table,
-            "root_filter": self.root_filter.to_json(),
             "editable_table_name": self.editable_table_name,
             "limit": self.limit,
             "offset": self.offset,
@@ -350,7 +346,6 @@ class Query(qc.QObject):
         query.query_template = data["query_template"]
         query.order_by = data["order_by"]
         query.readonly_table = data["readonly_table"]
-        query.root_filter = FilterItem.from_json(data["root_filter"])
         query.editable_table_name = data["editable_table_name"]
         query.limit = data["limit"]
         query.offset = data["offset"]

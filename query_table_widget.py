@@ -8,7 +8,7 @@ import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
 
 from common_widgets.page_selector import PageSelector
-from filters import FilterItem, FilterType
+from filters import FilterType
 from query import Query
 from query_table_model import QueryTableModel
 
@@ -71,6 +71,8 @@ class QueryTableWidget(qw.QWidget):
 
         if dialog.exec_() == qw.QDialog.DialogCode.Accepted:
             filter_text = dialog.textValue()
-            self.model.query.add_filter(
-                FilterItem(FilterType.LEAF, f"{col_name} {filter_text}")
+            self.model.query.filter_model.add_filter(
+                self.model.query.filter_model.index(0, 0),
+                FilterType.LEAF,
+                f"{col_name} {filter_text}",
             )
