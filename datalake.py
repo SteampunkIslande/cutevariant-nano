@@ -72,7 +72,7 @@ class DataLake(qc.QObject):
             return db.connect(str(database))
         conn = db.connect(str(database))
         conn.sql(
-            "CREATE TABLE validations (parquet_files TEXT[], sample_names TEXT[], username TEXT, validation_name TEXT, table_uuid TEXT, creation_date DATETIME, completed BOOLEAN, last_step INTEGER, validation_method TEXT)"
+            "CREATE TABLE validations (parquet_files TEXT[], sample_names TEXT[], gene_names TEXT[] , username TEXT, validation_name TEXT, table_uuid TEXT, creation_date DATETIME, completed BOOLEAN, validation_method TEXT)"
         )
         conn.sql(
             "CREATE TYPE COMMENT AS STRUCT(comment TEXT, username TEXT, creation_timestamp TIMESTAMP)"

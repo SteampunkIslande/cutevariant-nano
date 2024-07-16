@@ -20,7 +20,9 @@ def build_query_template(data: dict) -> str:
     for i, table_def in enumerate(select_def["tables"]):
         table_def: dict
         if "select" in table_def:
-            expr_and_alias = f"({build_query_template(table_def)}) {table_def.get('alias', '')}"
+            expr_and_alias = (
+                f"({build_query_template(table_def)}) {table_def.get('alias', '')}"
+            )
         if "expression" in table_def:
             expr_and_alias = f"{table_def['expression']} {table_def.get('alias', '')}"
 
@@ -52,7 +54,9 @@ def build_query_template(data: dict) -> str:
     if "order_by" in select_def:
         order_by = select_def["order_by"]
 
-        result += " ORDER BY " + ", ".join([f"{ob['field']} {ob['order']} " for ob in order_by])
+        result += " ORDER BY " + ", ".join(
+            [f"{ob['field']} {ob['order']} " for ob in order_by]
+        )
 
     return result
 
@@ -102,8 +106,6 @@ class Query(qc.QObject):
 
         self.data = []
         self.header = []
-
-        self.editable_table_name = None
         self.database_path = None
 
         self.variables = dict()
@@ -201,7 +203,13 @@ class Query(qc.QObject):
             return qc.QCoreApplication.tr("Pas de datalake sélectionné")
         conn = self.datalake.get_database("validation")
         try:
-            name = conn.sql(f"SELECT * FROM validations WHERE table_uuid = '{self.editable_table_name}'").pl().to_dicts()[0]["validation_name"]
+            name = (
+                conn.sql(
+                    f"SELECT validation_name FROM validations WHERE table_uuid = '{self.editable_table_name}'"
+                )
+                .pl()
+                .to_dicts()[0]["validation_name"]
+            )
         except IndexError:
             name = qc.QCoreApplication.tr("Table de validation introuvable")
         finally:
@@ -231,9 +239,11 @@ class Query(qc.QObject):
         if not self.readonly_table:
             return ""
 
-        additional_where = f" WHERE {str(self.root_filter)} " if self.root_filter else ""
+        additional_where = (
+            f" WHERE {str(self.root_filter)} " if self.root_filter else ""
+        )
 
-        return f"SELECT * FROM ({self.query_template}) {additional_where} LIMIT {self.limit} OFFSET {self.offset}".format(
+        return f"SELECT * FROM ({self.query_template}){additional_where}LIMIT {self.limit} OFFSET {self.offset}".format(
             **{
                 "main_table": self.readonly_table,
                 "user_table": f'"{self.editable_table_name}"',
@@ -243,7 +253,9 @@ class Query(qc.QObject):
         )
 
     def count_query(self):
-        additional_where = f" WHERE {str(self.root_filter)} " if self.root_filter else ""
+        additional_where = (
+            f" WHERE {str(self.root_filter)} " if self.root_filter else ""
+        )
         return f"SELECT COUNT(*) AS count_star FROM ({self.query_template}) {additional_where}".format(
             **{
                 "main_table": self.readonly_table,
@@ -301,7 +313,9 @@ class Query(qc.QObject):
             return
         self.row_count = run_sql(self.count_query(), conn)[0]["count_star"]
         conn.close()
-        self.page_count = max(self.row_count // self.limit, ceil(self.row_count / self.limit))
+        self.page_count = max(
+            self.row_count // self.limit, ceil(self.row_count / self.limit)
+        )
         if self.current_page > self.page_count:
             self.offset = 0
         self.query_changed.emit()

@@ -5,18 +5,24 @@ from typing import List
 import duckdb as db
 import PySide6.QtCore as qc
 
-from commons import duck_db_literal_string_list
 import datalake as dl
+from commons import duck_db_literal_string_list
 
 VALIDATION_TABLE_COLUMNS = {
-    "parquet_files": 0,
-    "sample_names": 1,
-    "username": 2,
-    "validation_name": 3,
-    "table_uuid": 4,
-    "creation_date": 5,
-    "completed": 6,
-    "last_step": 7,
+    v: i
+    for i, v in enumerate(
+        [
+            "parquet_files",
+            "sample_names",
+            "gene_names",
+            "username",
+            "validation_name",
+            "table_uuid",
+            "creation_date",
+            "completed",
+            "last_step",
+        ]
+    )
 }
 
 
@@ -27,6 +33,7 @@ def add_validation_table(
     username: str,
     parquet_files: List[str],
     sample_names: List[str],
+    gene_names: List[str],
     validation_method: str,
 ):
     table_uuid = (
@@ -40,7 +47,7 @@ def add_validation_table(
                 "All parquet files must be in the datalake and relative to it"
             )
         conn.sql(
-            f"INSERT INTO validations VALUES ({duck_db_literal_string_list(parquet_files)}, {duck_db_literal_string_list(sample_names)}, '{username}', '{validation_name}', '{table_uuid}', NOW(), FALSE, 0, '{validation_method}')"
+            f"INSERT INTO validations VALUES ({duck_db_literal_string_list(parquet_files)}, {duck_db_literal_string_list(sample_names)}, {gene_names} , '{username}', '{validation_name}', '{table_uuid}', NOW(), FALSE, '{validation_method}')"
         )
         conn.sql(
             f"CREATE TABLE '{table_uuid}' (validation_hash BIGINT,sample_name TEXT,run_name TEXT,transcript_ID TEXT,accepted BOOLEAN,comment COMMENT[], tags TEXT[])"
@@ -139,6 +146,7 @@ class ValidationModel(qc.QAbstractTableModel):
         username: str,
         parquet_files: List[str],
         sample_names: List[str],
+        gene_names: List[str],
         validation_method: str,
     ):
         if self.datalake.datalake_path:
@@ -150,6 +158,7 @@ class ValidationModel(qc.QAbstractTableModel):
                 username,
                 parquet_files,
                 sample_names,
+                gene_names,
                 validation_method,
             )
             self.update()

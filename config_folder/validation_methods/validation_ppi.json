@@ -190,9 +190,9 @@
 					"main_table.chromosome||':'||main_table.position||':'||main_table.reference||'>'||main_table.alternate AS 'Libelle de l anomalie'",
 					"main_table.chromosome AS Chr",
 					"main_table.snpeff_Gene_Name AS 'Nom du gene'",
-					"'WHATEVER' AS 'Code HGNC'",
+					"hgnc.name AS 'Code HGNC'",
 					"main_table.snpeff_Feature_ID AS 'NM'",
-					"'exon' AS 'Type region'",
+					"main_table.snpeff_Annotation AS 'Type region'",
 					"format('{{:02d}}',2) AS 'Sequence region'",
 					"main_table.position AS 'Start'",
 					"main_table.position AS 'End'",
@@ -221,6 +221,12 @@
 						"expression": "{user_table}",
 						"alias": "user_table",
 						"on": "main_table.validation_hash = user_table.validation_hash",
+						"how": ""
+					},
+					{
+						"expression": "{pwd}/annotations/hgnc.hg19.parquet",
+						"alias": "hgnc",
+						"on": "main_table.chromosome = hgnc.chrom AND main_table.position >= hgnc.chromStart AND main_table.position <= hgnc.chromEnd",
 						"how": ""
 					},
 					{
