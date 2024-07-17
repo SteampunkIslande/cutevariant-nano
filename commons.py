@@ -7,8 +7,12 @@ import PySide6.QtCore as qc
 import PySide6.QtWidgets as qw
 
 
-def duck_db_literal_string_list(l: typing.List) -> str:
+def duck_db_literal_string_list(l: typing.Iterable) -> str:
     return "[" + ", ".join(f"'{e}'" for e in l) + "]"
+
+
+def duck_db_literal_string_tuple(l: typing.Iterable) -> str:
+    return "(" + ", ".join(f"'{e}'" for e in l) + ")"
 
 
 def dict_add_value(d: dict, key: str, value: typing.Any):

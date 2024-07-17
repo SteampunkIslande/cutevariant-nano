@@ -9,7 +9,7 @@ import PySide6.QtCore as qc
 
 import datalake as dl
 import filters_model as fm
-from commons import duck_db_literal_string_list
+from commons import duck_db_literal_string_list, duck_db_literal_string_tuple
 from filters import FilterItem, FilterType
 
 
@@ -76,7 +76,13 @@ def run_sql(query: str, conn: db.DuckDBPyConnection = None) -> Union[List[dict],
 
 class Query(qc.QObject):
 
-    RESERVED_VARIABLES = ["main_table", "user_table", "pwd"]
+    RESERVED_VARIABLES = [
+        "main_table",
+        "user_table",
+        "pwd",
+        "selected_genes",
+        "selected_samples",
+    ]
 
     # Signal for external use (tell the UI to update)
     query_changed = qc.Signal()
@@ -95,8 +101,11 @@ class Query(qc.QObject):
         # When we create a new Query, we want to reset everything, except for the datalake path...
         self.query_template = None
         self.order_by = None
+
         self.readonly_table = None
         self.editable_table_name = None
+        self.selected_samples = []
+        self.selected_genes = []
 
         self.limit = 10
         self.offset = 0
@@ -220,6 +229,22 @@ class Query(qc.QObject):
         self.internal_changed.emit()
         return self
 
+    def set_selected_samples(self, samples: List[str]):
+        self.selected_samples = samples
+        self.internal_changed.emit()
+        return self
+
+    def get_selected_samples(self) -> List[str]:
+        return self.selected_samples
+
+    def set_selected_genes(self, genes: List[str]):
+        self.selected_genes = genes
+        self.internal_changed.emit()
+        return self
+
+    def get_selected_genes(self) -> List[str]:
+        return self.selected_genes
+
     def generate_query_template_from_json(self, data: dict) -> "Query":
         """Builds a query template from a json object.
         Provided json object must have a select key at the root level.
@@ -247,21 +272,15 @@ class Query(qc.QObject):
                 "main_table": self.readonly_table,
                 "user_table": f'"{self.editable_table_name}"',
                 "pwd": self.datalake.datalake_path,
+                "selected_genes": duck_db_literal_string_tuple(self.selected_genes),
+                "selected_samples": duck_db_literal_string_tuple(self.selected_samples),
                 **{k: v for k, v in self.variables.items()},
             }
         )
 
     def count_query(self):
-        additional_where = (
-            f" WHERE {str(self.filter_model.root)} " if self.filter_model.root else ""
-        )
-        return f"SELECT COUNT(*) AS count_star FROM ({self.query_template}) {additional_where}".format(
-            **{
-                "main_table": self.readonly_table,
-                "user_table": f'"{self.editable_table_name}"',
-                "pwd": self.datalake.datalake_path,
-                **{k: v for k, v in self.variables.items()},
-            }
+        return (
+            f"SELECT COUNT(*) AS count_star FROM ({self.select_query(paginated=False)})"
         )
 
     def is_valid(self):

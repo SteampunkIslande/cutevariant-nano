@@ -74,23 +74,23 @@
 			"query": {
 				"select": {
 					"fields": [
-						"main_table.run_name",
-						"main_table.sample_name",
-						"main_table.snpeff_Gene_Name",
-						"main_table.snpeff_Feature_ID",
-						"main_table.chromosome",
-						"main_table.position",
-						"main_table.reference",
-						"main_table.alternate",
-						"main_table.cv_AF",
-						"main_table.snpeff_Annotation",
-						"main_table.cv_GT",
-						"main_table.snpeff_Annotation_Impact",
-						"agg.ref_count",
-						"agg.var_count",
-						"recur.count",
-						"clinvar.CLNACC",
-						"clinvar.CLNSIG",
+						"main_table.run_name AS 'Nom du run'",
+						"main_table.sample_name AS 'Échantillon'",
+						"main_table.snpeff_Gene_Name AS 'Nom du gène'",
+						"main_table.snpeff_Feature_ID AS 'NM'",
+						"main_table.chromosome AS 'Chromosome'",
+						"main_table.position AS 'Position'",
+						"main_table.reference AS 'Allèle de référence'",
+						"main_table.alternate AS 'Allèle alternatif'",
+						"main_table.cv_AF AS 'Fréquence allélique'",
+						"main_table.snpeff_Annotation AS 'Annotation'",
+						"main_table.cv_GT AS 'Génotype'",
+						"main_table.snpeff_Annotation_Impact AS 'Annotation impact'",
+						"agg.ref_count AS 'Nombre d''allèles de référence dans la base'",
+						"agg.var_count AS 'Nombre de variants détectés dans la base'",
+						"recur.count AS 'Nombre d''observations du variant dans ce run'",
+						"clinvar.CLNACC AS 'Numéro d''accession clinvar'",
+						"clinvar.CLNSIG AS 'Signification CLINVAR'",
 						"main_table.\"snpeff_HGVS.c\" AS 'c. de l anomalie'"
 					],
 					"tables": [
@@ -152,8 +152,25 @@
 							"alias": "clinvar",
 							"on": "main_table.variant_hash = clinvar.variant_hash",
 							"how": ""
+						},
+						{
+							"expression": "read_csv('{pwd}/lists/liste_nms.csv',sep=',',header=false,names=['NM'])",
+							"alias": "nms",
+							"on": "main_table.snpeff_Feature_ID = nms.NM",
+							"how": "right"
 						}
 					],
+					"filter": {
+						"filter_type": "AND",
+						"children": [
+							{
+								"expression": "main_table.sample_name IN {selected_samples}"
+							},
+							{
+								"expression": "main_table.snpeff_Gene_Name IN {selected_genes}"
+							}
+						]
+					},
 					"order_by": [
 						{
 							"field": "main_table.chromosome",

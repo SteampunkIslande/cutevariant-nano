@@ -179,12 +179,6 @@ class StepModel(qc.QAbstractListModel):
     def flags(self, index: qc.QModelIndex):
         return qc.Qt.ItemFlag.ItemIsSelectable | qc.Qt.ItemFlag.ItemIsEnabled
 
-    def get_step(self, index):
-        return self.steps[index]
-
-    def get_current_step(self, index):
-        return self.steps[index]
-
 
 class ValidationWidget(qw.QWidget):
 
@@ -204,6 +198,7 @@ class ValidationWidget(qw.QWidget):
         self.step_selection_list_view.setSelectionMode(
             qw.QAbstractItemView.SelectionMode.SingleSelection
         )
+
         self.step_selection_list_view.selectionModel().currentChanged.connect(
             self.update_step
         )
@@ -242,6 +237,8 @@ class ValidationWidget(qw.QWidget):
         self.validation_table_uuid = None
         self.validation_name = None
         self.validation_parquet_files = None
+        self.validation_sample_names = None
+        self.validation_gene_names = None
 
         self.validate_button.setText(qc.QCoreApplication.tr("Valider le panier"))
         self.return_to_validation_button.setText(
@@ -250,31 +247,13 @@ class ValidationWidget(qw.QWidget):
 
         self.completed = False
 
-    def setup_finish(self):
-        if (
-            not self.validation_name
-            or not self.validation_parquet_files
-            or not self.method
-            or not self.datalake
-        ):
-            return
-        self.validate_button.setText(qc.QCoreApplication.tr("Exporter vers Genno"))
-
-        last_step_definition = self.method["final"]
-
-        self.query.mute().set_readonly_table(
-            self.validation_parquet_files
-        ).set_editable_table_name(
-            self.validation_table_uuid
-        ).unmute().generate_query_template_from_json(
-            last_step_definition["query"]
-        )
-
     def validate(self):
         conn = self.datalake.get_database("validation")
         try:
             finish_validation(conn, self.validation_table_uuid)
             self.completed = True
+            step_definition = self.method["final"]["query"]
+            self.setup_step(step_definition)
         except Exception as e:
             print(e)
         finally:
@@ -338,26 +317,28 @@ class ValidationWidget(qw.QWidget):
 
     def update_step(self, index: qc.QModelIndex):
         self.current_step_id = index.row()
-        self.setup_step()
+        step_definition = index.data(qc.Qt.ItemDataRole.UserRole)
+        self.setup_step(step_definition)
 
-    def setup_step(self):
+    def setup_step(self, step_definition: dict):
         """Modifies the query to match the current step definition."""
         if (
             not self.validation_name
             or not self.validation_parquet_files
             or not self.method
             or not self.datalake
+            or not self.query
         ):
             return
 
-        step_definition = self.method["steps"][self.current_step_id]
-
         self.query.mute().set_readonly_table(
             self.validation_parquet_files
-        ).set_editable_table_name(
-            self.validation_table_uuid
+        ).set_editable_table_name(self.validation_table_uuid).set_selected_genes(
+            self.validation_gene_names
+        ).set_selected_samples(
+            self.validation_sample_names
         ).unmute().generate_query_template_from_json(
-            step_definition["query"]
+            step_definition
         )
 
     def start_validation(self, selected_validation: dict):
@@ -378,6 +359,8 @@ class ValidationWidget(qw.QWidget):
         self.validation_name = selected_validation["validation_name"]
         self.validation_parquet_files = selected_validation["parquet_files"]
         self.validation_table_uuid = selected_validation["table_uuid"]
+        self.validation_sample_names = selected_validation["sample_names"]
+        self.validation_gene_names = selected_validation["gene_names"]
 
         self.set_method_path(
             Path(config_folder)
@@ -402,9 +385,16 @@ class ValidationWidget(qw.QWidget):
                 .to_dicts()[0]["completed"]
             )
             if self.completed:
-                self.setup_finish()
+                self.validate_button.setText(
+                    qc.QCoreApplication.tr("Exporter vers Genno")
+                )
+                step_definition = self.method["final"]["query"]
+                self.setup_step(step_definition)
             else:
-                self.setup_step()
+                step_definition = self.step_model.index(self.current_step_id).data(
+                    qc.Qt.ItemDataRole.UserRole
+                )
+                self.setup_step(step_definition)
         except IndexError:
             print(self.validation_table_uuid)
         finally:
