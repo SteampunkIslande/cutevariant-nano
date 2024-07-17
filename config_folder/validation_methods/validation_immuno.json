@@ -1,0 +1,134 @@
+{
+    "genes_list": {
+        "DLBCL": [
+            "TP53",
+            "CD79B"
+        ],
+        "Lymphome B": [
+            "TP53",
+            "CD79B",
+            "MYD88",
+            "CD79A",
+            "CARD11"
+        ]
+    },
+    "steps": [
+        {
+            "title": "Montre les variants dont la VAF est en rouge",
+            "description": "Juste une démo",
+            "query": {
+                "select": {
+                    "fields": [
+                        "\"Project.recurrence\"",
+                        "\"Recurrence.cosmic\"",
+                        "\"Phastcons\"",
+                        "\"NbrReadAlt.Neg\"",
+                        "\"NChar_Ref\"",
+                        "\"dbsnp.rs.id\"",
+                        "\"NbrReadAlt.Pos\"",
+                        "\"VAF\"",
+                        "\"VAF color\"",
+                        "\"TRI\"",
+                        "\"hgvs.c\"",
+                        "\"Cosmic.noncoding.id\"",
+                        "\"dbscsnv.Ada.score\"",
+                        "\"N.Ref\"",
+                        "\"Cosmic.coding.id\"",
+                        "\"NbrReadRef.Pos\"",
+                        "\"Spidex.dpsi.max.tissue\"",
+                        "\"NChar_Alt\"",
+                        "\"Analysis_recurrence.N\"",
+                        "\"is.driver\"",
+                        "\"Depth_min\"",
+                        "\"dlong\"",
+                        "\"Variant.effect\"",
+                        "\"Clinvar.clinical.significance\"",
+                        "\"Glims\"",
+                        "\"Position\"",
+                        "\"PROVEAN\"",
+                        "\"NbrReadAlt\"",
+                        "\"MUTATIONTASTER\"",
+                        "\"SIFT\"",
+                        "\"Feature.type\"",
+                        "\"Fisher.test.p.value\"",
+                        "\"SDlong\"",
+                        "\"Torrent.server.metric\"",
+                        "\"RatioAlt_PosNeg\"",
+                        "\"Histo_majoritaire_pourcentage.cosmic\"",
+                        "\"testN_recurrence\"",
+                        "\"Clinvar.review.status\"",
+                        "\"CADD.phred\"",
+                        "\"dbscsnv.Rf.score\"",
+                        "\"Histo_majoritaire.cosmic\"",
+                        "\"Chrom\"",
+                        "\"Background color\"",
+                        "\"hgvs.p\"",
+                        "\"Nombre_reference.cosmic\"",
+                        "\"NbrReadRef.Neg\"",
+                        "\"Read.background.enrichment\"",
+                        "\"Putative.impact\"",
+                        "\"Run name\"",
+                        "\"Feature.id\"",
+                        "\"Gene.symbol\"",
+                        "\"Position_recurrenceB\"",
+                        "\"Temps\"",
+                        "\"Sample_id\"",
+                        "\"Sample name\"",
+                        "\"Position_recurrence1B\"",
+                        "\"N.Alt\"",
+                        "\"FATHMM\"",
+                        "\"Exon.rank\"",
+                        "\"Spidex.dpsi.z.score\"",
+                        "\"MAF\"",
+                        "\"ORIGINE\"",
+                        "\"Depth\"",
+                        "\"NbrReadRef\"",
+                        "\"SUIVI/DIAGNOSTIC\"",
+                        "\"Position_recurrence1_detail.N\"",
+                        "\"testN.R\"",
+                        "\"testN_id.N\"",
+                        "\"Project.recurrence.DENOM\"",
+                        "\"testN.D\"",
+                        "\"dlong.1\"",
+                        "\"SDlong.1\"",
+                        "\"Analysis.recurrence.DENOM\"",
+                        "\"rlong\"",
+                        "\"Gene.mediane\"",
+                        "\"RatioAlt_PosNeg.Sample_id\"",
+                        "\"Position.mediane1\"",
+                        "\"VAFsum\"",
+                        "\"Position.mediane\"",
+                        "\"Position.medianeR\"",
+                        "\"rlong.1\"",
+                        "\"PREDICTED\"",
+                        "\"NChar_Ref.median\"",
+                        "\"RatioAlt_PosNeg.median1\"",
+                        "\"NChar_Alt.median\"",
+                        "\"Test\"",
+                        "\"VAFcorr\""
+                    ],
+                    "tables": [
+                        {
+                            "expression": "{main_table}",
+                            "alias": "main_table"
+                        }
+                    ],
+                    "filter": {
+                        "filter_type": "AND",
+                        "children": [
+                            {
+                                "expression": "main_table.\"VAF color\" = 'FFFF0000'"
+                            }
+                        ]
+                    },
+                    "order_by": [
+                        {
+                            "field": "main_table.Chrom",
+                            "order": "ASC"
+                        }
+                    ]
+                }
+            }
+        }
+    ]
+}
