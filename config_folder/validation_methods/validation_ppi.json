@@ -75,14 +75,15 @@
 				"select": {
 					"fields": [
 						"main_table.run_name AS 'Nom du run'",
+						"validation_hash AS '.validation_hash'",
 						"main_table.sample_name AS 'Échantillon'",
-						"main_table.snpeff_Gene_Name AS 'Nom du gène'",
+						"main_table.snpeff_Gene_Name AS 'Nom du gène:color=red:bold='",
 						"main_table.snpeff_Feature_ID AS 'NM'",
 						"main_table.chromosome AS 'Chromosome'",
 						"main_table.position AS 'Position'",
 						"main_table.reference AS 'Allèle de référence'",
 						"main_table.alternate AS 'Allèle alternatif'",
-						"main_table.cv_AF AS 'Fréquence allélique'",
+						"format('{{:.2f}}',main_table.cv_AF) AS 'Fréquence allélique'",
 						"main_table.snpeff_Annotation AS 'Annotation'",
 						"main_table.cv_GT AS 'Génotype'",
 						"main_table.snpeff_Annotation_Impact AS 'Annotation impact'",
@@ -157,7 +158,7 @@
 							"expression": "read_csv('{pwd}/lists/liste_nms.csv',sep=',',header=false,names=['NM'])",
 							"alias": "nms",
 							"on": "main_table.snpeff_Feature_ID = nms.NM",
-							"how": "right"
+							"how": ""
 						}
 					],
 					"filter": {

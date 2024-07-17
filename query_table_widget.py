@@ -13,6 +13,25 @@ from query import Query
 from query_table_model import QueryTableModel
 
 
+class QueryTableProxyModel(qc.QSortFilterProxyModel):
+    # Automatically hides columns which names start with a dot
+    def filterAcceptsColumn(self, source_column: int, source_parent: qc.QModelIndex):
+        source_model = self.sourceModel()
+        header: str = source_model.headerData(
+            source_column, qc.Qt.Orientation.Horizontal
+        )
+        return not header.startswith(".")
+
+    # Rename columns by splitting on every colon
+    def headerData(self, section: int, orientation: qc.Qt.Orientation, role: int):
+        source_model = self.sourceModel()
+        actual_section = self.mapToSource(self.index(0, section)).column()
+        header: str = source_model.headerData(actual_section, orientation, role)
+        if role == qc.Qt.ItemDataRole.DisplayRole:
+            return header.split(":")[0] if header else header
+        return header
+
+
 class QueryTableWidget(qw.QWidget):
 
     def __init__(self, query: Query, parent=None):
@@ -20,13 +39,12 @@ class QueryTableWidget(qw.QWidget):
 
         self.query = query
         self.model = QueryTableModel(query)
+        self.proxy_model = QueryTableProxyModel()
+        self.proxy_model.setSourceModel(self.model)
 
         self.table_view = qw.QTableView()
         self.table_view.setSelectionBehavior(
             qw.QAbstractItemView.SelectionBehavior.SelectRows
-        )
-        self.table_view.setSelectionMode(
-            qw.QAbstractItemView.SelectionMode.SingleSelection
         )
         self.table_view.horizontalHeader().setStretchLastSection(
             True
@@ -37,7 +55,7 @@ class QueryTableWidget(qw.QWidget):
         self.table_view.horizontalHeader().customContextMenuRequested.connect(
             self.show_header_context_menu
         )
-        self.table_view.setModel(self.model)
+        self.table_view.setModel(self.proxy_model)
 
         self.page_selector = PageSelector(query)
 
@@ -71,8 +89,8 @@ class QueryTableWidget(qw.QWidget):
 
         if dialog.exec_() == qw.QDialog.DialogCode.Accepted:
             filter_text = dialog.textValue()
-            self.model.query.filter_model.add_filter(
-                self.model.query.filter_model.index(0, 0),
+            self.query.filter_model.add_filter(
+                self.query.filter_model.index(0, 0),
                 FilterType.LEAF,
                 f"{col_name} {filter_text}",
             )
