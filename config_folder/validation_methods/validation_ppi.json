@@ -69,8 +69,8 @@
 	},
 	"steps": [
 		{
-			"title": "Etape 1",
-			"description": "Première étape de la validation.\nLes filtres appliqués montrent uniquement les variants dont la fréquence allélique en population générale est inférieure à 1%.",
+			"title": "Presets d'Alix",
+			"description": "<body>Première étape de la validation.<br>Les filtres appliqués montrent uniquement les variants dont la fréquence allélique en population générale est inférieure à <a style=\"color:red;background:yellow\">1%</a>.</body>",
 			"query": {
 				"select": {
 					"fields": [
@@ -166,6 +166,105 @@
 					]
 				}
 			}
+		},
+		{
+			"title": "Presets de Pascale",
+			"description": "<body>Première étape de la validation.\nLes filtres appliqués montrent uniquement les variants dont la fréquence allélique en population générale est inférieure à <a style=\"color:red;background:yellow\">1%</a>.</body>",
+			"query": {
+				"select": {
+					"fields": [
+						"main_table.run_name",
+						"main_table.sample_name",
+						"main_table.snpeff_Gene_Name",
+						"main_table.snpeff_Feature_ID",
+						"main_table.chromosome",
+						"main_table.position",
+						"main_table.reference",
+						"main_table.alternate",
+						"main_table.cv_AF",
+						"main_table.snpeff_Annotation",
+						"main_table.cv_GT",
+						"main_table.snpeff_Annotation_Impact",
+						"agg.ref_count",
+						"agg.var_count",
+						"recur.count",
+						"clinvar.CLNACC",
+						"clinvar.CLNSIG",
+						"main_table.\"snpeff_HGVS.c\" AS 'c. de l anomalie'"
+					],
+					"tables": [
+						{
+							"expression": "{main_table}",
+							"alias": "main_table"
+						},
+						{
+							"expression": "read_parquet('{pwd}/aggregates/variants.parquet')",
+							"alias": "agg",
+							"on": "main_table.variant_hash = agg.variant_hash",
+							"how": ""
+						},
+						{
+							"select": {
+								"fields": [
+									"variant_hash",
+									"COUNT(*) as count"
+								],
+								"tables": [
+									{
+										"select": {
+											"fields": [
+												"DISTINCT(sample_name)",
+												"variant_hash"
+											],
+											"tables": [
+												{
+													"expression": "{main_table}",
+													"alias": ""
+												}
+											]
+										},
+										"alias": ""
+									}
+								],
+								"group_by": [
+									"variant_hash"
+								]
+							},
+							"alias": "recur",
+							"on": "main_table.variant_hash = recur.variant_hash",
+							"how": ""
+						},
+						{
+							"select": {
+								"fields": [
+									"variant_hash",
+									"rcvAcc AS CLNACC",
+									"clinSign AS CLNSIG"
+								],
+								"tables": [
+									{
+										"expression": "read_parquet('{pwd}/annotations/clinvarMain.parquet')",
+										"alias": ""
+									}
+								]
+							},
+							"alias": "clinvar",
+							"on": "main_table.variant_hash = clinvar.variant_hash",
+							"how": ""
+						}
+					],
+					"order_by": [
+						{
+							"field": "main_table.chromosome",
+							"order": "DESC"
+						},
+						{
+							"field": "main_table.position",
+							"order": "DESC"
+						}
+					]
+				}
+			}
 		}
 	],
 	"final": {
@@ -212,25 +311,13 @@
 						"how": ""
 					},
 					{
-						"expression": "{pwd}/annotations/hgnc.hg19.parquet",
+						"expression": "read_parquet('{pwd}/annotations/hgnc.hg19.parquet')",
 						"alias": "hgnc",
 						"on": "main_table.chromosome = hgnc.chrom AND main_table.position >= hgnc.chromStart AND main_table.position <= hgnc.chromEnd",
 						"how": ""
 					},
 					{
-						"select": {
-							"fields": [
-								"variant_hash",
-								"rcvAcc AS CLNACC",
-								"clinSign AS CLNSIG"
-							],
-							"tables": [
-								{
-									"expression": "read_parquet('{pwd}/clinvarMain.parquet')",
-									"alias": ""
-								}
-							]
-						},
+						"expression": "read_parquet('{pwd}/annotations/clinvarMain.parquet')",
 						"alias": "clinvar",
 						"on": "main_table.variant_hash = clinvar.variant_hash",
 						"how": ""

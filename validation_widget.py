@@ -1,20 +1,16 @@
 import json
 from pathlib import Path
+from typing import List
 
 import duckdb as db
 import PySide6.QtCore as qc
 import PySide6.QtWidgets as qw
 
 import datalake as dl
-from common_widgets.multiline_display import MultiLineDisplay
 from common_widgets.multiwidget_holder import MultiWidgetHolder
 from common_widgets.searchable_table import SearchableTable
 from commons import get_config_folder, load_user_prefs, save_user_prefs
-from validation_model import (
-    VALIDATION_TABLE_COLUMNS,
-    ValidationModel,
-    get_validation_from_table_uuid,
-)
+from validation_model import VALIDATION_TABLE_COLUMNS, ValidationModel
 from validation_wizard import ValidationWizard
 
 
@@ -139,6 +135,57 @@ class ValidationWelcomeWidget(qw.QWidget):
         return None
 
 
+class StepModel(qc.QAbstractListModel):
+
+    def __init__(self, steps: List[dict], parent=None):
+        super().__init__(parent)
+        self.steps = steps
+
+    def rowCount(self, parent: qc.QModelIndex):
+        if parent.isValid():
+            return 0
+        return len(self.steps)
+
+    def columnCount(self, parent: qc.QModelIndex):
+        if parent.isValid():
+            return 0
+        return 1
+
+    def data(self, index: qc.QModelIndex, role: int):
+        if not index.isValid():
+            return None
+        if role == qc.Qt.ItemDataRole.DisplayRole:
+            return self.steps[index.row()]["title"]
+        if role == qc.Qt.ItemDataRole.ToolTipRole:
+            return self.steps[index.row()]["description"]
+        if role == qc.Qt.ItemDataRole.UserRole:
+            return self.steps[index.row()]["query"]
+        return None
+
+    def headerData(self, section: int, orientation: qc.Qt.Orientation, role: int):
+        if (
+            orientation == qc.Qt.Orientation.Horizontal
+            and role == qc.Qt.ItemDataRole.DisplayRole
+            and section == 0
+        ):
+            return "Steps"
+        return None
+
+    def set_steps(self, steps):
+        self.beginResetModel()
+        self.steps = steps
+        self.endResetModel()
+
+    def flags(self, index: qc.QModelIndex):
+        return qc.Qt.ItemFlag.ItemIsSelectable | qc.Qt.ItemFlag.ItemIsEnabled
+
+    def get_step(self, index):
+        return self.steps[index]
+
+    def get_current_step(self, index):
+        return self.steps[index]
+
+
 class ValidationWidget(qw.QWidget):
 
     return_to_validation = qc.Signal()
@@ -150,8 +197,16 @@ class ValidationWidget(qw.QWidget):
 
         self._layout = qw.QVBoxLayout(self)
 
-        self.title_label = qw.QLabel("")
-        self.description_text = MultiLineDisplay(self)
+        self.step_model = StepModel([], self)
+        self.step_selection_list_view = qw.QListView(self)
+
+        self.step_selection_list_view.setModel(self.step_model)
+        self.step_selection_list_view.setSelectionMode(
+            qw.QAbstractItemView.SelectionMode.SingleSelection
+        )
+        self.step_selection_list_view.selectionModel().currentChanged.connect(
+            self.update_step
+        )
 
         self.validate_button = qw.QPushButton("", self)
         self.validate_button.clicked.connect(self.validate)
@@ -166,9 +221,8 @@ class ValidationWidget(qw.QWidget):
         self.setup_layout()
 
     def setup_layout(self):
-        self._layout.addWidget(self.title_label)
-        self._layout.addWidget(self.description_text)
 
+        self._layout.addWidget(self.step_selection_list_view)
         # Add vertical spacer
         self._layout.addStretch()
 
@@ -196,38 +250,44 @@ class ValidationWidget(qw.QWidget):
 
         self.completed = False
 
-    def on_finish(self):
-        self.title_label.setText(qc.QCoreApplication.tr("Validation terminée"))
-        self.description_text.text_edit.setText(
-            qc.QCoreApplication.tr(
-                "Validation terminée. Vous ne pouvez rien ajouter au panier.\nLes résultats sont présentés dans la table ci-contre.\nVous pouvez exporter ces résultats vers Genno en cliquant sur le bouton ci-dessous."
-            )
-        )
-        self.validate_button.setText(qc.QCoreApplication.tr("Exporter vers Genno"))
-
-        conn = self.datalake.get_database("validation")
-
-        validation = get_validation_from_table_uuid(conn, self.validation_table_uuid)
-        if not validation:
+    def setup_finish(self):
+        if (
+            not self.validation_name
+            or not self.validation_parquet_files
+            or not self.method
+            or not self.datalake
+        ):
             return
-
-        parquet_files = validation["parquet_files"]
-        conn.close()
+        self.validate_button.setText(qc.QCoreApplication.tr("Exporter vers Genno"))
 
         last_step_definition = self.method["final"]
 
-        self.query.mute().set_readonly_table(parquet_files).set_editable_table_name(
+        self.query.mute().set_readonly_table(
+            self.validation_parquet_files
+        ).set_editable_table_name(
             self.validation_table_uuid
-        ).unmute().generate_query_template_from_json(last_step_definition["query"])
+        ).unmute().generate_query_template_from_json(
+            last_step_definition["query"]
+        )
 
     def validate(self):
-        pass
+        conn = self.datalake.get_database("validation")
+        try:
+            finish_validation(conn, self.validation_table_uuid)
+            self.completed = True
+        except Exception as e:
+            print(e)
+        finally:
+            conn.close()
 
     def on_return_to_validation(self):
         self.init_state()
         self.return_to_validation.emit()
 
     def export_csv(self):
+        if not self.datalake:
+            # WTF ? This should never happen
+            return
         user_prefs = load_user_prefs()
         if "genno_export_folder" not in user_prefs:
             qw.QMessageBox.warning(
@@ -251,30 +311,15 @@ class ValidationWidget(qw.QWidget):
                     ),
                 )
                 return
-            # Now, export final CSV to Genno
-            if self.datalake:
-                conn = self.datalake.get_database("validation")
-                validation = get_validation_from_table_uuid(
-                    conn, self.validation_table_uuid
-                )
-                if not validation:
-                    return
-                conn.close()
+        else:
+            genno_export_folder = Path(user_prefs["genno_export_folder"])
 
-    # def on_next_step_clicked(self):
-    #     # Export to genno
-    #     if self.completed:
-    #         self.export_csv()
-    #         return
+        # Now, export final CSV to Genno
 
-    #     # Decide whether we continue or if we reached the end
-    #     if self.current_step_id < len(self.method["steps"]):
-    #         self.setup_step()
-    #         # Increment the step index
-    #         self.current_step_id += 1
-    #         return
-    #     else:
-    #         self.on_finish()
+        final_query = self.query.select_query(paginated=False)
+        db.sql(
+            f"COPY ({final_query}) TO '{genno_export_folder / self.validation_name}.csv' (FORMAT CSV, HEADER)"
+        )
 
     def set_method_path(self, method_path: Path):
         if not method_path.exists():
@@ -289,6 +334,11 @@ class ValidationWidget(qw.QWidget):
             )
         with open(method_path, "r") as f:
             self.method = json.load(f)
+            self.step_model.set_steps(self.method["steps"])
+
+    def update_step(self, index: qc.QModelIndex):
+        self.current_step_id = index.row()
+        self.setup_step()
 
     def setup_step(self):
         """Modifies the query to match the current step definition."""
@@ -301,9 +351,6 @@ class ValidationWidget(qw.QWidget):
             return
 
         step_definition = self.method["steps"][self.current_step_id]
-
-        self.title_label.setText(step_definition["title"])
-        self.description_text.text_edit.setText(step_definition["description"])
 
         self.query.mute().set_readonly_table(
             self.validation_parquet_files
@@ -337,9 +384,16 @@ class ValidationWidget(qw.QWidget):
             / "validation_methods"
             / (selected_validation["validation_method"] + ".json")
         )
-        try:
-            conn = self.datalake.get_database("validation")
+        conn = self.datalake.get_database("validation")
 
+        # Might be a good place to load previous step ID
+
+        self.step_selection_list_view.selectionModel().setCurrentIndex(
+            self.step_model.index(self.current_step_id),
+            qc.QItemSelectionModel.SelectionFlag.Select,
+        )
+
+        try:
             self.completed = (
                 conn.sql(
                     f"SELECT completed FROM validations WHERE table_uuid = '{self.validation_table_uuid}'"
@@ -348,11 +402,10 @@ class ValidationWidget(qw.QWidget):
                 .to_dicts()[0]["completed"]
             )
             if self.completed:
-                self.on_finish()
+                self.setup_finish()
             else:
                 self.setup_step()
         except IndexError:
-            self.current_step_id = 0
             print(self.validation_table_uuid)
         finally:
             conn.close()

@@ -231,15 +231,18 @@ class Query(qc.QObject):
         self.internal_changed.emit()
         return self
 
-    def select_query(self):
+    def select_query(self, paginated=True):
+        """Generates the select query to run on the database. Set paginated to False if you need a query that returns all rows."""
         if not self.readonly_table:
             return ""
 
+        pagination = f" LIMIT {self.limit} OFFSET {self.offset}" if paginated else ""
+
         additional_where = (
-            f" WHERE {str(self.filter_model.root)} " if self.filter_model.root else ""
+            f" WHERE {str(self.filter_model.root)}" if self.filter_model.root else ""
         )
 
-        return f"SELECT * FROM ({self.query_template}){additional_where}LIMIT {self.limit} OFFSET {self.offset}".format(
+        return f"SELECT * FROM ({self.query_template}){additional_where}{pagination}".format(
             **{
                 "main_table": self.readonly_table,
                 "user_table": f'"{self.editable_table_name}"',
@@ -273,7 +276,6 @@ class Query(qc.QObject):
             return "Please select a validation table"
 
     def update_data(self):
-        print("Updating data")
         # Empty data before updating
         self.header = []
         self.data = []
