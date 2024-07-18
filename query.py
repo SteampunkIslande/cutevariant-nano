@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-import json
 from math import ceil
 from typing import List, Union
 
@@ -379,9 +378,9 @@ class Query(qc.QObject):
 
 
 if __name__ == "__main__":
-    with open(
-        "config_folder/validation_methods/validation_ppi.json", "r", encoding="utf-8"
-    ) as f:
-        data = json.load(f)
-        q = build_query_template(data[0]["query"])
-        print(q)
+
+    from commons import yaml_load
+
+    data = yaml_load("config_folder/validation_methods/validation_ppi.yaml")
+    q = build_query_template(data[0]["query"])
+    print(q)

@@ -5,6 +5,12 @@ from pathlib import Path
 import duckdb as db
 import PySide6.QtCore as qc
 import PySide6.QtWidgets as qw
+import yaml
+
+
+def yaml_load(file: Path):
+    with open(file, "r", encoding="utf-8") as f:
+        return yaml.safe_load(f)
 
 
 def duck_db_literal_string_list(l: typing.Iterable) -> str:

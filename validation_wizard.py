@@ -8,7 +8,7 @@ import PySide6.QtWidgets as qw
 from common_widgets.any_widget_dialog import AnyWidgetDialog
 from common_widgets.searchable_table import SearchableTable
 from common_widgets.string_list_chooser import StringListChooser
-from commons import duck_db_literal_string_list, load_user_prefs
+from commons import duck_db_literal_string_list, load_user_prefs, yaml_load
 from datalake import DataLake
 
 
@@ -45,7 +45,7 @@ class IntroPage(qw.QWizardPage):
             config_folder = Path(userprefs["config_folder"])
             validation_methods = [
                 f.stem
-                for f in config_folder.glob("validation_methods/*.json")
+                for f in config_folder.glob("validation_methods/*.yaml")
                 if f.is_file()
             ]
         self.validation_method_combo.addItems(validation_methods)
@@ -272,14 +272,13 @@ class GeneListSelectPage(qw.QWizardPage):
 
         validation_method = dict()
         if "validation_method" in self.data:
-            with open(
+
+            validation_method: dict[str, dict] = yaml_load(
                 Path(load_user_prefs()["config_folder"])
                 / Path("validation_methods")
-                / Path(self.data["validation_method"] + ".json"),
-                encoding="utf-8",
-            ) as f:
-                validation_method: dict[str, dict] = json.load(f)
-                gene_sets = validation_method.get("genes_list", dict()).keys()
+                / Path(self.data["validation_method"] + ".yaml")
+            )
+            gene_sets = validation_method.get("genes_list", dict()).keys()
         else:
             gene_sets = []
 

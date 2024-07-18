@@ -1,4 +1,3 @@
-import json
 from pathlib import Path
 from typing import List
 
@@ -9,7 +8,7 @@ import PySide6.QtWidgets as qw
 import datalake as dl
 from common_widgets.multiwidget_holder import MultiWidgetHolder
 from common_widgets.searchable_table import SearchableTable
-from commons import get_config_folder, load_user_prefs, save_user_prefs
+from commons import get_config_folder, load_user_prefs, save_user_prefs, yaml_load
 from validation_model import VALIDATION_TABLE_COLUMNS, ValidationModel
 from validation_wizard import ValidationWizard
 
@@ -311,9 +310,8 @@ class ValidationWidget(qw.QWidget):
                     )
                 ),
             )
-        with open(method_path, "r", encoding="utf-8") as f:
-            self.method = json.load(f)
-            self.step_model.set_steps(self.method["steps"])
+        self.method = yaml_load(method_path)
+        self.step_model.set_steps(self.method["steps"])
 
     def update_step(self, index: qc.QModelIndex):
         self.current_step_id = index.row()
@@ -365,7 +363,7 @@ class ValidationWidget(qw.QWidget):
         self.set_method_path(
             Path(config_folder)
             / "validation_methods"
-            / (selected_validation["validation_method"] + ".json")
+            / (selected_validation["validation_method"] + ".yaml")
         )
         conn = self.datalake.get_database("validation")
 
