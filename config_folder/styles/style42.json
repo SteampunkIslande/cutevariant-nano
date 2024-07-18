@@ -1,12 +1,22 @@
 {
     "VAF": {
         "color": {
-            "from_col": "VAF color"
+            "from_column": ".vafcolor"
         }
     },
     "ref": {
         "color": {
             "constant": "#FF0000"
+        }
+    },
+    "*": {
+        "background": {
+            "from_column": ".backgroundcolor"
+        }
+    },
+    "Allèle de référence": {
+        "color": {
+            "from_column": ".refcolor"
         }
     }
 }

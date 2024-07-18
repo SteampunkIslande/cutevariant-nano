@@ -346,7 +346,7 @@ class ValidationWidget(qw.QWidget):
             return
 
         config_folder = get_config_folder()
-        if not config_folder:
+        if not config_folder.is_dir():
             qw.QMessageBox.critical(
                 self,
                 qc.QCoreApplication.tr("Erreur"),
@@ -443,7 +443,7 @@ class ValidationWidgetContainer(qw.QWidget):
         self.validation_widget.init_state()
 
         config_folder = get_config_folder()
-        if not config_folder:
+        if not config_folder.is_dir():
             qw.QMessageBox.critical(
                 self,
                 qc.QCoreApplication.tr("Erreur"),

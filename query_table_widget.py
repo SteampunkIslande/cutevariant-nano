@@ -23,7 +23,12 @@ class QueryTableProxyModel(qc.QSortFilterProxyModel):
         return not header.startswith(".")
 
     # Rename columns by splitting on every colon
-    def headerData(self, section: int, orientation: qc.Qt.Orientation, role: int):
+    def headerData(
+        self,
+        section: int,
+        orientation: qc.Qt.Orientation,
+        role: int = qc.Qt.ItemDataRole.DisplayRole,
+    ):
         source_model = self.sourceModel()
         actual_section = self.mapToSource(self.index(0, section)).column()
         header: str = source_model.headerData(actual_section, orientation, role)
@@ -92,5 +97,5 @@ class QueryTableWidget(qw.QWidget):
             self.query.filter_model.add_filter(
                 self.query.filter_model.index(0, 0),
                 FilterType.LEAF,
-                f"{col_name} {filter_text}",
+                f'"{col_name}" {filter_text}',
             )

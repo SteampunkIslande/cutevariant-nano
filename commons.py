@@ -75,7 +75,7 @@ def table_exists(conn: db.DuckDBPyConnection, table_name: str) -> bool:
         return False
 
 
-def get_config_folder():
+def get_config_folder() -> Path:
     try:
         config_folder = Path(load_user_prefs()["config_folder"])
         return config_folder
@@ -95,6 +95,10 @@ def get_config_folder():
         )
         if config_folder:
             save_user_prefs({"config_folder": config_folder})
-            return config_folder
+            return Path(config_folder)
         else:
-            return None
+            # Return a non existent path for sure
+            p = Path(".1")
+            while p.exists():
+                p = p.with_name(p.name + ".1")
+            return p
