@@ -275,7 +275,8 @@ class GeneListSelectPage(qw.QWizardPage):
             with open(
                 Path(load_user_prefs()["config_folder"])
                 / Path("validation_methods")
-                / Path(self.data["validation_method"] + ".json")
+                / Path(self.data["validation_method"] + ".json"),
+                encoding="utf-8",
             ) as f:
                 validation_method: dict[str, dict] = json.load(f)
                 gene_sets = validation_method.get("genes_list", dict()).keys()

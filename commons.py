@@ -49,12 +49,12 @@ def save_user_prefs(prefs: dict):
     user_prefs.parent.mkdir(parents=True, exist_ok=True)
     old_prefs = {}
     if user_prefs.exists():
-        with open(user_prefs, "r") as f:
+        with open(user_prefs, "r", encoding="utf-8") as f:
             old_prefs = json.load(f)
 
     old_prefs.update(prefs)
 
-    with open(user_prefs, "w") as f:
+    with open(user_prefs, "w", encoding="utf-8") as f:
         json.dump(old_prefs, f)
 
 
@@ -62,7 +62,7 @@ def load_user_prefs():
     user_prefs = get_user_prefs_file()
     prefs = {}
     if user_prefs.exists():
-        with open(user_prefs, "r") as f:
+        with open(user_prefs, "r", encoding="utf-8") as f:
             prefs = json.load(f)
     return prefs
 

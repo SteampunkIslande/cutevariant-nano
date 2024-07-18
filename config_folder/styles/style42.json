@@ -1,0 +1,12 @@
+{
+    "VAF": {
+        "color": {
+            "from_col": "VAF color"
+        }
+    },
+    "ref": {
+        "color": {
+            "constant": "#FF0000"
+        }
+    }
+}

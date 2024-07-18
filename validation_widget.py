@@ -311,7 +311,7 @@ class ValidationWidget(qw.QWidget):
                     )
                 ),
             )
-        with open(method_path, "r") as f:
+        with open(method_path, "r", encoding="utf-8") as f:
             self.method = json.load(f)
             self.step_model.set_steps(self.method["steps"])
 
