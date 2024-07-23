@@ -18,5 +18,13 @@
         "color": {
             "from_column": ".refcolor"
         }
+    },
+    "Annotation": {
+        "color": {
+            "from_column": ".annotationcolor"
+        },
+        "bold": {
+            "constant": true
+        }
     }
 }

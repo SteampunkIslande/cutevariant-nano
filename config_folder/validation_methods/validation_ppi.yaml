@@ -59,6 +59,8 @@ steps:
         fields:
           - MAP{{'A':'red','C':'green','G':'blue','T':'yellow'}}[main_table.reference][1]
             AS '.refcolor'
+          - MAP{{ 'missense_variant':'red', 'synonymous_variant':'green' }}[main_table.snpeff_Annotation][1]
+            AS '.annotationcolor'
           - main_table.run_name AS 'Nom du run'
           - validation_hash AS '.validation_hash'
           - main_table.sample_name AS 'Échantillon'
@@ -78,7 +80,6 @@ steps:
           - clinvar.CLNACC AS 'Numéro d''accession clinvar'
           - clinvar.CLNSIG AS 'Signification CLINVAR'
           - main_table."snpeff_HGVS.c" AS 'c. de l anomalie'
-          - ''''' AS ".backgroundcolor"'
         tables:
           - expression: "{main_table}"
             alias: main_table

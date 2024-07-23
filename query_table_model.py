@@ -92,8 +92,14 @@ class QueryTableModel(qc.QAbstractTableModel):
         draw_options = style_from_index(self.style, index)
 
         if role == qc.Qt.ItemDataRole.ForegroundRole:
-            if "color" in draw_options:
+            if (
+                "color" in draw_options
+                and draw_options["color"]
+                and draw_options["color"] != "None"
+            ):
                 return qg.QColor(draw_options["color"])
+            else:
+                return
         if role == qc.Qt.ItemDataRole.BackgroundRole:
             if "background" in draw_options and draw_options["background"]:
                 if draw_options["background"].startswith("#"):
