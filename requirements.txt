@@ -11,3 +11,4 @@ PySide6_Essentials==6.7.0
 shiboken6==6.7.0
 typeguard==4.2.1
 zstandard==0.22.0
+pyyaml==6.0.1
