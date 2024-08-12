@@ -42,12 +42,12 @@ class MainWindow(qw.QMainWindow):
 
     def load_previous_session(self):
         prefs = self.get_user_prefs()
-        if "last_datalake" not in prefs:
+        if "last_session" not in prefs:
             self.datalake = DataLake()
             self.validation_query = Query(self.datalake, self)
             self.datalake.add_query("validation", self.validation_query)
         else:
-            self.datalake = DataLake.load(Path(prefs["last_datalake"]))
+            self.datalake = DataLake.load(Path(prefs["last_session"]))
             self.validation_query = self.datalake.get_query("validation")
             self.validation_query.init_state()
 
@@ -56,10 +56,8 @@ class MainWindow(qw.QMainWindow):
         user_prefs_folder.mkdir(parents=True, exist_ok=True)
 
         # Save last query
-        self.datalake.save(user_prefs_folder / "last_datalake.pickle")
-        save_user_prefs(
-            {"last_datalake": str(user_prefs_folder / "last_datalake.pickle")}
-        )
+        self.datalake.save(user_prefs_folder / "last_session.json")
+        save_user_prefs({"last_session": str(user_prefs_folder / "last_session.json")})
         event.accept()
 
     def on_query_changed(self):

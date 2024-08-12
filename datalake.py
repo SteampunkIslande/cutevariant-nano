@@ -1,4 +1,4 @@
-import pickle
+import json
 import sys
 from pathlib import Path
 from typing import Dict
@@ -42,8 +42,8 @@ class DataLake(qc.QObject):
         return str(Path(self.datalake_path) / path)
 
     def save(self, filename: Path):
-        with open(filename, "wb") as f:
-            pickle.dump(
+        with open(filename, "w", encoding="utf-8") as f:
+            json.dump(
                 {
                     "datalake_path": self.datalake_path,
                     "queries": {k: v.to_json() for k, v in self.queries.items()},
@@ -53,8 +53,8 @@ class DataLake(qc.QObject):
 
     @staticmethod
     def load(filename: Path) -> "DataLake":
-        with open(filename, "rb") as f:
-            self_dic = pickle.load(f)
+        with open(filename, "r", encoding="utf-8") as f:
+            self_dic = json.load(f)
             datalake = DataLake()
             datalake.set_datalake_path(self_dic["datalake_path"])
             queries: Dict[str, dict] = self_dic["queries"]

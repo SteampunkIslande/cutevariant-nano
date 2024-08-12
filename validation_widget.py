@@ -59,26 +59,18 @@ class ValidationWelcomeWidget(qw.QWidget):
         if not self.datalake:
             return
         username = Path.home().name
-        userprefs = load_user_prefs()
-        if "config_folder" not in userprefs:
-            qw.QMessageBox.warning(
+
+        # Make sure we have a config folder (before we start the wizard)
+        config_folder = get_config_folder()
+        if not config_folder.is_dir():
+            qw.QMessageBox.critical(
                 self,
-                qc.QCoreApplication.tr("Validation"),
+                qc.QCoreApplication.tr("Erreur"),
                 qc.QCoreApplication.tr(
-                    "Pas de dossier de configuration trouvé, veuillez en choisir un."
+                    "Pas de dossier de configuration sélectionné, abandon."
                 ),
             )
-            config_folder = qw.QFileDialog.getExistingDirectory(
-                self,
-                qc.QCoreApplication.tr(
-                    "Pas de dossier de configuration trouvé, veuillez en choisir un."
-                ),
-            )
-            if config_folder:
-                # config_folder will be read by the wizard
-                save_user_prefs({"config_folder": config_folder})
-            else:
-                return
+            return
 
         wizard = ValidationWizard(self.datalake, self)
         if wizard.exec() == qw.QDialog.DialogCode.Accepted:
@@ -87,10 +79,6 @@ class ValidationWelcomeWidget(qw.QWidget):
             genes_list = wizard.data["gene_names"]
             validation_name = wizard.data["validation_name"]
             validation_method = wizard.data["validation_method"]
-            if "config_folder" not in userprefs:
-                return
-
-            config_folder = Path(userprefs["config_folder"])
 
             self.model.new_validation(
                 validation_name,
@@ -310,6 +298,7 @@ class ValidationWidget(qw.QWidget):
                     )
                 ),
             )
+            return
         self.method = yaml_load(method_path)
         self.step_model.set_steps(self.method["steps"])
 
@@ -338,6 +327,7 @@ class ValidationWidget(qw.QWidget):
         ).unmute().generate_query_template_from_json(
             step_definition
         )
+        print("Setup step", self.sender())
 
     def start_validation(self, selected_validation: dict):
         if not self.datalake:

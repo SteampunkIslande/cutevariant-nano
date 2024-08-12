@@ -8,7 +8,12 @@ import PySide6.QtWidgets as qw
 from common_widgets.any_widget_dialog import AnyWidgetDialog
 from common_widgets.searchable_table import SearchableTable
 from common_widgets.string_list_chooser import StringListChooser
-from commons import duck_db_literal_string_list, load_user_prefs, yaml_load
+from commons import (
+    duck_db_literal_string_list,
+    get_config_folder,
+    load_user_prefs,
+    yaml_load,
+)
 from datalake import DataLake
 
 
@@ -39,19 +44,18 @@ class IntroPage(qw.QWizardPage):
         )
 
         self.validation_method_combo = qw.QComboBox()
-        userprefs = load_user_prefs()
         validation_methods = []
-        if "config_folder" in userprefs:
-            config_folder = Path(userprefs["config_folder"])
+        config_folder = get_config_folder()
+        if config_folder.resolve().is_dir():
             validation_methods = [
                 f.stem
                 for f in config_folder.glob("validation_methods/*.yaml")
                 if f.is_file()
             ]
-        self.validation_method_combo.addItems(validation_methods)
-        self.validation_method_combo.currentTextChanged.connect(
-            self.on_validation_method_changed
-        )
+            self.validation_method_combo.addItems(validation_methods)
+            self.validation_method_combo.currentTextChanged.connect(
+                self.on_validation_method_changed
+            )
 
         layout = qw.QVBoxLayout()
         layout.addWidget(self.validation_name_label)
