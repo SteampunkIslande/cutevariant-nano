@@ -18,7 +18,7 @@ def duck_db_literal_string_list(l: typing.Iterable) -> str:
 
 
 def duck_db_literal_string_tuple(l: typing.Iterable) -> str:
-    return "(" + ", ".join(f"'{e}'" for e in l) + ")"
+    return duck_db_literal_string_list(l).replace("[", "(").replace("]", ")")
 
 
 def dict_add_value(d: dict, key: str, value: typing.Any):
