@@ -278,7 +278,9 @@ class ValidationWidget(qw.QWidget):
                 )
                 return
         else:
-            genno_export_folder = Path(user_prefs["genno_export_folder"])
+            genno_export_folder = user_prefs["genno_export_folder"]
+
+        genno_export_folder = Path(genno_export_folder)
 
         # Now, export final CSV to Genno
 
@@ -327,7 +329,6 @@ class ValidationWidget(qw.QWidget):
         ).unmute().generate_query_template_from_json(
             step_definition
         )
-        print("Setup step", self.sender())
 
     def start_validation(self, selected_validation: dict):
         if not self.datalake:
@@ -378,11 +379,16 @@ class ValidationWidget(qw.QWidget):
                 )
                 step_definition = self.method["final"]["query"]
                 self.setup_step(step_definition)
+
+                # Hide the selection list view
+                self.step_selection_list_view.hide()
             else:
-                step_definition = self.step_model.index(self.current_step_id).data(
-                    qc.Qt.ItemDataRole.UserRole
+                self.step_selection_list_view.selectionModel().setCurrentIndex(
+                    self.step_model.index(0),
+                    qc.QItemSelectionModel.SelectionFlag.Select,
                 )
-                self.setup_step(step_definition)
+                # Make sure the selection list view is visible
+                self.step_selection_list_view.show()
         except IndexError:
             print(self.validation_table_uuid)
         finally:

@@ -61,6 +61,7 @@ steps:
             AS '.refcolor'
           - MAP{{ 'missense_variant':'red', 'synonymous_variant':'green' }}[main_table.snpeff_Annotation][1]
             AS '.annotationcolor'
+          - main_table.validation_hash AS '.validation_hash'
           - main_table.run_name AS 'Nom du run'
           - validation_hash AS '.validation_hash'
           - main_table.sample_name AS 'Échantillon'

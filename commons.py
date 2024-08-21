@@ -52,7 +52,8 @@ def get_user_prefs_file():
 def save_user_prefs(prefs: dict):
 
     user_prefs = get_user_prefs_file()
-    user_prefs.parent.mkdir(parents=True, exist_ok=True)
+    if not user_prefs.parent.exists():
+        user_prefs.parent.mkdir(parents=True, exist_ok=True)
     old_prefs = {}
     if user_prefs.exists():
         with open(user_prefs, "r", encoding="utf-8") as f:
