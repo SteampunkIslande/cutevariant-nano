@@ -9,8 +9,8 @@ genes_list:
     - CD79A
     - CARD11
 steps:
-  - title: Montre les variants dont la VAF est en rouge
-    description: Juste une démo
+  - title: VAF en rouge + Background color différent de noir
+    description: Trié par chromosome
     query:
       select:
         fields:
@@ -22,7 +22,7 @@ steps:
           - '"dbsnp.rs.id"'
           - '"NbrReadAlt.Pos"'
           - '"VAF"'
-          - '"VAF color" AS ''.vafcolor'''
+          - '''#''||"VAF color" AS ''.vafcolor'''
           - '"TRI"'
           - '"hgvs.c"'
           - '"Cosmic.noncoding.id"'
@@ -65,6 +65,133 @@ steps:
           filter_type: AND
           children:
             - expression: main_table."VAF color" = 'FFFF0000'
+            - expression: main_table."Background color" NOT IN ('FF000000', '000000')
         order_by:
           - field: main_table.Chrom
+            order: ASC
+  - title: VAF en rouge + SUIVI uniquement
+    description: Trié par chromosome et par position
+    query:
+      select:
+        fields:
+          - '"SUIVI/DIAGNOSTIC"'
+          - '"Project.recurrence"'
+          - '"Recurrence.cosmic"'
+          - '"Phastcons"'
+          - '"NbrReadAlt.Neg"'
+          - '"NChar_Ref"'
+          - '"dbsnp.rs.id"'
+          - '"NbrReadAlt.Pos"'
+          - '"VAF"'
+          - '''#''||"VAF color" AS ''.vafcolor'''
+          - '"TRI"'
+          - '"hgvs.c"'
+          - '"Cosmic.noncoding.id"'
+          - '"dbscsnv.Ada.score"'
+          - '"N.Ref"'
+          - '"Cosmic.coding.id"'
+          - '"NbrReadRef.Pos"'
+          - '"Spidex.dpsi.max.tissue"'
+          - '"NChar_Alt"'
+          - '"Analysis_recurrence.N"'
+          - '"is.driver"'
+          - '"Depth_min"'
+          - '"dlong"'
+          - '"Variant.effect"'
+          - '"Clinvar.clinical.significance"'
+          - '"Glims"'
+          - '"Position"'
+          - '"PROVEAN"'
+          - '"NbrReadAlt"'
+          - '"MUTATIONTASTER"'
+          - '"SIFT"'
+          - '"Feature.type"'
+          - '"Fisher.test.p.value"'
+          - '"SDlong"'
+          - '"Torrent.server.metric"'
+          - '"RatioAlt_PosNeg"'
+          - '"Histo_majoritaire_pourcentage.cosmic"'
+          - '"testN_recurrence"'
+          - '"Clinvar.review.status"'
+          - '"CADD.phred"'
+          - '"dbscsnv.Rf.score"'
+          - '"Histo_majoritaire.cosmic"'
+          - '"Chrom"'
+          - '''#''||"Background color" AS ''.backgroundcolor'''
+          - '"Background color"'
+        tables:
+          - expression: "{main_table}"
+            alias: main_table
+        filter:
+          filter_type: AND
+          children:
+            - expression: main_table."VAF color" = 'FFFF0000'
+            - expression: main_table."SUIVI/DIAGNOSTIC" = 'SUIVI'
+        order_by:
+          - field: main_table.Chrom
+            order: ASC
+          - field: main_table.Position
+            order: ASC
+  - title: VAF en rouge + DIAG uniquement
+    description: Trié par chromosome et par position
+    query:
+      select:
+        fields:
+          - '"SUIVI/DIAGNOSTIC"'
+          - '"Project.recurrence"'
+          - '"Recurrence.cosmic"'
+          - '"Phastcons"'
+          - '"NbrReadAlt.Neg"'
+          - '"NChar_Ref"'
+          - '"dbsnp.rs.id"'
+          - '"NbrReadAlt.Pos"'
+          - '"VAF"'
+          - '''#''||"VAF color" AS ''.vafcolor'''
+          - '"TRI"'
+          - '"hgvs.c"'
+          - '"Cosmic.noncoding.id"'
+          - '"dbscsnv.Ada.score"'
+          - '"N.Ref"'
+          - '"Cosmic.coding.id"'
+          - '"NbrReadRef.Pos"'
+          - '"Spidex.dpsi.max.tissue"'
+          - '"NChar_Alt"'
+          - '"Analysis_recurrence.N"'
+          - '"is.driver"'
+          - '"Depth_min"'
+          - '"dlong"'
+          - '"Variant.effect"'
+          - '"Clinvar.clinical.significance"'
+          - '"Glims"'
+          - '"Position"'
+          - '"PROVEAN"'
+          - '"NbrReadAlt"'
+          - '"MUTATIONTASTER"'
+          - '"SIFT"'
+          - '"Feature.type"'
+          - '"Fisher.test.p.value"'
+          - '"SDlong"'
+          - '"Torrent.server.metric"'
+          - '"RatioAlt_PosNeg"'
+          - '"Histo_majoritaire_pourcentage.cosmic"'
+          - '"testN_recurrence"'
+          - '"Clinvar.review.status"'
+          - '"CADD.phred"'
+          - '"dbscsnv.Rf.score"'
+          - '"Histo_majoritaire.cosmic"'
+          - '"Chrom"'
+          - '''#''||"Background color" AS ''.backgroundcolor'''
+          - '"Background color"'
+        tables:
+          - expression: "{main_table}"
+            alias: main_table
+        filter:
+          filter_type: AND
+          children:
+            - expression: main_table."VAF color" = 'FFFF0000'
+            - expression: main_table."SUIVI/DIAGNOSTIC" = 'DIAGNOSTIC'
+        order_by:
+          - field: main_table.Chrom
+            order: ASC
+          - field: main_table.Position
             order: ASC
