@@ -29,13 +29,12 @@ def dict_add_value(d: dict, key: str, value: typing.Any):
         key (str): a string representing the key to add (may be nested with dots)
         value (Any): the value to add
     """
-    if "." in key:
-        key, sub_key = key.split(".", 1)
-        if key not in d:
-            d[key] = {}
-        dict_add_value(d[key], sub_key, value)
-    else:
-        d[key] = value
+    nodes = key.split(".")
+    for node in nodes[:-1]:
+        if node not in d:
+            d[node] = {}
+        d = d[node]
+    d[nodes[-1]] = value
 
 
 def get_user_prefs_file():
