@@ -17,6 +17,9 @@
     "Allèle de référence": {
         "color": {
             "from_column": ".refcolor"
+        },
+        "bold": {
+            "constant": true
         }
     },
     "Annotation": {
