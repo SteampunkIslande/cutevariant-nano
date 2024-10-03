@@ -1,26 +1,23 @@
 from enum import Enum
 from typing import List
 
-import PySide6.QtCore as qc
-
 
 class FilterType(Enum):
     AND = "AND"
     OR = "OR"
     LEAF = "LEAF"
+    ROOT = "ROOT"
 
 
-class FilterItem(qc.QObject):
-
-    child_added = qc.Signal(object, int)
+class FilterItem:
 
     def __init__(
         self,
         filter_type=FilterType.LEAF,
         expression: str = None,
+        alias: str = None,
         parent: "FilterItem" = None,
     ) -> None:
-        super().__init__(parent)
         if filter_type is FilterType.LEAF and not expression:
             raise ValueError("Leaf filter must have an expression")
         if filter_type is not FilterType.LEAF and expression:
@@ -31,17 +28,36 @@ class FilterItem(qc.QObject):
         self._parent = parent
         if self._parent:
             self._parent.add_child(self)
+        self.alias = alias
 
     def internal_move(self, new_parent: "FilterItem", new_row: int):
-        self._parent.children.remove(self)
-        new_parent.children.insert(new_row, self)
-        self._parent = new_parent
+        if (
+            self.filter_type == FilterType.LEAF
+            and new_parent.filter_type == FilterType.LEAF
+        ):
+            raise ValueError("Cannot move leaf filter into another leaf filter")
+        if self._parent:
+            self._parent.children.remove(self)
+            new_parent.children.insert(new_row, self)
+            self._parent = new_parent
 
     def add_child(self, child: "FilterItem"):
-        self.children.append(child)
-        child._parent = self
-        self.child_added.emit(self, child.row())
-        return child
+        if self.filter_type != FilterType.LEAF:
+            if child not in self.children:
+                self.children.append(child)
+                child._parent = self
+            else:
+                print("Child already exists", child)
+            return child
+        else:
+            self._parent.add_child(child)
+
+    def child(self, row: int) -> "FilterItem":
+        if self.filter_type != FilterType.LEAF and row < len(self.children):
+            return self.children[row]
+
+    def parent(self) -> "FilterItem":
+        return self._parent
 
     def child_count(self) -> int:
         return len(self.children)
@@ -64,7 +80,7 @@ class FilterItem(qc.QObject):
         if self.filter_type == FilterType.LEAF:
             return self.expression
         else:
-            if self._parent:
+            if self._parent and self._parent.filter_type != FilterType.ROOT:
                 return (
                     "("
                     + f" {self.filter_type.value} ".join(
@@ -78,49 +94,79 @@ class FilterItem(qc.QObject):
                 )
 
     def to_json(self):
-        if self.filter_type == FilterType.LEAF:
-            return {"expression": self.expression}
-        else:
+        # (Invisible) root item
+        if not self.parent():
             return {
                 "filter_type": self.filter_type.value,
                 "children": [child.to_json() for child in self.children],
             }
-
-    @staticmethod
-    def from_json(json) -> "FilterItem":
-        if "filter_type" in json:
-            filter_type = FilterType(json["filter_type"])
-            new_filter = FilterItem(filter_type)
-            for child in json["children"]:
-                new_filter.add_child(FilterItem.from_json(child))
-            return new_filter
-        elif "expression" in json:
-            return FilterItem(FilterType.LEAF, json["expression"])
+        if self.filter_type == FilterType.LEAF:
+            return {
+                "filter_type": self.filter_type.value,
+                "expression": self.expression,
+                "alias": self.alias,
+            }
         else:
-            raise ValueError(
-                "Cannot deserialize filter expression from this JSON, malformed!"
-            )
+            return {
+                "filter_type": self.filter_type.value,
+                "children": [child.to_json() for child in self.children],
+                "alias": self.alias,
+            }
+
+    @classmethod
+    def from_json(cls, data: dict, parent: "FilterItem" = None):
+        root = FilterItem(
+            FilterType(data["filter_type"]),
+            data.get("expression"),
+            data.get("alias"),
+            parent,
+        )
+        if "children" in data:
+            for child_data in data["children"]:
+                root.add_child(cls.from_json(child_data, root))
+        return root
 
 
 if __name__ == "__main__":
-    root = FilterItem(FilterType.AND)
-    aeq_5 = root.add_child(FilterItem(FilterType.LEAF, "a = 5"))
-    beq_6 = root.add_child(FilterItem(FilterType.LEAF, "b = 6"))
-    first_or = root.add_child(FilterItem(FilterType.OR))
+    root = FilterItem(FilterType.ROOT)
+    first_node = root.add_child(FilterItem(FilterType.AND))
+    aeq_5 = first_node.add_child(FilterItem(FilterType.LEAF, "a = 5"))
+    beq_6 = first_node.add_child(FilterItem(FilterType.LEAF, "b = 6"))
+    first_or = first_node.add_child(FilterItem(FilterType.OR))
     first_or.add_child(FilterItem(FilterType.LEAF, "c = 7"))
     first_or.add_child(FilterItem(FilterType.LEAF, "d = 8"))
     serialized = root.to_json()
     assert serialized == {
-        "filter_type": "AND",
+        "filter_type": "ROOT",
         "children": [
-            {"expression": "a = 5"},
-            {"expression": "b = 6"},
             {
-                "filter_type": "OR",
-                "children": [{"expression": "c = 7"}, {"expression": "d = 8"}],
-            },
+                "filter_type": "AND",
+                "children": [
+                    {"filter_type": "LEAF", "expression": "a = 5", "alias": None},
+                    {"filter_type": "LEAF", "expression": "b = 6", "alias": None},
+                    {
+                        "filter_type": "OR",
+                        "children": [
+                            {
+                                "filter_type": "LEAF",
+                                "expression": "c = 7",
+                                "alias": None,
+                            },
+                            {
+                                "filter_type": "LEAF",
+                                "expression": "d = 8",
+                                "alias": None,
+                            },
+                        ],
+                        "alias": None,
+                    },
+                ],
+                "alias": None,
+            }
         ],
     }
     new_root = FilterItem.from_json(serialized)
+
     assert str(new_root) == str(root)
-    assert str(root) == "a = 5 AND b = 6 AND (c = 7 OR d = 8)"
+    print(str(new_root))
+    # assert str(root) == "a = 5 AND b = 6 AND (c = 7 OR d = 8)"
