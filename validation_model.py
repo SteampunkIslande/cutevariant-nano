@@ -64,6 +64,14 @@ def add_validation_table(
         conn.sql(f"""DROP TABLE IF EXISTS "{table_uuid}" """)
 
 
+def insert_validation_data(
+    conn: db.DuckDBPyConnection,
+    table_uuid: str,
+    validation_hash: int,
+):
+    pass
+
+
 def get_validation_from_table_uuid(
     conn: db.DuckDBPyConnection, table_uuid: str
 ) -> dict:

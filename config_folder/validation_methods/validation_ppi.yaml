@@ -141,11 +141,10 @@ steps:
     query:
       select:
         fields:
-          - "'hg19' AS 'Version genome'"
-          - main_table.sample_name AS 'Sample ID'
+          - "'hg19' AS 'Version genome' "
+          - "main_table.sample_name AS 'Sample ID'"
           - if(len(main_table.reference)>len(main_table.alternate),'deletion',if(len(main_table.reference)<len(main_table.alternate),'insertion','substitution')) AS 'Famille de l anomalie'
-          - main_table.chromosome||':'||main_table.position||':'||main_table.reference||'>'||main_table.alternate
-            AS 'Libelle de l anomalie'
+          - main_table.chromosome||':'||main_table.position||':'||main_table.reference||'>'||main_table.alternate AS 'Libelle de l anomalie'
           - main_table.chromosome AS Chr
           - main_table.snpeff_Gene_Name AS 'Nom du gene'
           - hgnc.name AS 'Code HGNC'
@@ -161,21 +160,24 @@ steps:
           - main_table.cv_AF AS 'VAF'
           - main_table."snpeff_HGVS.c" AS 'c. de l anomalie'
           - main_table."snpeff_HGVS.p" AS 'p. de l anomalie'
-          - "'g.'||main_table.chromosome||'-'||main_table.position||main_table.reference||'-'||main_table.alternate
-            AS 'g. de l anomalie'"
+          - "'g.'||main_table.chromosome||'-'||main_table.position||main_table.reference||'-'||main_table.alternate AS 'g. de l anomalie'"
           - main_table.snpeff_Annotation AS 'Consequence fonctionnelle de l anomalie'
           - main_table.identifier as 'rsID'
-          - main_table.rcvAcc AS 'CLNACC'
-          - clinvar.clinSign AS 'CLNSIG'
+          - clinvar.CLNACC
+          - clinvar.CLNSIG
           - MAP{{0:'Référence',1:'Hétérozygote',2:'Homozygote'}}[cv_GT] AS 'Statut du resultat'
-          - 'detecte' AS 'Statut de detection'
-          - user_table.acmg_classification AS 'Pathogenicite de l anomalie'
-          - user_table.distribution_anomalie AS 'Distribution de l anomalie'
-          - 'SMAUG V2.4' AS 'Pipe SMAUG'
-          - 'PPI' AS 'Projet SMAUG'
+          - "'detecte' AS 'Statut de detection'"
+          - "user_table.acmg_classification AS 'Pathogenicite de l anomalie'"
+          - "user_table.distribution_anomalie AS 'Distribution de l anomalie'"
+          - "'SMAUG V2.4' AS 'Pipe SMAUG'"
+          - "'PPI' AS 'Projet SMAUG'"
         tables:
           - expression: "{main_table}"
             alias: main_table
+          - expression: "{user_table}"
+            alias: user_table
+            "on": main_table.validation_hash = user_table.validation_hash
+            how: ""
           - expression: read_parquet('{pwd}/aggregates/variants.parquet')
             alias: agg
             "on": main_table.variant_hash = agg.variant_hash
@@ -208,6 +210,17 @@ steps:
                   alias: ""
             alias: clinvar
             "on": main_table.variant_hash = clinvar.variant_hash
+            how: ""
+          - select:
+              fields:
+                - name
+                - chrom
+                - chromStart
+                - chromEnd
+              tables:
+                - expression: read_parquet('{pwd}/annotations/hgnc.hg19.parquet')
+            alias: hgnc
+            "on": main_table.chromosome = hgnc.chrom AND main_table.position <= hgnc.chromEnd AND main_table.position >= hgnc.chromStart
             how: ""
         order_by:
           - field: main_table.chromosome
@@ -217,77 +230,77 @@ steps:
 final:
   query:
     select:
-        fields:
-          - "'hg19' AS 'Version genome'"
-          - main_table.sample_name AS 'Sample ID'
-          - if(len(main_table.reference)>len(main_table.alternate),'deletion',if(len(main_table.reference)<len(main_table.alternate),'insertion','substitution')) AS 'Famille de l anomalie'
-          - main_table.chromosome||':'||main_table.position||':'||main_table.reference||'>'||main_table.alternate
-            AS 'Libelle de l anomalie'
-          - main_table.chromosome AS Chr
-          - main_table.snpeff_Gene_Name AS 'Nom du gene'
-          - hgnc.name AS 'Code HGNC'
-          - main_table.snpeff_Feature_ID AS 'NM'
-          - main_table.snpeff_Annotation AS 'Type region'
-          - format('{{:02d}}',main_table.snpeff_Rank) AS 'Sequence region'
-          - main_table.position AS 'Start'
-          - main_table.position AS 'End'
-          - main_table.reference AS Ref
-          - main_table.alternate AS Alt
-          - main_table.format_AD[1] AS 'Ref allele count'
-          - main_table.format_AD[2] AS 'Alt allele count'
-          - main_table.cv_AF AS 'VAF'
-          - main_table."snpeff_HGVS.c" AS 'c. de l anomalie'
-          - main_table."snpeff_HGVS.p" AS 'p. de l anomalie'
-          - "'g.'||main_table.chromosome||'-'||main_table.position||main_table.reference||'-'||main_table.alternate
-            AS 'g. de l anomalie'"
-          - main_table.snpeff_Annotation AS 'Consequence fonctionnelle de l anomalie'
-          - main_table.identifier as 'rsID'
-          - main_table.rcvAcc AS 'CLNACC'
-          - clinvar.clinSign AS 'CLNSIG'
-          - MAP{{0:'Référence',1:'Hétérozygote',2:'Homozygote'}}[cv_GT] AS 'Statut du resultat'
-          - 'detecte' AS 'Statut de detection'
-          - user_table.acmg_classification AS 'Pathogenicite de l anomalie'
-          - user_table.distribution_anomalie AS 'Distribution de l anomalie'
-          - 'SMAUG V2.4' AS 'Pipe SMAUG'
-          - 'PPI' AS 'Projet SMAUG'
-        tables:
-          - expression: "{main_table}"
-            alias: main_table
-          - expression: read_parquet('{pwd}/aggregates/variants.parquet')
-            alias: agg
-            "on": main_table.variant_hash = agg.variant_hash
-            how: ""
-          - select:
-              fields:
-                - variant_hash
-                - COUNT(*) as count
-              tables:
-                - select:
-                    fields:
-                      - DISTINCT(sample_name)
-                      - variant_hash
-                    tables:
-                      - expression: "{main_table}"
-                        alias: ""
-                  alias: ""
-              group_by:
-                - variant_hash
-            alias: recur
-            "on": main_table.variant_hash = recur.variant_hash
-            how: ""
-          - select:
-              fields:
-                - variant_hash
-                - rcvAcc AS CLNACC
-                - clinSign AS CLNSIG
-              tables:
-                - expression: read_parquet('{pwd}/annotations/clinvarMain.parquet')
-                  alias: ""
-            alias: clinvar
-            "on": main_table.variant_hash = clinvar.variant_hash
-            how: ""
-        order_by:
-          - field: main_table.chromosome
-            order: DESC
-          - field: main_table.position
-            order: DESC
+      fields:
+        - "'hg19' AS 'Version genome'"
+        - "main_table.sample_name AS 'Sample ID'"
+        - "if(len(main_table.reference)>len(main_table.alternate),'deletion',if(len(main_table.reference)<len(main_table.alternate),'insertion','substitution')) AS 'Famille de l anomalie'"
+        - "main_table.chromosome||':'||main_table.position||':'||main_table.reference||'>'||main_table.alternate
+          AS 'Libelle de l anomalie'"
+        - main_table.chromosome AS Chr
+        - main_table.snpeff_Gene_Name AS 'Nom du gene'
+        - hgnc.name AS 'Code HGNC'
+        - main_table.snpeff_Feature_ID AS 'NM'
+        - main_table.snpeff_Annotation AS 'Type region'
+        - format('{{:02d}}',main_table.snpeff_Rank) AS 'Sequence region'
+        - main_table.position AS 'Start'
+        - main_table.position AS 'End'
+        - main_table.reference AS Ref
+        - main_table.alternate AS Alt
+        - main_table.format_AD[1] AS 'Ref allele count'
+        - main_table.format_AD[2] AS 'Alt allele count'
+        - main_table.cv_AF AS 'VAF'
+        - main_table."snpeff_HGVS.c" AS 'c. de l anomalie'
+        - main_table."snpeff_HGVS.p" AS 'p. de l anomalie'
+        - "'g.'||main_table.chromosome||'-'||main_table.position||main_table.reference||'-'||main_table.alternate
+          AS 'g. de l anomalie'"
+        - main_table.snpeff_Annotation AS 'Consequence fonctionnelle de l anomalie'
+        - main_table.identifier as 'rsID'
+        - main_table.rcvAcc AS 'CLNACC'
+        - clinvar.clinSign AS 'CLNSIG'
+        - MAP{{0:'Référence',1:'Hétérozygote',2:'Homozygote'}}[cv_GT] AS 'Statut du resultat'
+        - "'detecte' AS 'Statut de detection'"
+        - user_table.acmg_classification AS 'Pathogenicite de l anomalie'
+        - user_table.distribution_anomalie AS 'Distribution de l anomalie'
+        - "'SMAUG V2.4' AS 'Pipe SMAUG'"
+        - "'PPI' AS 'Projet SMAUG'"
+      tables:
+        - expression: "{main_table}"
+          alias: main_table
+        - expression: read_parquet('{pwd}/aggregates/variants.parquet')
+          alias: agg
+          "on": main_table.variant_hash = agg.variant_hash
+          how: ""
+        - select:
+            fields:
+              - variant_hash
+              - COUNT(*) as count
+            tables:
+              - select:
+                  fields:
+                    - DISTINCT(sample_name)
+                    - variant_hash
+                  tables:
+                    - expression: "{main_table}"
+                      alias: ""
+                alias: ""
+            group_by:
+              - variant_hash
+          alias: recur
+          "on": main_table.variant_hash = recur.variant_hash
+          how: ""
+        - select:
+            fields:
+              - variant_hash
+              - rcvAcc AS CLNACC
+              - clinSign AS CLNSIG
+            tables:
+              - expression: read_parquet('{pwd}/annotations/clinvarMain.parquet')
+                alias: ""
+          alias: clinvar
+          "on": main_table.variant_hash = clinvar.variant_hash
+          how: ""
+      order_by:
+        - field: main_table.chromosome
+          order: DESC
+        - field: main_table.position
+          order: DESC

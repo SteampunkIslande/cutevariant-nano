@@ -9,7 +9,7 @@ import PySide6.QtCore as qc
 import datalake as dl
 import filters_model as fm
 from commons import duck_db_literal_string_list, duck_db_literal_string_tuple
-from filters import FilterItem, FilterType
+from filters import FilterItem
 
 
 def build_query_template(data: dict) -> str:
@@ -120,11 +120,13 @@ class Query(qc.QObject):
 
         self.internal_changed.emit()
 
-        self.filter_model = fm.FiltersItemModel(FilterItem(FilterType.AND))
-        self.filter_model.dataChanged.connect(self.internal_changed)
-        self.filter_model.rowsInserted.connect(self.internal_changed)
-        self.filter_model.rowsRemoved.connect(self.internal_changed)
-        self.filter_model.modelReset.connect(self.internal_changed)
+        self.filter_model = fm.FilterModel()
+        self.filter_model.load(
+            {
+                "filter_type": "ROOT",
+                "children": [{"filter_type": "AND", "children": []}],
+            }
+        )
 
         return self
 

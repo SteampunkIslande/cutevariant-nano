@@ -1,79 +1,293 @@
-import PySide6.QtCore as qc
+import sys
+from typing import Any
+
+from PySide6.QtCore import QAbstractItemModel, QModelIndex, QObject, QPoint, Qt
+from PySide6.QtGui import QCursor
+from PySide6.QtWidgets import (
+    QApplication,
+    QHeaderView,
+    QMenu,
+    QTreeView,
+    QVBoxLayout,
+    QWidget,
+)
 
 from filters import FilterItem, FilterType
 
+# Copyright (C) 2022 The Qt Company Ltd.
+# SPDX-License-Identifier: LicenseRef-Qt-Commercial OR BSD-3-Clause
 
-class FiltersItemModel(qc.QAbstractItemModel):
 
-    def __init__(self, root_item: FilterItem, parent: qc.QObject = None):
+class FilterModel(QAbstractItemModel):
+    """An editable model of tree data"""
+
+    def __init__(self, parent: QObject = None):
         super().__init__(parent)
-        self.invisible_root = FilterItem(FilterType.AND)
-        self.root = root_item
-        self.invisible_root.add_child(self.root)
 
-    def index(self, row: int, column: int, parent: qc.QModelIndex = qc.QModelIndex()):
-        if not self.hasIndex(row, column, parent):
-            return qc.QModelIndex()
+        self._rootItem = FilterItem(FilterType.ROOT)
+
+    def clear(self):
+        """Clear data from the model"""
+        self.load({})
+
+    def add_child(self, parent: QModelIndex, item: FilterItem):
+        """Add a child to the parent index"""
         if not parent.isValid():
-            parent_item = self.invisible_root
+            parentItem: FilterItem = self._rootItem
+            print("Cannot add to root")
+            # Cannot add anything to the root item other than the default AND or OR actual root
+            return False
         else:
-            parent_item = parent.internalPointer()
-        child_item = parent_item.children[row]
-        if child_item:
-            return self.createIndex(row, column, child_item)
-        return qc.QModelIndex()
+            parentItem: FilterItem = parent.internalPointer()
 
-    def parent(self, index: qc.QModelIndex):
+        self.beginInsertRows(parent, parentItem.child_count(), parentItem.child_count())
+
+        print("Adding child to", parentItem.display())
+        parentItem.add_child(item)
+        print("Added child", item.display())
+
+        self.endInsertRows()
+
+        return True
+
+    def remove_child(self, index: QModelIndex):
+        """Remove a child from the parent index"""
         if not index.isValid():
-            return qc.QModelIndex()
-        child_item: FilterItem = index.internalPointer()
-        parent_item = child_item._parent
-        if parent_item == self.invisible_root or parent_item is None:
-            return qc.QModelIndex()
-        return self.createIndex(parent_item.row(), 0, parent_item)
+            print("Invalid index")
+            return False
 
-    def rowCount(self, parent: qc.QModelIndex):
-        if parent.column() > 0:
-            return 0
-        if not parent.isValid():
-            parent_item = self.invisible_root
-        else:
-            parent_item = parent.internalPointer()
-        return parent_item.child_count()
+        item: FilterItem = index.internalPointer()
+        parent: FilterItem = index.parent().internalPointer()
 
-    def columnCount(self, parent: qc.QModelIndex):
-        return 1
+        if not item.can_remove_child():
+            print("Cannot remove child")
+            return False
 
-    def data(self, index: qc.QModelIndex, role: int):
+        row = item.row()
+
+        self.beginRemoveRows(index.parent(), row, row)
+        parent.remove_child(row)
+        self.endRemoveRows()
+
+        return True
+
+    def load(self, document: dict):
+        """Load model from a nested dictionary returned by json.loads()
+
+        Arguments:
+            document (dict): JSON-compatible dictionary
+        """
+
+        self.beginResetModel()
+
+        self._rootItem = FilterItem.from_json(document)
+        self.endResetModel()
+
+        return True
+
+    def data(self, index: QModelIndex, role: Qt.ItemDataRole) -> Any:
+        """Override from QAbstractItemModel
+
+        Return data from a json item according index and role
+
+        """
         if not index.isValid():
             return None
-        if role == qc.Qt.ItemDataRole.DisplayRole:
+
+        item: FilterItem = index.internalPointer()
+
+        if role == Qt.ItemDataRole.DisplayRole:
+            return item.display()
+
+    def setData(self, index: QModelIndex, value: dict, role: Qt.ItemDataRole):
+        """Override from QAbstractItemModel
+
+        Set json item according index and role
+
+        Args:
+            index (QModelIndex)
+            value (Any)
+            role (Qt.ItemDataRole)
+
+        """
+        if role == Qt.ItemDataRole.EditRole:
+
             item: FilterItem = index.internalPointer()
-            if item.filter_type == FilterType.LEAF:
-                return item.expression
-            else:
-                return item.filter_type.value
-        return None
+            if item.update_single(value):
+                self.dataChanged.emit(index, index, [Qt.ItemDataRole.EditRole])
+                return True
 
-    def headerData(self, section: int, orientation: qc.Qt.Orientation, role: int):
-        if (
-            orientation == qc.Qt.Orientation.Horizontal
-            and role == qc.Qt.ItemDataRole.DisplayRole
-            and section == 0
-        ):
-            return "Filters"
-        return None
+        return False
 
-    def flags(self, index: qc.QModelIndex):
-        if not index.isValid():
-            return qc.Qt.ItemFlag.NoItemFlags
-        return qc.Qt.ItemFlag.ItemIsEnabled | qc.Qt.ItemFlag.ItemIsSelectable
-
-    def add_filter(
-        self, parent: qc.QModelIndex, filter_type: FilterType, expression: str
+    def headerData(
+        self, section: int, orientation: Qt.Orientation, role: Qt.ItemDataRole
     ):
-        self.beginInsertRows(parent, 0, 0)
-        parent_item = parent.internalPointer() if parent.isValid() else self.root
-        new_filter = FilterItem(filter_type, expression)
-        parent_item.add_child(new_filter)
-        self.endInsertRows()
+        """Override from QAbstractItemModel
+
+        For the JsonModel, it returns only data for columns (orientation = Horizontal)
+
+        """
+        if role != Qt.ItemDataRole.DisplayRole:
+            return None
+
+        if orientation == Qt.Orientation.Horizontal:
+            return "Filter"
+
+    def index(self, row: int, column: int, parent=QModelIndex()) -> QModelIndex:
+        """Override from QAbstractItemModel
+
+        Return index according row, column and parent
+
+        """
+        if not self.hasIndex(row, column, parent):
+            return QModelIndex()
+
+        if not parent.isValid():
+            parentItem = self._rootItem
+        else:
+            parentItem = parent.internalPointer()
+
+        childItem = parentItem.child(row)
+        if childItem:
+            return self.createIndex(row, column, childItem)
+        else:
+            return QModelIndex()
+
+    def parent(self, index: QModelIndex) -> QModelIndex:
+        """Override from QAbstractItemModel
+
+        Return parent index of index
+
+        """
+
+        if not index.isValid():
+            return QModelIndex()
+
+        childItem: FilterItem = index.internalPointer()
+        parentItem = childItem.parent()
+
+        if parentItem == self._rootItem:
+            return QModelIndex()
+
+        return self.createIndex(parentItem.row(), 0, parentItem)
+
+    def rowCount(self, parent=QModelIndex()):
+        """Override from QAbstractItemModel
+
+        Return row count from parent index
+        """
+        if parent.column() > 0:
+            return 0
+
+        if not parent.isValid():
+            parentItem = self._rootItem
+        else:
+            parentItem: FilterItem = parent.internalPointer()
+
+        return parentItem.child_count()
+
+    def columnCount(self, parent=QModelIndex()):
+        """Override from QAbstractItemModel
+
+        Return column number. For the model, it always return 1 columns
+        """
+        return 1
+
+    def to_dict(self, item=None):
+        return self._rootItem.to_json()
+
+
+class TestWidget(QWidget):
+
+    def __init__(self, parent: QWidget = None) -> None:
+        super().__init__(parent)
+        self.view = QTreeView()
+        self.model = FilterModel()
+
+        self.view.setModel(self.model)
+
+        self.view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+
+        self.model.load(
+            {
+                "filter_type": "ROOT",
+                "children": [
+                    {
+                        "filter_type": "AND",
+                        "children": [
+                            {
+                                "filter_type": "LEAF",
+                                "expression": "a = 5",
+                                "alias": None,
+                            },
+                            {
+                                "filter_type": "LEAF",
+                                "expression": "b = 6",
+                                "alias": None,
+                            },
+                            {
+                                "filter_type": "OR",
+                                "children": [
+                                    {
+                                        "filter_type": "LEAF",
+                                        "expression": "c = 7",
+                                        "alias": None,
+                                    }
+                                ],
+                                "alias": None,
+                            },
+                        ],
+                        "alias": None,
+                    }
+                ],
+            }
+        )
+
+        self._layout = QVBoxLayout(self)
+        self._layout.addWidget(self.view)
+        self.setLayout(self._layout)
+
+        self.view.header().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        self.view.setAlternatingRowColors(True)
+        self.view.resize(500, 300)
+
+        self.view.customContextMenuRequested.connect(self.context_menu_requested)
+
+    def add_child(self):
+        index = self.view.currentIndex()
+        if not index.isValid():
+            return
+        print("Before", self.model.to_dict())
+        self.model.add_child(index, FilterItem(FilterType.LEAF, "a=3"))
+        print("After", self.model.to_dict())
+
+    def remove_child(self):
+        print("Before")
+        print(self.model.to_dict())
+        index = self.view.currentIndex()
+        if not index.isValid():
+            return
+
+        self.model.remove_child(index)
+
+        print("After")
+        print(self.model.to_dict())
+
+    def context_menu_requested(self, p: QPoint):
+        menu = QMenu()
+        add_child_action = menu.addAction("Add Child")
+        delete_item_action = menu.addAction("Delete")
+
+        add_child_action.triggered.connect(self.add_child)
+        delete_item_action.triggered.connect(self.remove_child)
+        menu.exec(QCursor.pos())
+
+
+if __name__ == "__main__":
+
+    app = QApplication(sys.argv)
+
+    w = TestWidget()
+    w.show()
+
+    app.exec()

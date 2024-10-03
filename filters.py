@@ -26,9 +26,18 @@ class FilterItem:
         self.expression = expression
         self.children: List["FilterItem"] = []
         self._parent = parent
-        if self._parent:
+        if self._parent is not None:
             self._parent.add_child(self)
         self.alias = alias
+
+    def can_remove_child(self) -> bool:
+        if self._parent is None or self._parent.filter_type == FilterType.ROOT:
+            return False
+        return True
+
+    def remove_child(self, row: int):
+        if row < len(self.children):
+            self.children.pop(row)
 
     def internal_move(self, new_parent: "FilterItem", new_row: int):
         if (
@@ -41,16 +50,18 @@ class FilterItem:
             new_parent.children.insert(new_row, self)
             self._parent = new_parent
 
+    def set_filter_type(self, filter_type: FilterType):
+        if self.filter_type == FilterType.LEAF:
+            raise ValueError("Cannot change filter type of leaf filter")
+        self.filter_type = filter_type
+
     def add_child(self, child: "FilterItem"):
         if self.filter_type != FilterType.LEAF:
-            if child not in self.children:
-                self.children.append(child)
-                child._parent = self
-            else:
-                print("Child already exists", child)
-            return child
+            self.children.append(child)
+            child._parent = self
         else:
-            self._parent.add_child(child)
+            raise ValueError("Cannot add child to leaf filter")
+        return child
 
     def child(self, row: int) -> "FilterItem":
         if self.filter_type != FilterType.LEAF and row < len(self.children):
@@ -64,12 +75,6 @@ class FilterItem:
 
     def column_count(self) -> int:
         return 1
-
-    def __bool__(self) -> bool:
-        if self.filter_type == FilterType.LEAF:
-            return bool(self.expression)
-        else:
-            return bool(self.children)
 
     def row(self) -> int:
         if self._parent:
@@ -92,6 +97,30 @@ class FilterItem:
                 return f" {self.filter_type.value} ".join(
                     [f"{child}" for child in self.children]
                 )
+
+    def display(self):
+        if self.filter_type == FilterType.LEAF:
+            if self.alias:
+                return self.alias
+            return self.expression
+        else:
+            return self.filter_type.value
+
+    def update_single(self, value: dict):
+        if self.filter_type == FilterType.LEAF:
+            if "expression" in value:
+                self.expression = value["expression"]
+            if "alias" in value:
+                self.alias = value["alias"]
+            return True
+        if (
+            self.filter_type in (FilterType.AND, FilterType.OR)
+            and "filter_type" in value
+        ):
+            self.filter_type = FilterType(value["filter_type"])
+            return True
+
+        return False
 
     def to_json(self):
         # (Invisible) root item
@@ -123,7 +152,7 @@ class FilterItem:
         )
         if "children" in data:
             for child_data in data["children"]:
-                root.add_child(cls.from_json(child_data, root))
+                cls.from_json(child_data, root)
         return root
 
 
@@ -168,5 +197,3 @@ if __name__ == "__main__":
     new_root = FilterItem.from_json(serialized)
 
     assert str(new_root) == str(root)
-    print(str(new_root))
-    # assert str(root) == "a = 5 AND b = 6 AND (c = 7 OR d = 8)"
