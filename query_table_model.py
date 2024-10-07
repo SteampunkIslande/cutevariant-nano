@@ -92,6 +92,14 @@ class QueryTableModel(qc.QAbstractTableModel):
         draw_options = style_from_index(self.style, index)
 
         if role == qc.Qt.ItemDataRole.ForegroundRole:
+            background_color = self.data(index, qc.Qt.ItemDataRole.BackgroundRole)
+            if background_color is not None:
+                if isinstance(background_color, qg.QColor):
+                    return qg.QColor.fromRgb(
+                        255 - background_color.red(),
+                        255 - background_color.green(),
+                        255 - background_color.blue(),
+                    )
             if (
                 "color" in draw_options
                 and draw_options["color"]
@@ -105,7 +113,14 @@ class QueryTableModel(qc.QAbstractTableModel):
                 if draw_options["background"].startswith("#"):
                     if draw_options["background"] == "#FF000000":
                         return
-                    return qg.QColor.fromRgba(int(draw_options["background"][1:], 16))
+                    if len(draw_options["background"]) == 7:
+                        return qg.QColor.fromRgb(
+                            int(draw_options["background"][1:], 16)
+                        )
+                    else:
+                        return qg.QColor.fromRgba(
+                            int(draw_options["background"][1:], 16)
+                        )
                 return qg.QColor(draw_options["background"])
         if role == qc.Qt.ItemDataRole.FontRole:
             if "bold" in draw_options:

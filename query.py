@@ -94,6 +94,15 @@ class Query(qc.QObject):
         self.datalake = datalake
         self.init_state()
 
+        self.filter_model = fm.FilterModel()
+        self.filter_model.load(
+            {
+                "filter_type": "ROOT",
+                "children": [{"filter_type": "AND", "children": []}],
+            }
+        )
+        self.filter_model.model_changed.connect(self.update_data)
+
         self.internal_changed.connect(self.update_data)
 
     def init_state(self):
@@ -119,14 +128,6 @@ class Query(qc.QObject):
         self.variables = dict()
 
         self.internal_changed.emit()
-
-        self.filter_model = fm.FilterModel()
-        self.filter_model.load(
-            {
-                "filter_type": "ROOT",
-                "children": [{"filter_type": "AND", "children": []}],
-            }
-        )
 
         return self
 
@@ -265,7 +266,9 @@ class Query(qc.QObject):
         pagination = f" LIMIT {self.limit} OFFSET {self.offset}" if paginated else ""
 
         additional_where = (
-            f" WHERE {str(self.filter_model.root)}" if self.filter_model.root else ""
+            f" WHERE {str(self.filter_model)}"
+            if not self.filter_model.is_empty()
+            else ""
         )
 
         return f"SELECT * FROM ({self.query_template}){additional_where}{pagination}".format(

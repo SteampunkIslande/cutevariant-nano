@@ -8,7 +8,6 @@ import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
 
 from common_widgets.page_selector import PageSelector
-from filters import FilterType
 from query import Query
 from query_table_model import QueryTableModel
 
@@ -60,6 +59,8 @@ class QueryTableWidget(qw.QWidget):
         self.table_view.horizontalHeader().customContextMenuRequested.connect(
             self.show_header_context_menu
         )
+        self.table_view.setContextMenuPolicy(qg.Qt.ContextMenuPolicy.CustomContextMenu)
+        self.table_view.customContextMenuRequested.connect(self.show_table_context_menu)
         self.table_view.setModel(self.proxy_model)
 
         self.page_selector = PageSelector(query)
@@ -79,7 +80,27 @@ class QueryTableWidget(qw.QWidget):
             qc.QCoreApplication.tr("Filtrer cette colonne (simple expression)")
         )
         filter_action.triggered.connect(partial(self.filter_column, index))
-        menu.exec_(self.table_view.mapToGlobal(pos))
+        menu.exec(self.table_view.mapToGlobal(pos))
+
+    def show_table_context_menu(self, pos):
+        menu = qw.QMenu()
+
+        index = self.table_view.indexAt(pos)
+
+        filter_action = menu.addAction(
+            qc.QCoreApplication.tr(
+                "(DEBUG): Voir les données sous-jacentes de cette ligne"
+            )
+        )
+        filter_action.triggered.connect(partial(self.show_row_userdata, index))
+        menu.exec(qg.QCursor.pos())
+
+    def show_row_userdata(self, index: qc.QModelIndex):
+        row_data = index.data(qc.Qt.ItemDataRole.UserRole)
+        dialog = qw.QMessageBox(self)
+        dialog.setText(str(row_data))
+        dialog.setWindowTitle(qc.QCoreApplication.tr("Données sous-jacentes"))
+        dialog.exec()
 
     def filter_column(self, index: qc.QModelIndex):
 
@@ -95,7 +116,5 @@ class QueryTableWidget(qw.QWidget):
         if dialog.exec_() == qw.QDialog.DialogCode.Accepted:
             filter_text = dialog.textValue()
             self.query.filter_model.add_filter(
-                self.query.filter_model.index(0, 0),
-                FilterType.LEAF,
                 f'"{col_name}" {filter_text}',
             )

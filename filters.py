@@ -145,7 +145,7 @@ class FilterItem:
     @classmethod
     def from_json(cls, data: dict, parent: "FilterItem" = None):
         root = FilterItem(
-            FilterType(data["filter_type"]),
+            FilterType(data.get("filter_type", "LEAF")),
             data.get("expression"),
             data.get("alias"),
             parent,

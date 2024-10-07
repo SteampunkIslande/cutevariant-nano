@@ -36,6 +36,13 @@ class MainWindow(qw.QMainWindow):
         self.file_menu.addAction(
             qc.QCoreApplication.tr("Ouvrir un datalake"), self.open_datalake
         )
+        # Open preferences folder
+        self.file_menu.addAction(
+            qc.QCoreApplication.tr("Ouvrir le dossier de préférences"),
+            lambda: qg.QDesktopServices.openUrl(
+                qc.QUrl.fromLocalFile(get_user_prefs_file().parent)
+            ),
+        )
 
         self.validation_query.query_changed.connect(self.on_query_changed)
         self.on_query_changed()

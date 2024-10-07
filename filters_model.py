@@ -1,7 +1,7 @@
 import sys
 from typing import Any
 
-from PySide6.QtCore import QAbstractItemModel, QModelIndex, QObject, QPoint, Qt
+from PySide6.QtCore import QAbstractItemModel, QModelIndex, QObject, QPoint, Qt, Signal
 from PySide6.QtGui import QCursor
 from PySide6.QtWidgets import (
     QApplication,
@@ -21,6 +21,8 @@ from filters import FilterItem, FilterType
 class FilterModel(QAbstractItemModel):
     """An editable model of tree data"""
 
+    model_changed = Signal()
+
     def __init__(self, parent: QObject = None):
         super().__init__(parent)
 
@@ -28,7 +30,14 @@ class FilterModel(QAbstractItemModel):
 
     def clear(self):
         """Clear data from the model"""
-        self.load({})
+        # Set the model to its minimal state
+        self.load(
+            {
+                "filter_type": "ROOT",
+                "children": [{"filter_type": "AND", "children": []}],
+            }
+        )
+        self.model_changed.emit()
 
     def add_child(self, parent: QModelIndex, item: FilterItem):
         """Add a child to the parent index"""
@@ -41,14 +50,16 @@ class FilterModel(QAbstractItemModel):
             parentItem: FilterItem = parent.internalPointer()
 
         self.beginInsertRows(parent, parentItem.child_count(), parentItem.child_count())
-
-        print("Adding child to", parentItem.display())
         parentItem.add_child(item)
-        print("Added child", item.display())
-
         self.endInsertRows()
 
+        self.model_changed.emit()
         return True
+
+    def add_filter(self, expression: str):
+        """Add a filter to the root element of the model"""
+        index = self.index(0, 0, self.index(0, 0, self.index(0, 0)))
+        self.add_child(index, FilterItem(FilterType.LEAF, expression=expression))
 
     def remove_child(self, index: QModelIndex):
         """Remove a child from the parent index"""
@@ -69,6 +80,8 @@ class FilterModel(QAbstractItemModel):
         parent.remove_child(row)
         self.endRemoveRows()
 
+        self.model_changed.emit()
+
         return True
 
     def load(self, document: dict):
@@ -83,6 +96,7 @@ class FilterModel(QAbstractItemModel):
         self._rootItem = FilterItem.from_json(document)
         self.endResetModel()
 
+        self.model_changed.emit()
         return True
 
     def data(self, index: QModelIndex, role: Qt.ItemDataRole) -> Any:
@@ -115,6 +129,7 @@ class FilterModel(QAbstractItemModel):
             item: FilterItem = index.internalPointer()
             if item.update_single(value):
                 self.dataChanged.emit(index, index, [Qt.ItemDataRole.EditRole])
+                self.model_changed.emit()
                 return True
 
         return False
@@ -193,8 +208,17 @@ class FilterModel(QAbstractItemModel):
         """
         return 1
 
-    def to_dict(self, item=None):
+    def to_dict(self):
         return self._rootItem.to_json()
+
+    def __str__(self) -> str:
+        return str(self._rootItem)
+
+    def is_empty(self):
+        return (
+            self._rootItem.child_count() == 0
+            or self._rootItem.child(0).child_count() == 0
+        )
 
 
 class TestWidget(QWidget):
