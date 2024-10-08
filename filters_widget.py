@@ -20,6 +20,10 @@ class FiltersWidget(qw.QWidget):
         self.filters_view.customContextMenuRequested.connect(
             self.context_menu_requested
         )
+        self.filters_view.setDragDropMode(
+            qw.QAbstractItemView.DragDropMode.InternalMove
+        )
+        self.filters_view.setDragEnabled(True)
         self.model = query.filter_model
         self.filters_view.setModel(self.model)
 

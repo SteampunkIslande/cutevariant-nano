@@ -1,7 +1,16 @@
+import json
 import sys
 from typing import Any
 
-from PySide6.QtCore import QAbstractItemModel, QModelIndex, QObject, QPoint, Qt, Signal
+from PySide6.QtCore import (
+    QAbstractItemModel,
+    QMimeData,
+    QModelIndex,
+    QObject,
+    QPoint,
+    Qt,
+    Signal,
+)
 from PySide6.QtGui import QCursor
 from PySide6.QtWidgets import (
     QApplication,
@@ -208,6 +217,116 @@ class FilterModel(QAbstractItemModel):
         """
         return 1
 
+    def mimeData(self, indexes):
+        """Override from QAbstractItemModel
+
+        Return mime data for drag and drop operations
+        """
+        if len(indexes) != 1:
+            return None
+        mime_data = QMimeData()
+        dragged_item: FilterItem = indexes[0].internalPointer()
+        parent_item: FilterItem = dragged_item.parent()
+        # Recursively get parent's parent until we reach the root, saving the keys along the way
+        parent_keys = []
+        while parent_item:
+            parent_keys.insert(0, parent_item.row())
+            parent_item = parent_item.parent()
+        parent_keys = parent_keys[:-1]
+        mime_data.setData(
+            "application/json",
+            json.dumps(
+                {"data": dragged_item.to_json(), "parent_path": parent_keys}
+            ).encode("utf-8"),
+        )
+        return mime_data
+
+    def mimeTypes(self):
+        return ["application/json"]
+
+    def supportedDropActions(self):
+        return Qt.DropAction.MoveAction
+
+    def canDropMimeData(
+        self,
+        data: QMimeData,
+        action: Qt.DropAction,
+        row: int,
+        column: int,
+        parent: QModelIndex,
+    ) -> bool:
+        """Override from QAbstractItemModel
+
+        Check if the mime data can be dropped to the model
+        """
+        if not data.hasFormat("application/json"):
+            return False
+
+        if not parent.isValid():
+            return False
+
+        return True
+
+    def supportedDragActions(self):
+        return Qt.DropAction.TargetMoveAction
+
+    def flags(self, index: QModelIndex):
+        """Override from QAbstractItemModel
+
+        Return flags for index
+        """
+        if not index.isValid():
+            return Qt.ItemFlag.NoItemFlags
+
+        return (
+            Qt.ItemFlag.ItemIsEnabled
+            | Qt.ItemFlag.ItemIsDragEnabled
+            | Qt.ItemFlag.ItemIsDropEnabled
+            | Qt.ItemFlag.ItemIsSelectable
+        )
+
+    def dropMimeData(
+        self,
+        data: QMimeData,
+        action: Qt.DropAction,
+        row: int,
+        column: int,
+        parent: QModelIndex,
+    ):
+        """Override from QAbstractItemModel
+
+        Drop mime data to the model
+        """
+        if not data.hasFormat("application/json"):
+            return False
+
+        if row == -1:
+            row = self.rowCount(parent)
+
+        new_parent_item: FilterItem = parent.internalPointer()
+
+        while new_parent_item.filter_type == FilterType.LEAF:
+            new_parent_item = new_parent_item.parent()
+
+        if new_parent_item.parent() is None:
+            # Cannot drop to the root
+            print("Cannot drop to root")
+            return False
+
+        dragged_item_data = json.loads(
+            data.data("application/json").data().decode("utf-8")
+        )
+        dragged_item = FilterItem.from_json(dragged_item_data["data"])
+
+        old_parent = self._rootItem
+
+        for parent_index in dragged_item_data["parent_path"]:
+            old_parent = old_parent.child(parent_index)
+        old_parent.remove_child(dragged_item_data["parent_path"][-1])
+        new_parent_item.add_child(dragged_item)
+
+        return True
+
     def to_dict(self):
         return self._rootItem.to_json()
 
@@ -231,6 +350,14 @@ class TestWidget(QWidget):
         self.view.setModel(self.model)
 
         self.view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+
+        self.view.setDragDropMode(QTreeView.DragDropMode.DragOnly)
+        self.view.setDragEnabled(True)
+        self.view.setAcceptDrops(True)
+        self.view.setDropIndicatorShown(True)
+
+        self.view.setSelectionMode(QTreeView.SelectionMode.SingleSelection)
+        self.view.setSelectionBehavior(QTreeView.SelectionBehavior.SelectRows)
 
         self.model.load(
             {
