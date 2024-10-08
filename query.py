@@ -86,9 +86,6 @@ class Query(qc.QObject):
     # Signal for external use (tell the UI to update)
     query_changed = qc.Signal()
 
-    # Signal for internal use (tell the model to update)
-    internal_changed = qc.Signal()
-
     def __init__(self, datalake: "dl.DataLake", parent=None):
         super().__init__(parent)
         self.datalake = datalake
@@ -102,8 +99,6 @@ class Query(qc.QObject):
             }
         )
         self.filter_model.model_changed.connect(self.update_data)
-
-        self.internal_changed.connect(self.update_data)
 
     def init_state(self):
         # When we create a new Query, we want to reset everything, except for the datalake path...
@@ -127,15 +122,12 @@ class Query(qc.QObject):
 
         self.variables = dict()
 
-        self.internal_changed.emit()
-
         return self
 
     def add_variable(self, key: str, value: str):
         if key in Query.RESERVED_VARIABLES:
             raise ValueError(f"Variable name {key} is reserved")
         self.variables[key] = value
-        self.internal_changed.emit()
         return self
 
     def get_variable(self, key: str) -> str:
@@ -149,7 +141,6 @@ class Query(qc.QObject):
 
     def set_limit(self, limit: int):
         self.limit = limit
-        self.internal_changed.emit()
         return self
 
     def get_offset(self) -> int:
@@ -165,7 +156,6 @@ class Query(qc.QObject):
     def set_page(self, page: int):
         self.current_page = page
         self.set_offset((page - 1) * self.limit)
-        self.internal_changed.emit()
         return self
 
     def previous_page(self):
@@ -228,12 +218,10 @@ class Query(qc.QObject):
 
     def set_editable_table_name(self, name: str):
         self.editable_table_name = name
-        self.internal_changed.emit()
         return self
 
     def set_selected_samples(self, samples: List[str]):
         self.selected_samples = samples
-        self.internal_changed.emit()
         return self
 
     def get_selected_samples(self) -> List[str]:
@@ -241,7 +229,6 @@ class Query(qc.QObject):
 
     def set_selected_genes(self, genes: List[str]):
         self.selected_genes = genes
-        self.internal_changed.emit()
         return self
 
     def get_selected_genes(self) -> List[str]:
@@ -255,7 +242,6 @@ class Query(qc.QObject):
             data (dict): The json object to build the query template from
         """
         self.query_template = build_query_template(data)
-        self.internal_changed.emit()
         return self
 
     def select_query(self, paginated=True):
@@ -342,13 +328,8 @@ class Query(qc.QObject):
             self.offset = 0
         self.query_changed.emit()
 
-    def mute(self):
-        self.blockSignals(True)
-        return self
-
-    def unmute(self):
-        self.blockSignals(False)
-        return self
+    def commit(self):
+        self.update_data()
 
     def to_json(self):
         return {

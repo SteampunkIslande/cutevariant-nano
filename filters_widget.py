@@ -35,8 +35,23 @@ class FiltersWidget(qw.QWidget):
         index = self.filters_view.currentIndex()
         if not index.isValid():
             return
-        expression = qw.QInputDialog.getText(self, "Expression", "Enter expression")
-        item = FilterItem(FilterType.LEAF, expression, None)
+        print("Adding LEAF expression to index ", index)
+        expression, _ = qw.QInputDialog.getText(self, "Expression", "Enter expression")
+        item = FilterItem(FilterType.LEAF, expression, alias=None, parent=None)
+        self.model.add_child(index, item)
+
+    def add_filter_and(self):
+        index = self.filters_view.currentIndex()
+        if not index.isValid():
+            return
+        item = FilterItem(FilterType.AND, None, alias=None, parent=None)
+        self.model.add_child(index, item)
+
+    def add_filter_or(self):
+        index = self.filters_view.currentIndex()
+        if not index.isValid():
+            return
+        item = FilterItem(FilterType.OR, None, alias=None, parent=None)
         self.model.add_child(index, item)
 
     def remove_filter(self):
@@ -50,6 +65,12 @@ class FiltersWidget(qw.QWidget):
 
         add_filter_action = menu.addAction("Add filter")
         add_filter_action.triggered.connect(self.add_filter_leaf)
+
+        add_filter_and_action = menu.addAction("Add AND filter")
+        add_filter_and_action.triggered.connect(self.add_filter_and)
+
+        add_filter_or_action = menu.addAction("Add OR filter")
+        add_filter_or_action.triggered.connect(self.add_filter_or)
 
         remove_filter_action = menu.addAction("Remove filter")
         remove_filter_action.triggered.connect(self.remove_filter)

@@ -58,8 +58,8 @@ class FilterModel(QAbstractItemModel):
 
     def add_filter(self, expression: str):
         """Add a filter to the root element of the model"""
-        index = self.index(0, 0, self.index(0, 0, self.index(0, 0)))
-        self.add_child(index, FilterItem(FilterType.LEAF, expression=expression))
+        root_filter = self.index(0, 0, QModelIndex())
+        self.add_child(root_filter, FilterItem(FilterType.LEAF, expression=expression))
 
     def remove_child(self, index: QModelIndex):
         """Remove a child from the parent index"""
@@ -281,21 +281,14 @@ class TestWidget(QWidget):
         index = self.view.currentIndex()
         if not index.isValid():
             return
-        print("Before", self.model.to_dict())
         self.model.add_child(index, FilterItem(FilterType.LEAF, "a=3"))
-        print("After", self.model.to_dict())
 
     def remove_child(self):
-        print("Before")
-        print(self.model.to_dict())
         index = self.view.currentIndex()
         if not index.isValid():
             return
 
         self.model.remove_child(index)
-
-        print("After")
-        print(self.model.to_dict())
 
     def context_menu_requested(self, p: QPoint):
         menu = QMenu()

@@ -57,16 +57,16 @@ class PageSelector(qw.QWidget):
         self.setLayout(layout)
 
     def goto_first_page(self):
-        self.query.first_page()
+        self.query.first_page().commit()
 
     def goto_previous_page(self):
-        self.query.previous_page()
+        self.query.previous_page().commit()
 
     def goto_next_page(self):
-        self.query.next_page()
+        self.query.next_page().commit()
 
     def goto_last_page(self):
-        self.query.last_page()
+        self.query.last_page().commit()
 
     def update_page_selector(self):
         # Block signals to avoid infinite loops
@@ -85,7 +85,7 @@ class PageSelector(qw.QWidget):
         self.rows_lineedit.blockSignals(False)
 
     def set_page(self, page):
-        self.query.set_page(int(page) if page else 1)
+        self.query.set_page(int(page) if page else 1).commit()
 
     def set_rows_per_page(self, rows_per_page):
-        self.query.set_limit(int(rows_per_page or 10))
+        self.query.set_limit(int(rows_per_page or 10)).commit()

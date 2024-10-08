@@ -320,15 +320,15 @@ class ValidationWidget(qw.QWidget):
         ):
             return
 
-        self.query.mute().set_readonly_table(
+        self.query.set_readonly_table(
             self.validation_parquet_files
         ).set_editable_table_name(self.validation_table_uuid).set_selected_genes(
             self.validation_gene_names
         ).set_selected_samples(
             self.validation_sample_names
-        ).unmute().generate_query_template_from_json(
+        ).generate_query_template_from_json(
             step_definition
-        )
+        ).commit()
 
     def start_validation(self, selected_validation: dict):
         if not self.datalake:

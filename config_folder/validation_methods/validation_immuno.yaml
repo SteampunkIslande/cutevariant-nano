@@ -14,6 +14,8 @@ steps:
     query:
       select:
         fields:
+          - '"Chrom"'
+          - '"Position"'
           - '"Project.recurrence"'
           - '"Recurrence.cosmic"'
           - '"Phastcons"'
@@ -39,7 +41,6 @@ steps:
           - '"Variant.effect"'
           - '"Clinvar.clinical.significance"'
           - '"Glims"'
-          - '"Position"'
           - '"PROVEAN"'
           - '"NbrReadAlt"'
           - '"MUTATIONTASTER"'
@@ -55,7 +56,6 @@ steps:
           - '"CADD.phred"'
           - '"dbscsnv.Rf.score"'
           - '"Histo_majoritaire.cosmic"'
-          - '"Chrom"'
           - '''#''||"Background color" AS ''.backgroundcolor'''
           - '"Background color"'
         tables:
@@ -68,6 +68,8 @@ steps:
             - expression: main_table."Background color" NOT IN ('FF000000', '000000')
         order_by:
           - field: main_table.Chrom
+            order: ASC
+          - field: main_table.Position
             order: ASC
   - title: VAF en rouge + SUIVI uniquement
     description: Trié par chromosome et par position

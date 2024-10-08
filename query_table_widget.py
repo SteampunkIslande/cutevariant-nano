@@ -98,7 +98,9 @@ class QueryTableWidget(qw.QWidget):
     def show_row_userdata(self, index: qc.QModelIndex):
         row_data = index.data(qc.Qt.ItemDataRole.UserRole)
         dialog = qw.QMessageBox(self)
-        dialog.setText(str(row_data))
+        dialog.setText(
+            "".join(f"<br><b>{k}</b>: {v}</br>" for k, v in row_data.items())
+        )
         dialog.setWindowTitle(qc.QCoreApplication.tr("Données sous-jacentes"))
         dialog.exec()
 
