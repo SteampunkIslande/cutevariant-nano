@@ -1,9 +1,10 @@
+from html import escape
+
 import PySide6.QtCore as qc
 import PySide6.QtWidgets as qw
 
 from filters import FilterItem, FilterType
 from query import Query
-
 
 class FiltersWidgetItemDelegate(qw.QStyledItemDelegate):
 
@@ -92,7 +93,7 @@ class FiltersWidget(qw.QWidget):
 
     def update_filters_label(self):
         self._filters_label.setText(
-            "<b>Resulting filter:</b><br/>" + str(self.query.filter_model)
+            "<b>Resulting filter:</b><br/>" + escape(str(self.query.filter_model))
         )
 
     def add_filter(self, filter_type: FilterType):
