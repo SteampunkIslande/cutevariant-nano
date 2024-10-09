@@ -39,7 +39,6 @@ class FiltersWidget(qw.QWidget):
         index = self.filters_view.currentIndex()
         if not index.isValid():
             return
-        print("Adding LEAF expression to index ", index)
         expression, _ = qw.QInputDialog.getText(self, "Expression", "Enter expression")
         item = FilterItem(FilterType.LEAF, expression, alias=None, parent=None)
         self.model.add_child(index, item)

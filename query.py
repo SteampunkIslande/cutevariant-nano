@@ -43,7 +43,8 @@ def build_query_template(data: dict) -> str:
     if "filter" in select_def:
         filter_def = select_def["filter"]
         filter_str = str(FilterItem.from_json(filter_def))
-        result += f" WHERE {filter_str} "
+        if filter_str:
+            result += f" WHERE {filter_str} "
 
     if "group_by" in select_def:
         group_by = select_def["group_by"]
@@ -252,9 +253,7 @@ class Query(qc.QObject):
         pagination = f" LIMIT {self.limit} OFFSET {self.offset}" if paginated else ""
 
         additional_where = (
-            f" WHERE {str(self.filter_model)}"
-            if not self.filter_model.is_empty()
-            else ""
+            f" WHERE {str(self.filter_model)}" if str(self.filter_model) else ""
         )
 
         return f"SELECT * FROM ({self.query_template}){additional_where}{pagination}".format(
@@ -301,10 +300,12 @@ class Query(qc.QObject):
         conn = self.datalake.get_database("validation")
 
         try:
-            dict_data = run_sql(self.select_query(), conn)
+            q = self.select_query()
+            print(q)
+            dict_data = run_sql(q, conn)
         except db.Error as e:
             print(e)
-            print(self.select_query())
+            print(q)
             conn.close()
             self.query_changed.emit()
             # Return early, dict_data is not set

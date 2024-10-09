@@ -35,6 +35,8 @@ class FilterModel(QAbstractItemModel):
     def __init__(self, parent: QObject = None):
         super().__init__(parent)
 
+        self._dragged_item = None
+
         self._rootItem = FilterItem(FilterType.ROOT)
 
     def clear(self):
@@ -225,19 +227,11 @@ class FilterModel(QAbstractItemModel):
         if len(indexes) != 1:
             return None
         mime_data = QMimeData()
-        dragged_item: FilterItem = indexes[0].internalPointer()
-        parent_item: FilterItem = dragged_item.parent()
-        # Recursively get parent's parent until we reach the root, saving the keys along the way
-        parent_keys = []
-        while parent_item:
-            parent_keys.insert(0, parent_item.row())
-            parent_item = parent_item.parent()
-        parent_keys = parent_keys[:-1]
+        self._dragged_item: FilterItem = indexes[0].internalPointer()
+
         mime_data.setData(
             "application/json",
-            json.dumps(
-                {"data": dragged_item.to_json(), "parent_path": parent_keys}
-            ).encode("utf-8"),
+            json.dumps(self._dragged_item.to_json()).encode("utf-8"),
         )
         return mime_data
 
@@ -301,31 +295,48 @@ class FilterModel(QAbstractItemModel):
             return False
 
         if row == -1:
-            row = self.rowCount(parent)
+            row = 0
 
         new_parent_item: FilterItem = parent.internalPointer()
 
         while new_parent_item.filter_type == FilterType.LEAF:
             new_parent_item = new_parent_item.parent()
 
-        if new_parent_item.parent() is None:
-            # Cannot drop to the root
-            print("Cannot drop to root")
+        if self._dragged_item is None:
             return False
 
-        dragged_item_data = json.loads(
+        if self._dragged_item.parent() == new_parent_item:
+            # Avoid segfault when moving item to the same parent
+            return False
+
+        if self._dragged_item.to_json() != json.loads(
             data.data("application/json").data().decode("utf-8")
+        ):
+            print("Data mismatch")
+            return False
+
+        self.beginMoveRows(
+            self.index_from_item(self._dragged_item.parent()),
+            self._dragged_item.row(),
+            self._dragged_item.row(),
+            self.index_from_item(new_parent_item),
+            row,
         )
-        dragged_item = FilterItem.from_json(dragged_item_data["data"])
+        self._dragged_item.internal_move(new_parent_item, row)
+        self._dragged_item = None  # Avoid segfault
+        self.endMoveRows()
 
-        old_parent = self._rootItem
-
-        for parent_index in dragged_item_data["parent_path"]:
-            old_parent = old_parent.child(parent_index)
-        old_parent.remove_child(dragged_item_data["parent_path"][-1])
-        new_parent_item.add_child(dragged_item)
+        self.model_changed.emit()
 
         return True
+
+    def index_from_item(self, item: FilterItem) -> QModelIndex:
+        if item is None:
+            return QModelIndex()
+        parent = item.parent()
+        if parent is None:
+            return QModelIndex()
+        return self.createIndex(parent.children.index(item), 0, item)
 
     def to_dict(self):
         return self._rootItem.to_json()

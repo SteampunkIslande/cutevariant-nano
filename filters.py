@@ -37,6 +37,7 @@ class FilterItem:
 
     def remove_child(self, row: int):
         if row < len(self.children):
+            print("Removing child at row", row)
             self.children.pop(row)
 
     def internal_move(self, new_parent: "FilterItem", new_row: int):
@@ -85,18 +86,15 @@ class FilterItem:
         if self.filter_type == FilterType.LEAF:
             return self.expression
         else:
+            children_repr = f" {self.filter_type.value} ".join(
+                [f"{child}" for child in self.children if str(child)]
+                if self.children
+                else ""
+            )
             if self._parent and self._parent.filter_type != FilterType.ROOT:
-                return (
-                    "("
-                    + f" {self.filter_type.value} ".join(
-                        [f"{child}" for child in self.children]
-                    )
-                    + ")"
-                )
+                return f"({children_repr})" if children_repr else ""
             else:
-                return f" {self.filter_type.value} ".join(
-                    [f"{child}" for child in self.children]
-                )
+                return children_repr if children_repr else ""
 
     def display(self):
         if self.filter_type == FilterType.LEAF:
@@ -107,20 +105,20 @@ class FilterItem:
             return self.filter_type.value
 
     def update_single(self, value: dict):
+        was_updated = False
         if self.filter_type == FilterType.LEAF:
             if "expression" in value:
                 self.expression = value["expression"]
+                was_updated = True
             if "alias" in value:
                 self.alias = value["alias"]
-            return True
-        if (
-            self.filter_type in (FilterType.AND, FilterType.OR)
-            and "filter_type" in value
-        ):
-            self.filter_type = FilterType(value["filter_type"])
-            return True
+                was_updated = True
+        if self.filter_type in (FilterType.AND, FilterType.OR):
+            if "filter_type" in value:
+                self.filter_type = FilterType(value["filter_type"])
+                was_updated = True
 
-        return False
+        return was_updated
 
     def to_json(self):
         # (Invisible) root item
