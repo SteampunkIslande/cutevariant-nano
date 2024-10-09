@@ -4,6 +4,7 @@ from typing import Any
 
 from PySide6.QtCore import (
     QAbstractItemModel,
+    QAbstractTableModel,
     QMimeData,
     QModelIndex,
     QObject,
@@ -21,10 +22,19 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+import query as q
 from filters import FilterItem, FilterType
 
 # Copyright (C) 2022 The Qt Company Ltd.
 # SPDX-License-Identifier: LicenseRef-Qt-Commercial OR BSD-3-Clause
+
+
+class FilterVariablesModel(QAbstractTableModel):
+    """A simple model to edit key value pairs"""
+
+    def __init__(self, query: "q.Query"):
+        super().__init__()
+        self.query = query
 
 
 class FilterModel(QAbstractItemModel):

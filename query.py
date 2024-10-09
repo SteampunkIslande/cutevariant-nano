@@ -137,6 +137,12 @@ class Query(qc.QObject):
     def list_variables(self) -> List[str]:
         return list(self.variables.keys())
 
+    def set_variable(self, key: str, value: str):
+        if key in Query.RESERVED_VARIABLES:
+            raise ValueError(f"Variable name {key} is reserved")
+        self.variables[key] = value
+        return self
+
     def get_limit(self) -> int:
         return self.limit
 

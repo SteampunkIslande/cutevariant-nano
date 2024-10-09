@@ -6,6 +6,7 @@ import PySide6.QtWidgets as qw
 from filters import FilterItem, FilterType
 from query import Query
 
+
 class FiltersWidgetItemDelegate(qw.QStyledItemDelegate):
 
     def __init__(self, parent=None):
@@ -87,6 +88,9 @@ class FiltersWidget(qw.QWidget):
         is updated whenever the filters are changed.
         """
         self._filters_label = qw.QLabel(self)
+        self._filters_label.setTextInteractionFlags(
+            qc.Qt.TextInteractionFlag.TextSelectableByMouse
+        )
         self.model.model_changed.connect(self.update_filters_label)
 
         self._layout.addWidget(self._filters_label)
