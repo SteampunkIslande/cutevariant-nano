@@ -91,7 +91,11 @@ class FilterItem:
                 if self.children
                 else ""
             )
-            if self._parent and self._parent.filter_type != FilterType.ROOT:
+            if (
+                self._parent
+                and self._parent.filter_type != FilterType.ROOT
+                and self._parent.child_count() > 1
+            ):
                 return f"({children_repr})" if children_repr else ""
             else:
                 return children_repr if children_repr else ""

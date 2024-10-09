@@ -124,7 +124,12 @@ class FilterModel(QAbstractItemModel):
         if role == Qt.ItemDataRole.DisplayRole:
             return item.display()
 
-    def setData(self, index: QModelIndex, value: dict, role: Qt.ItemDataRole):
+    def setData(
+        self,
+        index: QModelIndex,
+        value: dict,
+        role: Qt.ItemDataRole = Qt.ItemDataRole.EditRole,
+    ) -> bool:
         """Override from QAbstractItemModel
 
         Set json item according index and role
@@ -277,6 +282,7 @@ class FilterModel(QAbstractItemModel):
             | Qt.ItemFlag.ItemIsDragEnabled
             | Qt.ItemFlag.ItemIsDropEnabled
             | Qt.ItemFlag.ItemIsSelectable
+            | Qt.ItemFlag.ItemIsEditable
         )
 
     def dropMimeData(
