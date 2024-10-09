@@ -50,6 +50,7 @@ class FiltersWidget(qw.QWidget):
 
         self.setup_model_view()
         self.setup_query_variables()
+        self.setup_filters_label()
 
         self._layout.addStretch()
 
@@ -79,6 +80,20 @@ class FiltersWidget(qw.QWidget):
 
     def setup_query_variables(self):
         pass
+
+    def setup_filters_label(self):
+        """Adds a label that displays current filters in the query, as the SQL (nested) string. This label
+        is updated whenever the filters are changed.
+        """
+        self._filters_label = qw.QLabel(self)
+        self.model.model_changed.connect(self.update_filters_label)
+
+        self._layout.addWidget(self._filters_label)
+
+    def update_filters_label(self):
+        self._filters_label.setText(
+            "<b>Resulting filter:</b><br/>" + str(self.query.filter_model)
+        )
 
     def add_filter(self, filter_type: FilterType):
         index = self.filters_view.currentIndex()
