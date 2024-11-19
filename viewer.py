@@ -32,7 +32,7 @@ class MainWindow(qw.QMainWindow):
 
         self.menu = self.menuBar()
 
-        self.file_menu = self.menu.addMenu(qc.QCoreApplication.tr("Fichier"))
+        self.file_menu: qw.QMenu = self.menu.addMenu(qc.QCoreApplication.tr("Fichier"))
         self.file_menu.addAction(
             qc.QCoreApplication.tr("Ouvrir un datalake"), self.open_datalake
         )
@@ -42,6 +42,12 @@ class MainWindow(qw.QMainWindow):
             lambda: qg.QDesktopServices.openUrl(
                 qc.QUrl.fromLocalFile(get_user_prefs_file().parent)
             ),
+        )
+
+        # Export validation table to Excel
+        self.file_menu.addAction(
+            qc.QCoreApplication.tr("Exporter la table de validation vers Excel"),
+            self.query_table_widget.export_to_excel,
         )
 
         self.validation_query.query_changed.connect(self.on_query_changed)

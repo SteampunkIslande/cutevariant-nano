@@ -130,6 +130,14 @@ class QueryTableModel(qc.QAbstractTableModel):
 
         return
 
+    def export_to_excel(self, filename):
+        sql_query = self.query.select_query(
+            paginated=False, columns_regex="COLUMNS('^[^.]') "
+        )
+        import duckdb as db
+
+        db.sql(sql_query).pl().write_excel(filename)
+
     def headerData(self, section, orientation, role=qc.Qt.ItemDataRole.DisplayRole):
         if section >= len(self.header):
             return None

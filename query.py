@@ -251,10 +251,12 @@ class Query(qc.QObject):
         self.query_template = build_query_template(data)
         return self
 
-    def select_query(self, paginated=True):
-        """Generates the select query to run on the database. Set paginated to False if you need a query that returns all rows."""
+    def select_query(self, paginated=True, columns_regex="") -> str:
+        """Generates the select query to run on the database. Set paginated to False if you need a query that returns all rows (i.e. for counting)."""
         if not self.readonly_table:
             return ""
+
+        fields = columns_regex or "*"
 
         pagination = f" LIMIT {self.limit} OFFSET {self.offset}" if paginated else ""
 
@@ -262,7 +264,7 @@ class Query(qc.QObject):
             f" WHERE {str(self.filter_model)}" if str(self.filter_model) else ""
         )
 
-        return f"SELECT * FROM ({self.query_template}){additional_where}{pagination}".format(
+        return f"SELECT {fields} FROM ({self.query_template}){additional_where}{pagination}".format(
             **{
                 "main_table": self.readonly_table,
                 "user_table": f'"{self.editable_table_name}"',

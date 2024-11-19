@@ -97,7 +97,7 @@ class FiltersWidget(qw.QWidget):
 
     def update_filters_label(self):
         self._filters_label.setText(
-            "<b>Resulting filter:</b><br/>" + escape(str(self.query.filter_model))
+            "<b>Resulting filter:</b><br/>" + escape(str(self.model))
         )
 
     def add_filter(self, filter_type: FilterType):

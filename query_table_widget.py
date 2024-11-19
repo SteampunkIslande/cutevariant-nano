@@ -104,6 +104,16 @@ class QueryTableWidget(qw.QWidget):
         dialog.setWindowTitle(qc.QCoreApplication.tr("Données sous-jacentes"))
         dialog.exec()
 
+    def export_to_excel(self):
+        file_name, _ = qw.QFileDialog.getSaveFileName(
+            self,
+            qc.QCoreApplication.tr("Exporter la table de validation vers Excel"),
+            "",
+            qc.QCoreApplication.tr("Fichiers Excel (*.xlsx)"),
+        )
+        if file_name:
+            self.model.export_to_excel(file_name)
+
     def filter_column(self, index: qc.QModelIndex):
 
         col_name = index.model().headerData(
