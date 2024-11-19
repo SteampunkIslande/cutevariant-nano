@@ -36,7 +36,7 @@ jobs:
         with:
           nuitka-version: main
           script-name: viewer.py
-          onefile: true
+          mode: onefile
           enable-plugins: pyside6
           include-package: polars,yaml
           nofollow-import-to: ipython
