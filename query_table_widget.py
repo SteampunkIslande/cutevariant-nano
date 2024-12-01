@@ -95,6 +95,11 @@ class QueryTableWidget(qw.QWidget):
         filter_action.triggered.connect(partial(self.show_row_userdata, index))
         menu.exec(qg.QCursor.pos())
 
+    def add_variant_to_validation(self, index: qc.QModelIndex):
+        row_data = index.data(qc.Qt.ItemDataRole.UserRole)
+
+        # self.query.
+
     def show_row_userdata(self, index: qc.QModelIndex):
         row_data = index.data(qc.Qt.ItemDataRole.UserRole)
         dialog = qw.QMessageBox(self)

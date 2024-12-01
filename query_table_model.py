@@ -141,9 +141,16 @@ class QueryTableModel(qc.QAbstractTableModel):
     def headerData(self, section, orientation, role=qc.Qt.ItemDataRole.DisplayRole):
         if section >= len(self.header):
             return None
-        if role == qc.Qt.ItemDataRole.DisplayRole:
-            if orientation == qc.Qt.Orientation.Horizontal:
+        if orientation == qc.Qt.Orientation.Horizontal:
+            if role == qc.Qt.ItemDataRole.DisplayRole:
                 return str(self.header[section])
+            if role == qc.Qt.ItemDataRole.InitialSortOrderRole:
+                colname = self.header[section]
+                if self.query.order_by is not None and colname in self.query.order_by:
+                    if self.query.order_by[colname] == "ASC":
+                        return qc.Qt.SortOrder.AscendingOrder
+                    else:
+                        return qc.Qt.SortOrder.DescendingOrder
 
     def update(self):
         self.beginResetModel()

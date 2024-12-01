@@ -150,6 +150,10 @@ class Query(qc.QObject):
         self.limit = limit
         return self
 
+    def set_order_by(self, order_by: list[tuple[str, str]]):
+        self.order_by = order_by
+        return self
+
     def get_offset(self) -> int:
         return self.offset
 
@@ -207,13 +211,9 @@ class Query(qc.QObject):
             return qc.QCoreApplication.tr("Pas de datalake sélectionné")
         conn = self.datalake.get_database("validation")
         try:
-            name = (
-                conn.sql(
-                    f"SELECT validation_name FROM validations WHERE table_uuid = '{self.editable_table_name}'"
-                )
-                .pl()
-                .to_dicts()[0]["validation_name"]
-            )
+            name = conn.sql(
+                f"SELECT validation_name FROM validations WHERE table_uuid = '{self.editable_table_name}'"
+            ).fetchall()[0][0]
         except IndexError:
             name = qc.QCoreApplication.tr("Table de validation introuvable")
         finally:
@@ -278,6 +278,22 @@ class Query(qc.QObject):
     def count_query(self):
         return (
             f"SELECT COUNT(*) AS count_star FROM ({self.select_query(paginated=False)})"
+        )
+
+    def edit_validation_table(
+        self,
+        validation_hash,
+        sample_name,
+        run_name,
+        transcript_ID,
+        accepted,
+        comment,
+        tags,
+        acmg_classification,
+        conn: db.DuckDBPyConnection,
+    ):
+        conn.sql(
+            f"""INSERT INTO "{self.editable_table_name}" VALUES ({validation_hash}, {sample_name}, {run_name}, {transcript_ID}, {accepted}, {comment}, {tags}, {acmg_classification})"""
         )
 
     def is_valid(self):

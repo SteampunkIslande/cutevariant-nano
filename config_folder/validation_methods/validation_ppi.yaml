@@ -78,8 +78,8 @@ steps:
           - agg.ref_count AS 'Nombre d''allèles de référence dans la base'
           - agg.var_count AS 'Nombre de variants détectés dans la base'
           - recur.count AS 'Nombre d''observations du variant dans ce run'
-          - clinvar.CLNACC AS 'Numéro d''accession clinvar'
-          - clinvar.CLNSIG AS 'Signification CLINVAR'
+          - main_table.info_CLNACC AS 'Numéro d''accession clinvar'
+          - main_table.info_CLNSIG AS 'Signification CLINVAR'
           - main_table."snpeff_HGVS.c" AS 'c. de l anomalie'
         tables:
           - expression: "{main_table}"
@@ -105,17 +105,6 @@ steps:
                 - variant_hash
             alias: recur
             "on": main_table.variant_hash = recur.variant_hash
-            how: ""
-          - select:
-              fields:
-                - variant_hash
-                - rcvAcc AS CLNACC
-                - clinSign AS CLNSIG
-              tables:
-                - expression: read_parquet('{pwd}/annotations/clinvarMain.parquet')
-                  alias: ""
-            alias: clinvar
-            "on": main_table.variant_hash = clinvar.variant_hash
             how: ""
           - expression: read_csv('{pwd}/lists/liste_nms.csv',sep=',',header=false,names=['NM'])
             alias: nms
@@ -163,8 +152,8 @@ steps:
           - "'g.'||main_table.chromosome||'-'||main_table.position||main_table.reference||'-'||main_table.alternate AS 'g. de l anomalie'"
           - main_table.snpeff_Annotation AS 'Consequence fonctionnelle de l anomalie'
           - main_table.identifier as 'rsID'
-          - clinvar.CLNACC
-          - clinvar.CLNSIG
+          - main_table.info_CLNACC
+          - main_table.info_CLNSIG
           - MAP{{0:'Référence',1:'Hétérozygote',2:'Homozygote'}}[cv_GT] AS 'Statut du resultat'
           - "'detecte' AS 'Statut de detection'"
           - "user_table.acmg_classification AS 'Pathogenicite de l anomalie'"
@@ -199,17 +188,6 @@ steps:
                 - variant_hash
             alias: recur
             "on": main_table.variant_hash = recur.variant_hash
-            how: ""
-          - select:
-              fields:
-                - variant_hash
-                - rcvAcc AS CLNACC
-                - clinSign AS CLNSIG
-              tables:
-                - expression: read_parquet('{pwd}/annotations/clinvarMain.parquet')
-                  alias: ""
-            alias: clinvar
-            "on": main_table.variant_hash = clinvar.variant_hash
             how: ""
           - select:
               fields:

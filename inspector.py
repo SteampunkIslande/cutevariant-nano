@@ -3,6 +3,7 @@ import PySide6.QtWidgets as qw
 
 from datalake import DataLake
 from filters_widget import FiltersWidget
+from order_by_widget import OrderByWidget
 from validation_widget import ValidationWidgetContainer
 
 
@@ -28,11 +29,17 @@ class Inspector(qw.QWidget):
     def setup(self):
         self.validation_widget = ValidationWidgetContainer(self.datalake)
         self.filters_widget = FiltersWidget(self.datalake.get_query("validation"))
+
+        self.order_by_widget = OrderByWidget(self.datalake.get_query("validation"))
+
         self.main_widget.addTab(
             self.validation_widget, qc.QCoreApplication.tr("Validation")
         )
         self.main_widget.addTab(
             self.filters_widget, qc.QCoreApplication.tr("Filtres de validation")
+        )
+        self.main_widget.addTab(
+            self.order_by_widget, qc.QCoreApplication.tr("Ordre des colonnes")
         )
         self.tabs["validation"] = self.validation_widget
         self.tabs["filters"] = self.filters_widget
