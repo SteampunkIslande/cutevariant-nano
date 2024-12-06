@@ -42,10 +42,11 @@ class FilterModel(QAbstractItemModel):
 
     model_changed = Signal()
 
-    def __init__(self, parent: QObject = None):
+    def __init__(self, query: "q.Query", parent: QObject = None):
         super().__init__(parent)
 
         self._dragged_item = None
+        self.query = query
 
         self._rootItem = FilterItem(FilterType.ROOT)
 

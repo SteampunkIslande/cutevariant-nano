@@ -80,7 +80,17 @@ class QueryTableWidget(qw.QWidget):
             qc.QCoreApplication.tr("Filtrer cette colonne (simple expression)")
         )
         filter_action.triggered.connect(partial(self.filter_column, index))
+
+        order_action = menu.addAction(qc.QCoreApplication.tr("Trier cette colonne"))
+        order_action.triggered.connect(partial(self.add_order_by, index))
+
         menu.exec(self.table_view.mapToGlobal(pos))
+
+    def add_order_by(self, index: qc.QModelIndex):
+        self.query.order_by_model.add_order_by(
+            self.proxy_model.headerData(index.column(), qc.Qt.Orientation.Horizontal),
+            "ASC",
+        )
 
     def show_table_context_menu(self, pos):
         menu = qw.QMenu()

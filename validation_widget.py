@@ -326,7 +326,7 @@ class ValidationWidget(qw.QWidget):
             self.validation_gene_names
         ).set_selected_samples(
             self.validation_sample_names
-        ).generate_query_template_from_json(
+        ).setup_query(
             step_definition
         ).commit()
 

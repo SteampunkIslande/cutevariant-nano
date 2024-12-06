@@ -39,7 +39,7 @@ class Inspector(qw.QWidget):
             self.filters_widget, qc.QCoreApplication.tr("Filtres de validation")
         )
         self.main_widget.addTab(
-            self.order_by_widget, qc.QCoreApplication.tr("Ordre des colonnes")
+            self.order_by_widget, qc.QCoreApplication.tr("Tri des colonnes")
         )
         self.tabs["validation"] = self.validation_widget
         self.tabs["filters"] = self.filters_widget

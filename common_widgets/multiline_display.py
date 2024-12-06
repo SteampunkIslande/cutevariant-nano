@@ -11,3 +11,6 @@ class MultiLineDisplay(qw.QWidget):
         self.text_edit = qw.QTextEdit()
         self.text_edit.setReadOnly(True)
         self._layout.addWidget(self.text_edit)
+
+    def setText(self, text: str):
+        self.text_edit.setPlainText(text)

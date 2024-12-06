@@ -8,6 +8,7 @@ import PySide6.QtCore as qc
 
 import datalake as dl
 import filters_model as fm
+import order_by_model as obm
 from commons import duck_db_literal_string_list, duck_db_literal_string_tuple
 from filters import FilterItem
 
@@ -52,12 +53,12 @@ def build_query_template(data: dict) -> str:
             group_by = ",".join(group_by)
         result += f" GROUP BY {group_by} "
 
-    if "order_by" in select_def:
-        order_by = select_def["order_by"]
+    # if "order_by" in select_def:
+    #     order_by = select_def["order_by"]
 
-        result += " ORDER BY " + ", ".join(
-            [f"{ob['field']} {ob['order']} " for ob in order_by]
-        )
+    #     result += " ORDER BY " + ", ".join(
+    #         [f"{ob['field']} {ob['order']} " for ob in order_by]
+    #     )
 
     return result
 
@@ -92,7 +93,7 @@ class Query(qc.QObject):
         self.datalake = datalake
         self.init_state()
 
-        self.filter_model = fm.FilterModel()
+        self.filter_model = fm.FilterModel(self)
         self.filter_model.load(
             {
                 "filter_type": "ROOT",
@@ -100,6 +101,10 @@ class Query(qc.QObject):
             }
         )
         self.filter_model.model_changed.connect(self.update_data)
+
+        self.order_by_model = obm.OrderByModel(self)
+        self.order_by_model.load([])
+        self.order_by_model.model_changed.connect(self.update_data)
 
     def init_state(self):
         # When we create a new Query, we want to reset everything, except for the datalake path...
@@ -151,7 +156,7 @@ class Query(qc.QObject):
         return self
 
     def set_order_by(self, order_by: list[tuple[str, str]]):
-        self.order_by = order_by
+        self.order_by_model.load(order_by)
         return self
 
     def get_offset(self) -> int:
@@ -241,7 +246,7 @@ class Query(qc.QObject):
     def get_selected_genes(self) -> List[str]:
         return self.selected_genes
 
-    def generate_query_template_from_json(self, data: dict) -> "Query":
+    def setup_query(self, data: dict) -> "Query":
         """Builds a query template from a json object.
         Provided json object must have a select key at the root level.
 
@@ -257,6 +262,12 @@ class Query(qc.QObject):
             return ""
 
         fields = columns_regex or "*"
+        order_by_data = self.order_by_model.get_data()
+        order_by = ""
+        if order_by_data:
+            order_by = " ORDER BY " + ", ".join(
+                [f"'{ob[0]}' {ob[1]}" for ob in order_by_data]
+            )
 
         pagination = f" LIMIT {self.limit} OFFSET {self.offset}" if paginated else ""
 
@@ -264,7 +275,7 @@ class Query(qc.QObject):
             f" WHERE {str(self.filter_model)}" if str(self.filter_model) else ""
         )
 
-        return f"SELECT {fields} FROM ({self.query_template}){additional_where}{pagination}".format(
+        return f"SELECT {fields} FROM ({self.query_template}){additional_where}{order_by}{pagination}".format(
             **{
                 "main_table": self.readonly_table,
                 "user_table": f'"{self.editable_table_name}"',
@@ -274,6 +285,13 @@ class Query(qc.QObject):
                 **{k: v for k, v in self.variables.items()},
             }
         )
+
+    def list_exposed_fields(self):
+        import duckdb as db
+
+        return db.sql(
+            self.select_query(paginated=False, columns_regex="COLUMNS('^[^.].+$')")
+        ).columns
 
     def count_query(self):
         return (

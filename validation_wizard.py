@@ -6,6 +6,7 @@ import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
 
 from common_widgets.any_widget_dialog import AnyWidgetDialog
+from common_widgets.multiline_display import MultiLineDisplay
 from common_widgets.searchable_table import SearchableTable
 from common_widgets.string_list_chooser import StringListChooser
 from commons import (
@@ -114,7 +115,7 @@ class ParquetSelectPage(qw.QWizardPage):
         )
         self.select_parquet_button.clicked.connect(self.on_select_parquet_clicked)
 
-        self.selected_files_label = qw.QLabel("")
+        self.selected_files_label = MultiLineDisplay(self)
 
         layout = qw.QVBoxLayout()
         layout.addWidget(self.select_parquet_button)
@@ -147,7 +148,10 @@ class ParquetSelectPage(qw.QWizardPage):
             ),
             self,
         )
-        if dlg.exec_() == qw.QDialog.DialogCode.Accepted:
+        if (
+            dlg.exec_() == qw.QDialog.DialogCode.Accepted
+            and table.view.selectedIndexes()
+        ):
             filenames_full_path, filenames = zip(
                 *[
                     (
@@ -205,7 +209,7 @@ class SamplesSelectPage(qw.QWizardPage):
         )
         self.select_samples_button.clicked.connect(self.on_select_samples_clicked)
 
-        self.selected_samples_label = qw.QLabel("")
+        self.selected_samples_label = MultiLineDisplay(self)
 
         layout = qw.QVBoxLayout()
         layout.addWidget(self.select_samples_button)
@@ -260,7 +264,7 @@ class GeneListSelectPage(qw.QWizardPage):
         )
         self.select_genes_button.clicked.connect(self.on_select_genes_clicked)
 
-        self.selected_genes_label = qw.QLabel("")
+        self.selected_genes_label = MultiLineDisplay(self)
 
         layout = qw.QVBoxLayout()
         layout.addWidget(self.select_genes_button)
