@@ -25,6 +25,58 @@ class OrderByModel(qc.QAbstractTableModel):
             return 0
         return 2
 
+    def headerData(self, section, orientation, role):
+        if (
+            orientation == qc.Qt.Orientation.Horizontal
+            and role == qc.Qt.ItemDataRole.DisplayRole
+        ):
+            if section == 0:
+                return "Nom de la colonne"
+            if section == 1:
+                return "Ordre"
+        return None
+
+    # Add drag and drop support
+    def supportedDropActions(self):
+        return qc.Qt.DropAction.MoveAction
+
+    def supportedDragActions(self):
+        return qc.Qt.DropAction.MoveAction
+
+    def mimeTypes(self):
+        return ["text/plain"]
+
+    def mimeData(self, indexes):
+        data = qc.QMimeData()
+        row = indexes[0].row()
+        data.setText(str(row))
+        return data
+
+    def canDropMimeData(self, data, action, row, column, parent):
+        if action == qc.Qt.DropAction.MoveAction:
+            if data.hasText():
+                return True
+        return False
+
+    def dropMimeData(self, data, action, row, column, parent):
+        if action == qc.Qt.DropAction.MoveAction:
+            if data.hasText():
+                source_row = int(data.text())
+                self.moveRow(qc.QModelIndex(), source_row, qc.QModelIndex(), row)
+                return True
+        return False
+
+    def moveRow(self, sourceParent, sourceRow, destinationParent, destinationChild):
+        if sourceRow == destinationChild:
+            return False
+        self.beginMoveRows(
+            sourceParent, sourceRow, sourceRow, destinationParent, destinationChild
+        )
+        self._data.insert(destinationChild, self._data.pop(sourceRow))
+        self.endMoveRows()
+        self.model_changed.emit()
+        return True
+
     def data(self, index: qc.QModelIndex, role=qc.Qt.ItemDataRole.DisplayRole):
         if role == qc.Qt.ItemDataRole.DisplayRole:
             if index.row() < 0 or index.row() >= len(self._data):
@@ -55,7 +107,7 @@ class OrderByModel(qc.QAbstractTableModel):
         self.beginRemoveRows(qc.QModelIndex(), row, row)
         self._data.pop(row)
         self.endRemoveRows()
-        self.model_changed.emit
+        self.model_changed.emit()
 
     def add_order_by(self, field, order):
         self.beginInsertRows(qc.QModelIndex(), len(self._data), len(self._data))

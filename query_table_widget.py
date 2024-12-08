@@ -38,6 +38,9 @@ class QueryTableProxyModel(qc.QSortFilterProxyModel):
 
 class QueryTableWidget(qw.QWidget):
 
+    # Add signal that updates when selected rows change
+    selection_changed = qc.Signal()
+
     def __init__(self, query: Query, parent=None):
         super().__init__(parent)
 
@@ -63,6 +66,10 @@ class QueryTableWidget(qw.QWidget):
         self.table_view.customContextMenuRequested.connect(self.show_table_context_menu)
         self.table_view.setModel(self.proxy_model)
 
+        self.table_view.selectionModel().selectionChanged.connect(
+            self.selection_changed
+        )
+
         self.page_selector = PageSelector(query)
 
         layout = qw.QVBoxLayout()
@@ -70,6 +77,14 @@ class QueryTableWidget(qw.QWidget):
         layout.addWidget(self.page_selector)
 
         self.setLayout(layout)
+
+    def get_current_variant(self):
+        selected_rows = self.table_view.selectionModel().selectedRows()
+        if selected_rows:
+            row = selected_rows[0].row()
+            return self.model.data(
+                self.model.index(row, 0), qc.Qt.ItemDataRole.UserRole
+            )
 
     def show_header_context_menu(self, pos):
         menu = qw.QMenu()

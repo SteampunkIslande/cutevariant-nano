@@ -22,7 +22,7 @@ class MainWindow(qw.QMainWindow):
         self.load_previous_session()
 
         self.query_table_widget = QueryTableWidget(self.validation_query)
-        self.inspector = Inspector(self.datalake)
+        self.inspector = Inspector(self.datalake, self.query_table_widget)
 
         self.main_widget = qw.QSplitter(qc.Qt.Orientation.Horizontal)
         self.main_widget.addWidget(self.inspector)

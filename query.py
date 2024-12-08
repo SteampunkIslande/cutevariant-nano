@@ -266,7 +266,7 @@ class Query(qc.QObject):
         order_by = ""
         if order_by_data:
             order_by = " ORDER BY " + ", ".join(
-                [f"'{ob[0]}' {ob[1]}" for ob in order_by_data]
+                [f'"{ob[0]}" {ob[1]}' for ob in order_by_data]
             )
 
         pagination = f" LIMIT {self.limit} OFFSET {self.offset}" if paginated else ""

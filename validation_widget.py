@@ -11,6 +11,7 @@ from common_widgets.searchable_table import SearchableTable
 from commons import get_config_folder, load_user_prefs, save_user_prefs, yaml_load
 from validation_model import VALIDATION_TABLE_COLUMNS, ValidationModel
 from validation_wizard import ValidationWizard
+from query_table_widget import QueryTableWidget
 
 
 def finish_validation(conn: db.DuckDBPyConnection, table_uuid: str):
@@ -170,11 +171,17 @@ class StepModel(qc.QAbstractListModel):
 class ValidationWidget(qw.QWidget):
 
     return_to_validation = qc.Signal()
+    method_changed = qc.Signal()
+    current_variant_changed = qc.Signal()
 
-    def __init__(self, datalake: dl.DataLake, parent=None):
+    def __init__(
+        self, datalake: dl.DataLake, query_widget: QueryTableWidget, parent=None
+    ):
         super().__init__(parent)
         self.datalake = datalake
         self.query = self.datalake.get_query("validation")
+
+        self.query_widget = query_widget
 
         self._layout = qw.QVBoxLayout(self)
 
@@ -301,8 +308,9 @@ class ValidationWidget(qw.QWidget):
                 ),
             )
             return
-        self.method = yaml_load(method_path)
+        self.method: dict = yaml_load(method_path)
         self.step_model.set_steps(self.method["steps"])
+        self.method_changed.emit()
 
     def update_step(self, index: qc.QModelIndex):
         self.current_step_id = index.row()
@@ -397,9 +405,13 @@ class ValidationWidget(qw.QWidget):
 
 class ValidationWidgetContainer(qw.QWidget):
 
-    def __init__(self, datalake: dl.DataLake, parent=None):
+    def __init__(
+        self, datalake: dl.DataLake, query_widget: QueryTableWidget, parent=None
+    ):
         super().__init__(parent)
         self.datalake = datalake
+
+        self.query_widget = query_widget
 
         self._layout = qw.QVBoxLayout(self)
 

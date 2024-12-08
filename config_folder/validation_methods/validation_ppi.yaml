@@ -1,4 +1,3 @@
----
 genes_list:
   BGL:
     - PKLR
@@ -48,6 +47,9 @@ genes_list:
     - G6PD
   SRY:
     - SRY
+variant_info_url_templates:
+  - name: 'VarSome'
+    url: 'https://varsome.com/variant/hg19/{rsid}'
 steps:
   - title: Presets d'Alix
     description:
@@ -65,7 +67,7 @@ steps:
           - main_table.run_name AS 'Nom du run'
           - validation_hash AS '.validation_hash'
           - main_table.sample_name AS 'Échantillon'
-          - main_table.snpeff_Gene_Name AS 'Nom du gène:color=red:bold='
+          - main_table.snpeff_Gene_Name AS 'Nom du gène'
           - main_table.snpeff_Feature_ID AS 'NM'
           - main_table.chromosome AS 'Chromosome'
           - cast(main_table.position AS INT64) AS 'Position'
@@ -81,6 +83,7 @@ steps:
           - main_table.info_CLNACC AS 'Numéro d''accession clinvar'
           - main_table.info_CLNSIG AS 'Signification CLINVAR'
           - main_table."snpeff_HGVS.c" AS 'c. de l anomalie'
+          - main_table.identifier[1] AS '.rsid'
         tables:
           - expression: "{main_table}"
             alias: main_table
@@ -115,11 +118,6 @@ steps:
           children:
             - expression: main_table.sample_name IN {selected_samples}
             - expression: main_table.snpeff_Gene_Name IN {selected_genes}
-        order_by:
-          - field: main_table.chromosome
-            order: ASC
-          - field: main_table.position
-            order: ASC
   - title: Presets genno
     description: |-
       <body><h1>Filtres Genno.</h1>
