@@ -112,18 +112,24 @@ class QueryTableWidget(qw.QWidget):
 
         index = self.table_view.indexAt(pos)
 
-        filter_action = menu.addAction(
+        filter_action: qg.QAction = menu.addAction(
             qc.QCoreApplication.tr(
                 "(DEBUG): Voir les données sous-jacentes de cette ligne"
             )
         )
         filter_action.triggered.connect(partial(self.show_row_userdata, index))
+
+        add_variant_action: qg.QAction = menu.addAction(
+            qc.QCoreApplication.tr("Ajouter le variant à la validation")
+        )
+        add_variant_action.triggered.connect(
+            partial(self.add_variant_to_validation, index)
+        )
+
         menu.exec(qg.QCursor.pos())
 
     def add_variant_to_validation(self, index: qc.QModelIndex):
         row_data = index.data(qc.Qt.ItemDataRole.UserRole)
-
-        # self.query.
 
     def show_row_userdata(self, index: qc.QModelIndex):
         row_data = index.data(qc.Qt.ItemDataRole.UserRole)

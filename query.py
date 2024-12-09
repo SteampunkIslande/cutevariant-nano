@@ -298,22 +298,6 @@ class Query(qc.QObject):
             f"SELECT COUNT(*) AS count_star FROM ({self.select_query(paginated=False)})"
         )
 
-    def edit_validation_table(
-        self,
-        validation_hash,
-        sample_name,
-        run_name,
-        transcript_ID,
-        accepted,
-        comment,
-        tags,
-        acmg_classification,
-        conn: db.DuckDBPyConnection,
-    ):
-        conn.sql(
-            f"""INSERT INTO "{self.editable_table_name}" VALUES ({validation_hash}, {sample_name}, {run_name}, {transcript_ID}, {accepted}, {comment}, {tags}, {acmg_classification})"""
-        )
-
     def is_valid(self):
         return bool(self.readonly_table) and self.datalake
 
