@@ -132,7 +132,6 @@ class FiltersWidget(qw.QWidget):
 
         index = self.filters_view.indexAt(pos)
         item: FilterItem = index.internalPointer()
-        print(item.filter_type, item.expression)
 
         add_filter_action = menu.addAction("Add expression filter")
         add_filter_action.triggered.connect(lambda: self.add_filter(FilterType.LEAF))

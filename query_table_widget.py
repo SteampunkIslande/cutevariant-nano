@@ -2,6 +2,7 @@
 
 
 from functools import partial
+from typing import Union
 
 import PySide6.QtCore as qc
 import PySide6.QtGui as qg
@@ -78,13 +79,14 @@ class QueryTableWidget(qw.QWidget):
 
         self.setLayout(layout)
 
-    def get_current_variant(self):
+    def get_current_variant_ids(self):
         selected_rows = self.table_view.selectionModel().selectedRows()
         if selected_rows:
-            row = selected_rows[0].row()
-            return self.model.data(
-                self.model.index(row, 0), qc.Qt.ItemDataRole.UserRole
-            )
+
+            return [
+                index.data(qc.Qt.ItemDataRole.UserRole)[".variant_hash"]
+                for index in selected_rows
+            ]
 
     def show_header_context_menu(self, pos):
         menu = qw.QMenu()
@@ -129,7 +131,9 @@ class QueryTableWidget(qw.QWidget):
         menu.exec(qg.QCursor.pos())
 
     def add_variant_to_validation(self, index: qc.QModelIndex):
-        row_data = index.data(qc.Qt.ItemDataRole.UserRole)
+        row_data: dict[str, Union[str | int]] = index.data(qc.Qt.ItemDataRole.UserRole)
+        validation_hash = row_data[".validation_hash"]
+        variant_hash = row_data[".variant_hash"]
 
     def show_row_userdata(self, index: qc.QModelIndex):
         row_data = index.data(qc.Qt.ItemDataRole.UserRole)

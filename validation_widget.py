@@ -9,9 +9,9 @@ import datalake as dl
 from common_widgets.multiwidget_holder import MultiWidgetHolder
 from common_widgets.searchable_table import SearchableTable
 from commons import get_config_folder, load_user_prefs, save_user_prefs, yaml_load
+from query_table_widget import QueryTableWidget
 from validation_model import VALIDATION_TABLE_COLUMNS, ValidationModel
 from validation_wizard import ValidationWizard
-from query_table_widget import QueryTableWidget
 
 
 def finish_validation(conn: db.DuckDBPyConnection, table_uuid: str):
@@ -175,11 +175,17 @@ class ValidationWidget(qw.QWidget):
     current_variant_changed = qc.Signal()
 
     def __init__(
-        self, datalake: dl.DataLake, query_widget: QueryTableWidget, parent=None
+        self,
+        datalake: dl.DataLake,
+        query_widget: QueryTableWidget,
+        validation_model: ValidationModel,
+        parent=None,
     ):
         super().__init__(parent)
         self.datalake = datalake
         self.query = self.datalake.get_query("validation")
+
+        self.validation_model = validation_model
 
         self.query_widget = query_widget
 
@@ -406,11 +412,14 @@ class ValidationWidget(qw.QWidget):
 class ValidationWidgetContainer(qw.QWidget):
 
     def __init__(
-        self, datalake: dl.DataLake, query_widget: QueryTableWidget, parent=None
+        self,
+        datalake: dl.DataLake,
+        query_widget: QueryTableWidget,
+        parent=None,
     ):
         super().__init__(parent)
-        self.datalake = datalake
 
+        self.datalake = datalake
         self.query_widget = query_widget
 
         self._layout = qw.QVBoxLayout(self)
@@ -420,7 +429,14 @@ class ValidationWidgetContainer(qw.QWidget):
             self.on_validation_start
         )
 
-        self.validation_widget = ValidationWidget(self.datalake, self)
+        self.validation_model = self.validation_welcome_widget.model
+
+        self.validation_widget = ValidationWidget(
+            self.datalake,
+            self.query_widget,
+            self.validation_welcome_widget.model,
+            self,
+        )
         self.validation_widget.return_to_validation.connect(
             self.on_return_to_validation
         )

@@ -26,7 +26,7 @@ VALIDATION_TABLE_COLUMNS = {
 }
 
 
-def add_validation_table(
+def new_validation(
     conn: db.DuckDBPyConnection,
     datalake: dl.DataLake,
     validation_name: str,
@@ -50,7 +50,7 @@ def add_validation_table(
             f"INSERT INTO validations VALUES ({duck_db_literal_string_list(parquet_files)}, {duck_db_literal_string_list(sample_names) if sample_names else 'NULL'}, {gene_names if gene_names else 'NULL'} , '{username}', '{validation_name}', '{table_uuid}', NOW(), FALSE, '{validation_method}')"
         )
         conn.sql(
-            f"CREATE TABLE '{table_uuid}' (validation_hash BIGINT PRIMARY KEY,sample_name TEXT,run_name TEXT,transcript_ID TEXT,accepted BOOLEAN,comment COMMENT[], tags TEXT[], acmg_classification TEXT, distribution_anomalie TEXT)"
+            f"CREATE TABLE '{table_uuid}' (validation_hash BIGINT,sample_name TEXT,run_name TEXT,transcript_ID TEXT,variant_hash BIGINT, accepted BOOLEAN,comment COMMENT[], tags TEXT[], acmg_classification TEXT, distribution_anomalie TEXT)"
         )
     except db.Error as e:
         print(e)
@@ -68,8 +68,33 @@ def insert_validation_data(
     conn: db.DuckDBPyConnection,
     table_uuid: str,
     validation_hash: int,
+    sample_name: str,
+    run_name: str,
+    transcript_ID: str,
+    variant_hash: int,
+    accepted: bool,
+    comment: str,
+    tags: List[str],
+    acmg_classification: str,
+    distribution_anomalie: str,
 ):
-    pass
+    is_validation_hash_present = (
+        conn.sql(
+            f"""SELECT COUNT(*) FROM "{table_uuid}" WHERE validation_hash = {validation_hash}"""
+        ).fetchone()[0]
+        == 1
+    )
+
+    username = qc.QDir().home().dirName()
+
+    if not is_validation_hash_present:
+        conn.sql(
+            f"""INSERT INTO "{table_uuid}" (validation_hash,sample_name,run_name, transcript_ID, variant_hash) VALUES ({validation_hash}, '{sample_name}', '{run_name}', '{transcript_ID}', '{variant_hash}')"""
+        )
+
+    conn.sql(
+        f"""UPDATE "{table_uuid}" SET accepted = {accepted}, comment = comment || [row('{comment}','{username}',NOW())], tags = tags || {duck_db_literal_string_list(tags)}, acmg_classification = '{acmg_classification}', distribution_anomalie = '{distribution_anomalie}' WHERE validation_hash = {validation_hash}"""
+    )
 
 
 def get_validation_from_table_uuid(
@@ -159,7 +184,7 @@ class ValidationModel(qc.QAbstractTableModel):
     ):
         if self.datalake.datalake_path:
             conn = self.datalake.get_database("validation")
-            add_validation_table(
+            new_validation(
                 conn,
                 self.datalake,
                 validation_name,
@@ -170,6 +195,38 @@ class ValidationModel(qc.QAbstractTableModel):
                 validation_method,
             )
             self.update()
+            conn.close()
+
+    def insert_validation_data(
+        self,
+        table_uuid: str,
+        validation_hash: int,
+        sample_name: str,
+        run_name: str,
+        transcript_ID: str,
+        variant_hash: int,
+        accepted: bool,
+        comment: str,
+        tags: List[str],
+        acmg_classification: str,
+        distribution_anomalie: str,
+    ):
+        if self.datalake.datalake_path:
+            conn = self.datalake.get_database("validation")
+            insert_validation_data(
+                conn,
+                table_uuid,
+                validation_hash,
+                sample_name,
+                run_name,
+                transcript_ID,
+                variant_hash,
+                accepted,
+                comment,
+                tags,
+                acmg_classification,
+                distribution_anomalie,
+            )
             conn.close()
 
     def update(self) -> None:

@@ -1,12 +1,8 @@
-import PySide6.QtWidgets as qw
-import PySide6.QtCore as qc
-
 import PySide6.QtWebEngineWidgets as qwe
+import PySide6.QtWidgets as qw
 
-
-from validation_widget import ValidationWidget
 from query_table_widget import QueryTableWidget
-import re
+from validation_widget import ValidationWidget
 
 # Add a new widget to display variant information
 
@@ -46,7 +42,6 @@ class VariantInfoWidget(qw.QWidget):
 
     def update_combobox(self):
         self.combobox.clear()
-        print(self.validation_widget.method)
         if self.validation_widget.method is not None:
             url_templates = self.validation_widget.method.get(
                 "variant_info_url_templates"
@@ -56,11 +51,12 @@ class VariantInfoWidget(qw.QWidget):
                     self.combobox.addItem(url_template["name"], url_template["url"])
 
     def on_current_variant_changed(self):
-        variant_dict = self.query_table_widget.get_current_variant()
-        self.update_current_variant(variant_dict)
+        variant_id = self.query_table_widget.get_current_variant_ids()
+        self.update_current_variant(variant_id)
 
-    def update_current_variant(self, variant_dict: dict):
-        url: str = self.combobox.currentData()
-        variant_dict = {re.sub(r"^\.", "", k): v for k, v in variant_dict.items()}
-        url = url.format(**{k: v for k, v in variant_dict.items() if v})
-        self.webview.setUrl(qc.QUrl(url))
+    def update_current_variant(self, variant_id: dict):
+        # url: str = self.combobox.currentData()
+        # variant_id = {re.sub(r"^\.", "", k): v for k, v in variant_id.items()}
+        # url = url.format(**{k: v for k, v in variant_id.items() if v})
+        # self.webview.setUrl(qc.QUrl(url))
+        pass

@@ -7,7 +7,8 @@ import duckdb as db
 import PySide6.QtCore as qc
 
 import datalake as dl
-import filters_model as fm
+import fields_model as fldm
+import filters_model as fltm
 import order_by_model as obm
 from commons import duck_db_literal_string_list, duck_db_literal_string_tuple
 from filters import FilterItem
@@ -93,7 +94,7 @@ class Query(qc.QObject):
         self.datalake = datalake
         self.init_state()
 
-        self.filter_model = fm.FilterModel(self)
+        self.filter_model = fltm.FilterModel(self)
         self.filter_model.load(
             {
                 "filter_type": "ROOT",
@@ -105,6 +106,8 @@ class Query(qc.QObject):
         self.order_by_model = obm.OrderByModel(self)
         self.order_by_model.load([])
         self.order_by_model.model_changed.connect(self.update_data)
+
+        self.fields_model = fldm.FieldsModel(self)
 
     def init_state(self):
         # When we create a new Query, we want to reset everything, except for the datalake path...
@@ -256,12 +259,16 @@ class Query(qc.QObject):
         self.query_template = build_query_template(data)
         return self
 
-    def select_query(self, paginated=True, columns_regex="") -> str:
+    def select_query(self, paginated=True, columns=None) -> str:
         """Generates the select query to run on the database. Set paginated to False if you need a query that returns all rows (i.e. for counting)."""
         if not self.readonly_table:
             return ""
 
-        fields = columns_regex or "*"
+        fields = (
+            columns
+            or ",".join([f'"{f}"' for f in self.fields_model.checked_fields()])
+            or "*"
+        )
         order_by_data = self.order_by_model.get_data()
         order_by = ""
         if order_by_data:
@@ -290,7 +297,7 @@ class Query(qc.QObject):
         import duckdb as db
 
         return db.sql(
-            self.select_query(paginated=False, columns_regex="COLUMNS('^[^.].+$')")
+            self.select_query(paginated=True, columns="COLUMNS('^[^.].+$')")
         ).columns
 
     def count_query(self):
