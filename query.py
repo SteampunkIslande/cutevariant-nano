@@ -116,6 +116,7 @@ class Query(qc.QObject):
     def init_state(self):
         # When we create a new Query, we want to reset everything, except for the datalake path...
         self.query_template = None
+        self.query_base_def = None
         self.order_by = None
 
         self.readonly_table = None
@@ -263,6 +264,7 @@ class Query(qc.QObject):
         Args:
             data (dict): The json object to build the query template from
         """
+        self.query_base_def = data
         self.query_template = build_query_template(data)
         self.query_setup_changed.emit()
         return self
@@ -276,10 +278,15 @@ class Query(qc.QObject):
         print(fields)
         order_by_data = self.order_by_model.get_data()
 
+        # if ".validation_hash" not in self.query_base_def["select"]["fields"]:
+        #     fields += ', ".validation_hash"'
+
         order_by = (
-            " ORDER BY " + ", ".join([f'"{ob[0]}" {ob[1]}' for ob in order_by_data])
+            "ORDER BY "
+            + ", ".join([f'"{ob[0]}" {ob[1]}' for ob in order_by_data])
+            + """, ".validation_hash" ASC """
             if order_by_data
-            else ""
+            else """ ORDER BY ".validation_hash" ASC """
         )
 
         pagination = f" LIMIT {self.limit} OFFSET {self.offset}" if paginated else ""
