@@ -79,12 +79,12 @@ class QueryTableWidget(qw.QWidget):
 
         self.setLayout(layout)
 
-    def get_current_variant_ids(self):
+    def get_current_validation_hashes(self) -> list[int | None]:
         selected_rows = self.table_view.selectionModel().selectedRows()
         if selected_rows:
 
             return [
-                index.data(qc.Qt.ItemDataRole.UserRole)[".variant_hash"]
+                index.data(qc.Qt.ItemDataRole.UserRole)[".validation_hash"]
                 for index in selected_rows
             ]
 
@@ -98,7 +98,9 @@ class QueryTableWidget(qw.QWidget):
         )
         filter_action.triggered.connect(partial(self.filter_column, index))
 
-        order_action = menu.addAction(qc.QCoreApplication.tr("Trier cette colonne"))
+        order_action: qg.QAction = menu.addAction(
+            qc.QCoreApplication.tr("Trier cette colonne")
+        )
         order_action.triggered.connect(partial(self.add_order_by, index))
 
         menu.exec(self.table_view.mapToGlobal(pos))

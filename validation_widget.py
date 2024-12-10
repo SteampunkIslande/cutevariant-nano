@@ -297,7 +297,9 @@ class ValidationWidget(qw.QWidget):
 
         # Now, export final CSV to Genno
 
-        final_query = self.query.select_query(paginated=False)
+        final_query = self.query.select_query(
+            paginated=False, columns="COLUMNS('^[^.].+$')"
+        )
         db.sql(
             f"COPY ({final_query}) TO '{genno_export_folder / self.validation_name}.csv' (FORMAT CSV, HEADER)"
         )

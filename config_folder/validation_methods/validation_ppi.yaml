@@ -50,6 +50,16 @@ genes_list:
 variant_info_url_templates:
   - name: "VarSome"
     url: "https://varsome.com/variant/hg19/{rsid}"
+info_fields:
+  Run name: "Nom du run"
+  Sample name: "Échantillon"
+  Chromosome: "Chromosome"
+  Position: "Position"
+  Ref: "Allèle de référence"
+  Alt: "Allèle alternatif"
+  Accepted: ".accepted"
+  Comment: ".comment"
+  Tags: ".tags"
 steps:
   - title: Presets d'Alix
     description:
@@ -66,7 +76,6 @@ steps:
           - main_table.validation_hash AS '.validation_hash'
           - main_table.variant_hash AS '.variant_hash'
           - main_table.run_name AS 'Nom du run'
-          - validation_hash AS '.validation_hash'
           - main_table.sample_name AS 'Échantillon'
           - main_table.snpeff_Gene_Name AS 'Nom du gène'
           - main_table.snpeff_Feature_ID AS 'NM'
@@ -85,9 +94,16 @@ steps:
           - main_table.info_CLNSIG AS 'Signification CLINVAR'
           - main_table."snpeff_HGVS.c" AS 'c. de l anomalie'
           - main_table.identifier[1] AS '.rsid'
+          - user_table.accepted AS '.accepted'
+          - user_table.comment AS '.comment'
+          - user_table.tags AS '.tags'
         tables:
           - expression: "{main_table}"
             alias: main_table
+          - expression: "{user_table}"
+            alias: user_table
+            "on": main_table.validation_hash = user_table.validation_hash
+            how: "LEFT OUTER"
           - expression: read_parquet('{pwd}/aggregates/variants.parquet')
             alias: agg
             "on": main_table.variant_hash = agg.variant_hash

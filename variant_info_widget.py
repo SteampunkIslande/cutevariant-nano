@@ -51,7 +51,7 @@ class VariantInfoWidget(qw.QWidget):
                     self.combobox.addItem(url_template["name"], url_template["url"])
 
     def on_current_variant_changed(self):
-        variant_id = self.query_table_widget.get_current_variant_ids()
+        variant_id = self.query_table_widget.get_current_validation_hashes()
         self.update_current_variant(variant_id)
 
     def update_current_variant(self, variant_id: dict):

@@ -132,7 +132,7 @@ class QueryTableModel(qc.QAbstractTableModel):
 
     def export_to_excel(self, filename):
         sql_query = self.query.select_query(
-            paginated=False, columns="COLUMNS('^[^.]') "
+            paginated=False, columns="COLUMNS('^[^.].+$')", where=None
         )
         import duckdb as db
 

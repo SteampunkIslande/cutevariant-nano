@@ -89,6 +89,8 @@ class Query(qc.QObject):
     # Signal for external use (tell the UI to update)
     query_changed = qc.Signal()
 
+    query_setup_changed = qc.Signal()
+
     def __init__(self, datalake: "dl.DataLake", parent=None):
         super().__init__(parent)
         self.datalake = datalake
@@ -108,6 +110,8 @@ class Query(qc.QObject):
         self.order_by_model.model_changed.connect(self.update_data)
 
         self.fields_model = fldm.FieldsModel(self)
+        self.fields_model.load()
+        self.fields_model.model_changed.connect(self.update_data)
 
     def init_state(self):
         # When we create a new Query, we want to reset everything, except for the datalake path...
@@ -249,6 +253,9 @@ class Query(qc.QObject):
     def get_selected_genes(self) -> List[str]:
         return self.selected_genes
 
+    def get_selected_fields(self) -> List[str]:
+        return self.fields_model.checked_fields()
+
     def setup_query(self, data: dict) -> "Query":
         """Builds a query template from a json object.
         Provided json object must have a select key at the root level.
@@ -257,28 +264,27 @@ class Query(qc.QObject):
             data (dict): The json object to build the query template from
         """
         self.query_template = build_query_template(data)
+        self.query_setup_changed.emit()
         return self
 
-    def select_query(self, paginated=True, columns=None) -> str:
+    def select_query(self, paginated=True, columns=None, where=None) -> str:
         """Generates the select query to run on the database. Set paginated to False if you need a query that returns all rows (i.e. for counting)."""
         if not self.readonly_table:
             return ""
 
-        fields = (
-            columns
-            or ",".join([f'"{f}"' for f in self.fields_model.checked_fields()])
-            or "*"
-        )
+        fields = columns or "*"
+        print(fields)
         order_by_data = self.order_by_model.get_data()
-        order_by = ""
-        if order_by_data:
-            order_by = " ORDER BY " + ", ".join(
-                [f'"{ob[0]}" {ob[1]}' for ob in order_by_data]
-            )
+
+        order_by = (
+            " ORDER BY " + ", ".join([f'"{ob[0]}" {ob[1]}' for ob in order_by_data])
+            if order_by_data
+            else ""
+        )
 
         pagination = f" LIMIT {self.limit} OFFSET {self.offset}" if paginated else ""
 
-        additional_where = (
+        additional_where = where or (
             f" WHERE {str(self.filter_model)}" if str(self.filter_model) else ""
         )
 
@@ -294,11 +300,30 @@ class Query(qc.QObject):
         )
 
     def list_exposed_fields(self):
-        import duckdb as db
+        conn = self.datalake.get_database("validation")
 
-        return db.sql(
+        if self.query_template is None:
+            return []
+        return conn.sql(
             self.select_query(paginated=True, columns="COLUMNS('^[^.].+$')")
         ).columns
+
+    def get_variant_info(self, validation_hash: int, columns: List[str]):
+        conn = self.datalake.get_database("validation")
+        variant_info = (
+            conn.sql(
+                self.select_query(
+                    paginated=True,
+                    columns=",".join([f'"{f}"' for f in columns]) if columns else "*",
+                    where=f'WHERE ".validation_hash" = {validation_hash}',
+                )
+            )
+            .pl()
+            .to_dicts()
+        )
+        variant_info = variant_info[0] if variant_info else {}
+        conn.close()
+        return variant_info
 
     def count_query(self):
         return (

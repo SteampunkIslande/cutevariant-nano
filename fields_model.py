@@ -8,24 +8,19 @@ import query as q
 
 class FieldsModel(qc.QAbstractListModel):
 
+    model_changed = qc.Signal()
+
     def __init__(self, query: "q.Query", parent=None):
         super().__init__(parent)
         self.fields = []
         self.query = query
 
-        self.query.query_changed.connect(self.load)
+        self.query.query_setup_changed.connect(self.load)
 
     def load(self):
         self.beginResetModel()
         fields = self.query.list_exposed_fields()
-        print(fields)
-        previous_selected_fields = self.checked_fields()
-        if len(previous_selected_fields) == 0:
-            self.fields = [[field, True] for field in fields]
-        else:
-            self.fields = [
-                [field, field in previous_selected_fields] for field in fields
-            ]
+        self.fields = [[field, True] for field in fields]
         self.endResetModel()
 
     def rowCount(self, parent=qc.QModelIndex()):
@@ -33,16 +28,29 @@ class FieldsModel(qc.QAbstractListModel):
 
     def data(self, index, role=qc.Qt.ItemDataRole.DisplayRole):
         if role == qc.Qt.ItemDataRole.DisplayRole:
-            return self.fields[index.row()]
+            return self.fields[index.row()][0]
+        if role == qc.Qt.ItemDataRole.CheckStateRole:
+            return (
+                qc.Qt.CheckState.Checked
+                if self.fields[index.row()][1]
+                else qc.Qt.CheckState.Unchecked
+            )
         return None
 
     def flags(self, index):
-        return qc.Qt.ItemFlag.ItemIsUserCheckable | qc.Qt.ItemFlag.ItemIsEnabled
+        return (
+            qc.Qt.ItemFlag.ItemIsUserCheckable
+            | qc.Qt.ItemFlag.ItemIsEnabled
+            | qc.Qt.ItemFlag.ItemIsSelectable
+        )
 
     def setData(self, index, value, role=qc.Qt.ItemDataRole.CheckStateRole):
         if role == qc.Qt.ItemDataRole.CheckStateRole:
-            self.fields[index.row()] = value
+            self.fields[index.row()][1] = (
+                True if value == qc.Qt.CheckState.Checked else False
+            )
             self.dataChanged.emit(index, index)
+            self.model_changed.emit()
             return True
         return False
 
@@ -56,16 +64,19 @@ class FieldsModel(qc.QAbstractListModel):
         for i, field in enumerate(self.fields):
             field[1] = True
             self.dataChanged.emit(self.index(i), self.index(i))
+        self.model_changed.emit()
 
     def uncheck_all(self):
         for i, field in enumerate(self.fields):
             field[1] = False
             self.dataChanged.emit(self.index(i), self.index(i))
+        self.model_changed.emit()
 
     def invert_check(self):
         for i, field in enumerate(self.fields):
             field[1] = not field[1]
             self.dataChanged.emit(self.index(i), self.index(i))
+        self.model_changed.emit()
 
     # def supportedDropActions(self):
     #     return qc.Qt.DropAction.MoveAction

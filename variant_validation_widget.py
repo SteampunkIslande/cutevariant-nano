@@ -48,11 +48,39 @@ class VariantValidationWidget(qw.QWidget):
         self._layout.addRow("Comment", self.comment_te)
         self._layout.addRow("Tags", self.tags_te)
 
+        self._widgets = {
+            "Run name": self.run_name_label,
+            "Sample name": self.sample_name_label,
+            "Chromosome": self.chromosome_label,
+            "Position": self.position_label,
+            "Ref": self.ref_label,
+            "Alt": self.alt_label,
+            "Accepted": self.accepted_cb,
+            "Comment": self.comment_te,
+            "Tags": self.tags_te,
+        }
+
         self.setLayout(self._layout)
 
     def on_current_variant_changed(self):
-        variant_id = self.query_table_widget.get_current_variant_ids()[0]
-        self.update_view(variant_id)
+        validation_hashes = self.query_table_widget.get_current_validation_hashes()
+        if validation_hashes:
+            validation_hash = validation_hashes[0]
+            self.update_view(validation_hash)
 
-    def update_view(self, variant_id: int):
-        pass
+    def update_view(self, validation_hash: int):
+        method = self.validation_widget.method
+        info_fields: dict[str, str] = method.get("info_fields", {})
+
+        query_cols = list(info_fields.values())
+        info = self.query.get_variant_info(validation_hash, query_cols)
+
+        self.run_name_label.setText(str(info.get(info_fields["Run name"], "")))
+        self.sample_name_label.setText(str(info.get(info_fields["Sample name"], "")))
+        self.chromosome_label.setText(str(info.get(info_fields["Chromosome"], "")))
+        self.position_label.setText(str(info.get(info_fields["Position"], "")))
+        self.ref_label.setText(str(info.get(info_fields["Ref"], "")))
+        self.alt_label.setText(str(info.get(info_fields["Alt"], "")))
+        self.accepted_cb.setChecked(info.get(info_fields["Accepted"], False) or False)
+        self.comment_te.setPlainText(info.get(info_fields["Comment"], ""))
+        self.tags_te.setPlainText(info.get(info_fields["Tags"], ""))
