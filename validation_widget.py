@@ -466,7 +466,7 @@ class ValidationWidgetContainer(qw.QWidget):
         self.multi_widget.set_current_widget("validation")
         self.validation_widget.init_state()
 
-        success, config_folder = get_config_folder()
+        success, _ = get_config_folder()
         if not success:
             qw.QMessageBox.critical(
                 self,
