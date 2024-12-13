@@ -36,7 +36,7 @@ jobs:
         with:
           nuitka-version: main
           script-name: viewer.py
-          mode: standalone
+          mode: onefile
           enable-plugins: pyside6
           include-module: polars,yaml,xlsxwriter,numpy
           nofollow-import-to: ipython
@@ -46,4 +46,6 @@ jobs:
         with:
           name: ${{ runner.os }} Build
           path: |
-            build/viewer.dist
+            build/*.exe
+            build/*.bin
+            build/*.app/**/*
