@@ -38,7 +38,7 @@ jobs:
           script-name: viewer.py
           mode: standalone
           enable-plugins: pyside6
-          include-module: polars,yaml,xlsxwriter
+          include-module: polars,yaml,xlsxwriter,numpy
           nofollow-import-to: ipython
 
       - name: Upload Artifacts
