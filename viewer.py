@@ -57,6 +57,15 @@ class MainWindow(qw.QMainWindow):
         prefs = self.get_user_prefs()
         if "last_session" not in prefs:
             self.datalake = DataLake()
+            # Ask the user for a datalake path
+            self.open_datalake()
+            # If the user didn't select a datalake path, close the app
+            if (
+                not self.datalake.datalake_path
+                or not Path(self.datalake.datalake_path).exists()
+            ):
+                print("No datalake path selected")
+                return False
             self.validation_query = Query(self.datalake, self)
             self.datalake.add_query("validation", self.validation_query)
         else:
@@ -64,13 +73,19 @@ class MainWindow(qw.QMainWindow):
             self.validation_query = self.datalake.get_query("validation")
             self.validation_query.init_state()
 
+        return True
+
     def closeEvent(self, event: qg.QCloseEvent):
+        print("closing")
         user_prefs_folder = get_user_prefs_file().parent
         user_prefs_folder.mkdir(parents=True, exist_ok=True)
 
         # Save last query
-        self.datalake.save(user_prefs_folder / "last_session.json")
-        save_user_prefs({"last_session": str(user_prefs_folder / "last_session.json")})
+        if self.datalake.datalake_path:
+            self.datalake.save(user_prefs_folder / "last_session.json")
+            save_user_prefs(
+                {"last_session": str(user_prefs_folder / "last_session.json")}
+            )
         event.accept()
 
     def on_query_changed(self):

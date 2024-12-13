@@ -66,6 +66,7 @@ def save_user_prefs(prefs: dict):
 
 def load_user_prefs():
     user_prefs = get_user_prefs_file()
+    print(user_prefs)
     prefs = {}
     if user_prefs.exists():
         with open(user_prefs, "r", encoding="utf-8") as f:

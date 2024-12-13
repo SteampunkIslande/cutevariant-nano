@@ -83,6 +83,7 @@ steps:
           - cast(main_table.position AS INT64) AS 'Position'
           - main_table.reference AS 'Allèle de référence'
           - main_table.alternate AS 'Allèle alternatif'
+          - if(len(main_table.reference)>len(main_table.alternate),'deletion',if(len(main_table.reference)<len(main_table.alternate),'insertion','substitution')) AS 'Famille de l anomalie'
           - format('{{:.2f}}',main_table.cv_AF) AS 'Fréquence allélique'
           - main_table.snpeff_Annotation AS 'Annotation'
           - main_table.cv_GT AS 'Génotype'
@@ -93,6 +94,8 @@ steps:
           - main_table.info_CLNACC AS 'Numéro d''accession clinvar'
           - main_table.info_CLNSIG AS 'Signification CLINVAR'
           - main_table."snpeff_HGVS.c" AS 'c. de l anomalie'
+          - main_table."snpeff_HGVS.p" AS 'p. de l anomalie'
+          - refseq_contigs.refseq AS '.NC'
           - main_table.identifier[1] AS '.rsid'
           - user_table.accepted AS '.accepted'
           - user_table.comment AS '.comment'
@@ -129,6 +132,10 @@ steps:
           - expression: read_csv('{pwd}/lists/liste_nms.csv',sep=',',header=false,names=['NM'])
             alias: nms
             "on": main_table.snpeff_Feature_ID = nms.NM
+            how: ""
+          - expression: read_csv('{pwd}/annotations/ucscToRefSeq.txt.gz',header=False,names=['contig','_1','_2','refseq'])
+            alias: refseq_contigs
+            "on": main_table.chromosome = refseq_contigs.contig
             how: ""
         filter:
           filter_type: AND
