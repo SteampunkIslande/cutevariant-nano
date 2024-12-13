@@ -66,7 +66,6 @@ def save_user_prefs(prefs: dict):
 
 def load_user_prefs():
     user_prefs = get_user_prefs_file()
-    print(user_prefs)
     prefs = {}
     if user_prefs.exists():
         with open(user_prefs, "r", encoding="utf-8") as f:
@@ -82,7 +81,7 @@ def table_exists(conn: db.DuckDBPyConnection, table_name: str) -> bool:
         return False
 
 
-def get_config_folder() -> Path:
+def get_config_folder() -> typing.Tuple[bool, typing.Union[Path | None]]:
     try:
         config_folder = Path(load_user_prefs()["config_folder"])
         return config_folder
@@ -102,10 +101,6 @@ def get_config_folder() -> Path:
         )
         if config_folder:
             save_user_prefs({"config_folder": config_folder})
-            return Path(config_folder)
+            return True, Path(config_folder)
         else:
-            # Return a non existent path for sure
-            p = Path(".1")
-            while p.exists():
-                p = p.with_name(p.name + ".1")
-            return p
+            return False, None

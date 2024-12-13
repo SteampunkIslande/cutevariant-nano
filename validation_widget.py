@@ -62,8 +62,8 @@ class ValidationWelcomeWidget(qw.QWidget):
         username = Path.home().name
 
         # Make sure we have a config folder (before we start the wizard)
-        config_folder = get_config_folder()
-        if not config_folder.is_dir():
+        success, _ = get_config_folder()
+        if not success:
             qw.QMessageBox.critical(
                 self,
                 qc.QCoreApplication.tr("Erreur"),
@@ -350,8 +350,8 @@ class ValidationWidget(qw.QWidget):
         if not self.datalake:
             return
 
-        config_folder = get_config_folder()
-        if not config_folder.is_dir():
+        succes, config_folder = get_config_folder()
+        if not succes:
             qw.QMessageBox.critical(
                 self,
                 qc.QCoreApplication.tr("Erreur"),
@@ -368,7 +368,7 @@ class ValidationWidget(qw.QWidget):
         self.validation_gene_names = selected_validation["gene_names"]
 
         self.set_method_path(
-            Path(config_folder)
+            config_folder
             / "validation_methods"
             / (selected_validation["validation_method"] + ".yaml")
         )
@@ -466,8 +466,8 @@ class ValidationWidgetContainer(qw.QWidget):
         self.multi_widget.set_current_widget("validation")
         self.validation_widget.init_state()
 
-        config_folder = get_config_folder()
-        if not config_folder.is_dir():
+        success, config_folder = get_config_folder()
+        if not success:
             qw.QMessageBox.critical(
                 self,
                 qc.QCoreApplication.tr("Erreur"),

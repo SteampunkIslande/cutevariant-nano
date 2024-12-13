@@ -13,7 +13,10 @@ from query import Query
 def load_style():
     prefs = load_user_prefs()
     style: str = prefs.get("column_styles", "style42.json")
-    style_file_path = (get_config_folder() / "styles" / style).resolve()
+    success, config_folder = get_config_folder()
+    if not success:
+        return
+    style_file_path = (config_folder / "styles" / style).resolve()
     if style_file_path.is_file():
         with open(style_file_path, "r", encoding="utf-8") as f:
             return json.load(f)
