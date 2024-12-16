@@ -2,13 +2,15 @@
 
 
 from functools import partial
-from typing import Union
+from typing import List, Union
 
+import duckdb as db
 import PySide6.QtCore as qc
 import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
 
 from common_widgets.page_selector import PageSelector
+from commons import duck_db_literal_string_list
 from query import Query
 from query_table_model import QueryTableModel
 
@@ -35,6 +37,40 @@ class QueryTableProxyModel(qc.QSortFilterProxyModel):
         if role == qc.Qt.ItemDataRole.DisplayRole:
             return header.split(":")[0] if header else header
         return header
+
+
+def insert_validation_data(
+    conn: db.DuckDBPyConnection,
+    table_uuid: str,
+    validation_hash: int,
+    sample_name: str,
+    run_name: str,
+    transcript_ID: str,
+    variant_hash: int,
+    accepted: bool,
+    comment: str,
+    tags: List[str],
+    acmg_classification: str,
+    distribution_anomalie: str,
+):
+    is_validation_hash_present = (
+        conn.sql(
+            f"""SELECT COUNT(*) FROM "{table_uuid}" WHERE validation_hash = {validation_hash}"""
+        ).fetchone()[0]
+        == 1
+    )
+
+    username = qc.QDir().home().dirName()
+
+    if not is_validation_hash_present:
+        conn.sql(
+            f"""INSERT INTO "{table_uuid}" (validation_hash,sample_name,run_name, transcript_ID, variant_hash) VALUES ({validation_hash}, '{sample_name}', '{run_name}', '{transcript_ID}', {variant_hash})"""
+        )
+
+    conn.sql(
+        f"""UPDATE "{table_uuid}" SET accepted = {accepted}, comment = comment || [row('{comment}','{username}',NOW())], tags = {duck_db_literal_string_list(tags)}, acmg_classification = '{acmg_classification}', distribution_anomalie = '{distribution_anomalie}' WHERE validation_hash = {validation_hash}"""
+    )
+    conn.close()
 
 
 class QueryTableWidget(qw.QWidget):
@@ -136,6 +172,25 @@ class QueryTableWidget(qw.QWidget):
         row_data: dict[str, Union[str | int]] = index.data(qc.Qt.ItemDataRole.UserRole)
         validation_hash = row_data[".validation_hash"]
         variant_hash = row_data[".variant_hash"]
+
+        val_table_uuid = self.query.get_editable_table_name()
+
+        conn = self.query.datalake.get_database("validation")
+
+        insert_validation_data(
+            conn,
+            val_table_uuid,
+            validation_hash,
+            row_data["Échantillon"],
+            row_data["Nom du run"],
+            row_data["NM"],
+            variant_hash,
+            True,
+            "",
+            [],
+            "",
+            "",
+        )
 
     def show_row_userdata(self, index: qc.QModelIndex):
         row_data = index.data(qc.Qt.ItemDataRole.UserRole)

@@ -250,6 +250,7 @@ class ValidationWidget(qw.QWidget):
     def validate(self):
         conn = self.datalake.get_database("validation")
         try:
+            self.export_csv()
             finish_validation(conn, self.validation_table_uuid)
             self.completed = True
             step_definition = self.method["final"]["query"]
@@ -300,9 +301,11 @@ class ValidationWidget(qw.QWidget):
         final_query = self.query.select_query(
             paginated=False, columns="COLUMNS('^[^.].+$')"
         )
-        db.sql(
+        conn = self.datalake.get_database("validation")
+        conn.sql(
             f"COPY ({final_query}) TO '{genno_export_folder / self.validation_name}.csv' (FORMAT CSV, HEADER)"
         )
+        conn.close()
 
     def set_method_path(self, method_path: Path):
         if not method_path.exists():

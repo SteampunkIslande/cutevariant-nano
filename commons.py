@@ -84,7 +84,7 @@ def table_exists(conn: db.DuckDBPyConnection, table_name: str) -> bool:
 def get_config_folder() -> typing.Tuple[bool, typing.Union[Path | None]]:
     try:
         config_folder = Path(load_user_prefs()["config_folder"])
-        return config_folder
+        return True, config_folder
     except KeyError:
         qw.QMessageBox.warning(
             None,
