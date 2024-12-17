@@ -192,7 +192,7 @@ class QueryTableWidget(qw.QWidget):
                 "",
                 "",
             )
-            self.query.commit()
+        self.query.commit()
 
     def show_row_userdata(self, index: qc.QModelIndex):
         row_data = index.data(qc.Qt.ItemDataRole.UserRole)
