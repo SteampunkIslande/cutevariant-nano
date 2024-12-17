@@ -29,5 +29,10 @@
         "bold": {
             "constant": true
         }
+    },
+    "Validé ?": {
+        "background": {
+            "from_column": ".accepted_color"
+        }
     }
 }
