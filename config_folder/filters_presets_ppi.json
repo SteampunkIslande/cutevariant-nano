@@ -1,0 +1,32 @@
+{
+    "filter_type": "ROOT",
+    "children": [
+        {
+            "filter_type": "AND",
+            "children": [
+                {
+                    "filter_type": "LEAF",
+                    "expression": "\"chromosome\" = 'chr7'",
+                    "alias": null
+                },
+                {
+                    "filter_type": "LEAF",
+                    "expression": "b = 6",
+                    "alias": null
+                },
+                {
+                    "filter_type": "OR",
+                    "children": [
+                        {
+                            "filter_type": "LEAF",
+                            "expression": "c = 7",
+                            "alias": null
+                        }
+                    ],
+                    "alias": null
+                }
+            ],
+            "alias": null
+        }
+    ]
+}

@@ -106,7 +106,7 @@ class FilterModel(QAbstractItemModel):
 
         return True
 
-    def load(self, document: dict):
+    def load(self, document: dict = None):
         """Load model from a nested dictionary returned by json.loads()
 
         Arguments:
@@ -115,7 +115,15 @@ class FilterModel(QAbstractItemModel):
 
         self.beginResetModel()
 
-        self._rootItem = FilterItem.from_json(document)
+        if document is None:
+            self._rootItem = FilterItem.from_json(
+                {
+                    "filter_type": "ROOT",
+                    "children": [{"filter_type": "AND", "children": []}],
+                }
+            )
+        else:
+            self._rootItem = FilterItem.from_json(document)
         self.endResetModel()
 
         self.model_changed.emit()

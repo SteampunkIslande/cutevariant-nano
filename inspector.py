@@ -19,6 +19,8 @@ class Inspector(qw.QWidget):
 
         self._layout = qw.QVBoxLayout()
 
+        self._splitter = qw.QSplitter(qc.Qt.Orientation.Vertical)
+
         self.datalake = datalake
 
         self.query_table_widget = query_table_widget
@@ -28,8 +30,10 @@ class Inspector(qw.QWidget):
         # Add another widget below the tab widget, to display variants information in another tab widget
         self.variant_widget = qw.QTabWidget()
 
-        self._layout.addWidget(self.main_widget)
-        self._layout.addWidget(self.variant_widget)
+        self._splitter.addWidget(self.main_widget)
+        self._splitter.addWidget(self.variant_widget)
+
+        self._layout.addWidget(self._splitter)
 
         self.main_tabs = {}
         self.variant_tabs = {}

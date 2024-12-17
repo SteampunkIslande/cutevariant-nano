@@ -100,7 +100,7 @@ steps:
           - user_table.accepted AS '.accepted'
           - user_table.comment AS '.comment'
           - user_table.tags AS '.tags'
-          - if(user_table.accepted IS NULL,'NON',MAP{{true:'OUI',false:'NON'}}[user_table.accepted][1]) AS 'Validé ?'
+          - if(user_table.accepted = true,'OUI','NON') AS 'Validé ?'
           - if(user_table.accepted IS NULL,NULL,MAP{{true:'green',false:'red'}}[user_table.accepted][1]) AS '.accepted_color'
         tables:
           - expression: "{main_table}"
