@@ -50,7 +50,7 @@ def new_validation(
             f"INSERT INTO validations VALUES ({duck_db_literal_string_list(parquet_files)}, {duck_db_literal_string_list(sample_names) if sample_names else 'NULL'}, {gene_names if gene_names else 'NULL'} , '{username}', '{validation_name}', '{table_uuid}', NOW(), FALSE, '{validation_method}')"
         )
         conn.sql(
-            f"CREATE TABLE '{table_uuid}' (validation_hash BIGINT,sample_name TEXT,run_name TEXT,transcript_ID TEXT,variant_hash BIGINT, accepted BOOLEAN,comment COMMENT[], tags TEXT[], acmg_classification TEXT, distribution_anomalie TEXT)"
+            f"CREATE TABLE '{table_uuid}' (validation_hash UBIGINT,sample_name TEXT,run_name TEXT,transcript_ID TEXT,variant_hash UBIGINT, accepted BOOLEAN,comment COMMENT[], tags TEXT[], acmg_classification TEXT, distribution_anomalie TEXT)"
         )
     except db.Error as e:
         print(e)

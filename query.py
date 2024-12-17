@@ -407,7 +407,6 @@ class Query(qc.QObject):
             "offset": self.offset,
             "current_page": self.current_page,
             "page_count": self.page_count,
-            "data": self.data,
             "header": self.header,
             "variables": self.variables,
         }
@@ -423,7 +422,6 @@ class Query(qc.QObject):
         query.offset = data["offset"]
         query.current_page = data["current_page"]
         query.page_count = data["page_count"]
-        query.data = data["data"]
         query.header = data["header"]
         query.variables = data["variables"]
         return query

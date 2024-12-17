@@ -76,7 +76,6 @@ class MainWindow(qw.QMainWindow):
         return True
 
     def closeEvent(self, event: qg.QCloseEvent):
-        print("closing")
         user_prefs_folder = get_user_prefs_file().parent
         user_prefs_folder.mkdir(parents=True, exist_ok=True)
 
@@ -89,6 +88,9 @@ class MainWindow(qw.QMainWindow):
         event.accept()
 
     def on_query_changed(self):
+        self.update_window_title()
+
+    def update_window_title(self):
         self.setWindowTitle(
             f"ParquetViewer - {self.validation_query.get_editable_table_human_readable_name()}"
         )

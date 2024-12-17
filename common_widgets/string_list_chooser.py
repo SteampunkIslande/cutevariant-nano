@@ -4,7 +4,7 @@ from typing import List
 
 import PySide6.QtWidgets as qw
 
-from common_widgets.searchable_list import SearchableList
+from common_widgets.searchable_string_list import SearchableStringList
 
 
 class StringListChooser(qw.QDialog):
@@ -13,7 +13,7 @@ class StringListChooser(qw.QDialog):
         super().__init__(parent)
 
         self.items = items
-        self.widget = SearchableList(items)
+        self.widget = SearchableStringList(items)
 
         self.ok_cancel = qw.QDialogButtonBox()
         self.ok_cancel.setStandardButtons(

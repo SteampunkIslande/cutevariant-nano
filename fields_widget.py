@@ -1,6 +1,7 @@
 import PySide6.QtWidgets as qw
 
 import query as q
+from common_widgets.searchable_list import SearchableList
 
 
 class FieldsWidget(qw.QWidget):
@@ -9,10 +10,8 @@ class FieldsWidget(qw.QWidget):
         self.query = query
         self.model = query.fields_model
 
-        self.view = qw.QListView(self)
-        self.view.setModel(self.model)
-        self.view.setSelectionMode(qw.QAbstractItemView.SelectionMode.SingleSelection)
+        self.searchable_list = SearchableList(self.model)
 
         layout = qw.QVBoxLayout(self)
-        layout.addWidget(self.view)
+        layout.addWidget(self.searchable_list)
         self.setLayout(layout)

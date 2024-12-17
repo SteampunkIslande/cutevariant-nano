@@ -162,35 +162,37 @@ class QueryTableWidget(qw.QWidget):
         add_variant_action: qg.QAction = menu.addAction(
             qc.QCoreApplication.tr("Ajouter le variant à la validation")
         )
-        add_variant_action.triggered.connect(
-            partial(self.add_variant_to_validation, index)
-        )
+        add_variant_action.triggered.connect(self.add_variant_to_validation)
 
         menu.exec(qg.QCursor.pos())
 
-    def add_variant_to_validation(self, index: qc.QModelIndex):
-        row_data: dict[str, Union[str | int]] = index.data(qc.Qt.ItemDataRole.UserRole)
-        validation_hash = row_data[".validation_hash"]
-        variant_hash = row_data[".variant_hash"]
+    def add_variant_to_validation(self):
+        for index in self.table_view.selectionModel().selectedRows():
+            row_data: dict[str, Union[str | int]] = index.data(
+                qc.Qt.ItemDataRole.UserRole
+            )
+            validation_hash = row_data[".validation_hash"]
+            variant_hash = row_data[".variant_hash"]
 
-        val_table_uuid = self.query.get_editable_table_name()
+            val_table_uuid = self.query.get_editable_table_name()
 
-        conn = self.query.datalake.get_database("validation")
+            conn = self.query.datalake.get_database("validation")
 
-        insert_validation_data(
-            conn,
-            val_table_uuid,
-            validation_hash,
-            row_data["Échantillon"],
-            row_data["Nom du run"],
-            row_data["NM"],
-            variant_hash,
-            True,
-            "",
-            [],
-            "",
-            "",
-        )
+            insert_validation_data(
+                conn,
+                val_table_uuid,
+                validation_hash,
+                row_data["Échantillon"],
+                row_data["Nom du run"],
+                row_data["NM"],
+                variant_hash,
+                True,
+                "",
+                [],
+                "",
+                "",
+            )
+            self.query.commit()
 
     def show_row_userdata(self, index: qc.QModelIndex):
         row_data = index.data(qc.Qt.ItemDataRole.UserRole)
