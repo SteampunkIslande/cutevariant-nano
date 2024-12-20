@@ -164,9 +164,15 @@ class QueryTableWidget(qw.QWidget):
         )
         add_variant_action.triggered.connect(self.add_variant_to_validation)
 
+        goto_mobidetails_action: qg.QAction = menu.addAction(
+            qc.QCoreApplication.tr("Voir le variant sur Mobidetails")
+        )
+        goto_mobidetails_action.triggered.connect(partial(self.goto_mobidetails, index))
+
         menu.exec(qg.QCursor.pos())
 
     def add_variant_to_validation(self):
+        conn = self.query.datalake.get_database("validation")
         for index in self.table_view.selectionModel().selectedRows():
             row_data: dict[str, Union[str | int]] = index.data(
                 qc.Qt.ItemDataRole.UserRole
@@ -175,8 +181,6 @@ class QueryTableWidget(qw.QWidget):
             variant_hash = row_data[".variant_hash"]
 
             val_table_uuid = self.query.get_editable_table_name()
-
-            conn = self.query.datalake.get_database("validation")
 
             insert_validation_data(
                 conn,
@@ -192,6 +196,7 @@ class QueryTableWidget(qw.QWidget):
                 "",
                 "",
             )
+        conn.close()
         self.query.commit()
 
     def show_row_userdata(self, index: qc.QModelIndex):
@@ -213,19 +218,121 @@ class QueryTableWidget(qw.QWidget):
         if file_name:
             self.model.export_to_excel(file_name)
 
+    def goto_mobidetails(self, index: qc.QModelIndex):
+        import requests
+
+        def mobidetails_get(nc, position, reference, alternate, **kwargs):
+            position = int(position)
+            base = "https://mobidetails.iurc.montp.inserm.fr/MD/api/variant/exists"
+            if len(reference) > len(alternate):
+                # Deletion
+                print("Deletion")
+                q = f"{base}/{nc}:g.{position}_{position+len(reference)-len(alternate)+1}del"
+            elif len(reference) < len(alternate):
+                # Insertion
+                q = f"{base}/{nc}:g.{position}_{position+1}ins{alternate[1:]}"
+                print("Insertion")
+            else:
+                # Substitution
+                q = f"{base}/{nc}:g.{position}{reference}>{alternate}"
+                print("Substitution")
+            res = requests.get(q)
+            if res.status_code == 200:
+                return res.json()
+            return {}
+
+        row_data: dict[str] = index.data(qc.Qt.ItemDataRole.UserRole)
+        nc = row_data.get(".NC", None)
+        position = row_data.get("Position", None)
+        reference = row_data.get("Allèle de référence", None)
+        alternate = row_data.get("Allèle alternatif", None)
+        if all((nc, position, reference, alternate)):
+            res = mobidetails_get(nc, position, reference, alternate)
+            if "mobidetails_id" in res:
+                qg.QDesktopServices.openUrl(
+                    qc.QUrl(
+                        f"https://mobidetails.iurc.montp.inserm.fr/MD/api/variant/{res['mobidetails_id']}/browser/"
+                    )
+                )
+            else:
+                print(res)
+                qw.QMessageBox.warning(
+                    self,
+                    qc.QCoreApplication.tr("Mobidetails"),
+                    qc.QCoreApplication.tr("Variant non trouvé dans Mobidetails"),
+                )
+
     def filter_column(self, index: qc.QModelIndex):
 
         col_name = index.model().headerData(
             index.column(), qc.Qt.Orientation.Horizontal
         )
-        dialog = qw.QInputDialog(self)
-        dialog.setInputMode(qw.QInputDialog.InputMode.TextInput)
-        dialog.setLabelText(qc.QCoreApplication.tr(f"Filter {col_name}"))
-        dialog.setWindowTitle(qc.QCoreApplication.tr("Filtrer une colonne"))
-        dialog.setOkButtonText(qc.QCoreApplication.tr("Filtrer"))
+        dialog = SimpleFilterDialog(self.query.get_column_info(col_name), self)
 
         if dialog.exec_() == qw.QDialog.DialogCode.Accepted:
-            filter_text = dialog.textValue()
+            filter_text = dialog.get_filter()
             self.query.filter_model.add_filter(
-                f'"{col_name}" {filter_text}',
+                filter_text,
             )
+
+
+class SimpleFilterDialog(qw.QDialog):
+
+    def __init__(self, col_info: dict, parent=None):
+        super().__init__(parent)
+
+        self.col_info = col_info
+
+        self.setWindowTitle(qc.QCoreApplication.tr("Filtrer une colonne"))
+
+        # Create widgets
+        # Create a label for the column name
+        # Create a combo box for the operator (according to the column type)
+        # Create a line edit for the value
+        # Create a button box with OK and Cancel buttons
+
+        self._layout = qw.QFormLayout()
+
+        self._col_name_label = qw.QLabel(col_info["name"])
+        self._operator_combo = qw.QComboBox()
+
+        operators = [
+            ("égale à", "="),
+            ("différent de", "!="),
+            ("est nul", "IS NULL"),
+            ("n'est pas nul", "IS NOT NULL"),
+        ]
+
+        if self.col_info["type"] in ("INTEGER", "FLOAT"):
+            operators += [
+                ("supérieur à", ">"),
+                ("supérieur ou égal à", ">="),
+                ("inférieur à", "<"),
+                ("inférieur ou égal à", "<="),
+            ]
+
+        for label, operator in operators:
+            self._operator_combo.addItem(label, operator)
+
+        self._value_le = qw.QLineEdit()
+
+        self._button_box = qw.QDialogButtonBox(
+            qw.QDialogButtonBox.StandardButton.Ok
+            | qw.QDialogButtonBox.StandardButton.Cancel
+        )
+
+        # Add widgets to layout
+        self._layout.addRow(self._col_name_label, self._operator_combo)
+        self._layout.addRow("Valeur", self._value_le)
+        self._layout.addRow(self._button_box)
+
+        self.setLayout(self._layout)
+
+        # Connect signals
+        self._button_box.accepted.connect(self.accept)
+        self._button_box.rejected.connect(self.reject)
+
+    def get_filter(self):
+        operator = self._operator_combo.currentData()
+        value = self._value_le.text()
+        return f'"{self.col_info["name"]}" {operator} \'{value}\''

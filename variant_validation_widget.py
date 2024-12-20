@@ -82,5 +82,7 @@ class VariantValidationWidget(qw.QWidget):
         self.ref_label.setText(str(info.get(info_fields["Ref"], "")))
         self.alt_label.setText(str(info.get(info_fields["Alt"], "")))
         self.accepted_cb.setChecked(info.get(info_fields["Accepted"], False) or False)
-        self.comment_te.setPlainText(info.get(info_fields["Comment"], ""))
-        self.tags_te.setPlainText(info.get(info_fields["Tags"], ""))
+        comment_list = info.get(info_fields["Comment"], None)
+        latest_comment_text = comment_list[-1]["comment"] if comment_list else ""
+        self.comment_te.setPlainText(latest_comment_text)
+        self.tags_te.setPlainText("\n".join(info.get(info_fields["Tags"], None) or []))

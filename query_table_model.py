@@ -139,7 +139,9 @@ class QueryTableModel(qc.QAbstractTableModel):
         )
         import duckdb as db
 
-        db.sql(sql_query).pl().write_excel(filename)
+        conn = self.query.datalake.get_database("validation")
+        conn.sql(sql_query).pl().write_excel(filename)
+        conn.close()
 
     def headerData(self, section, orientation, role=qc.Qt.ItemDataRole.DisplayRole):
         if section >= len(self.header):

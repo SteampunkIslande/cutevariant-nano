@@ -233,6 +233,26 @@ class Query(qc.QObject):
             conn.close()
         return name
 
+    def get_column_info(self, colname: str):
+        select = self.select_query(paginated=False, columns=f'"{colname}"')
+        conn = self.datalake.get_database("validation")
+        (datatype, nullable) = conn.sql(
+            f"SELECT column_type,null FROM (describe({select}))"
+        ).fetchone()
+        top_10_values = [
+            c[1]
+            for c in conn.sql(
+                f"""SELECT COUNT(*) AS count,"{colname}" FROM ({select}) GROUP BY "{colname}" ORDER BY count DESC LIMIT 10"""
+            ).fetchall()
+        ]
+
+        return {
+            "name": colname,
+            "type": datatype,
+            "nullable": nullable,
+            "top_10_values": top_10_values,
+        }
+
     def get_editable_table_name(self) -> str:
         return self.editable_table_name
 
@@ -275,14 +295,13 @@ class Query(qc.QObject):
             return ""
 
         fields = columns or "*"
-        print(fields)
         order_by_data = self.order_by_model.get_data()
 
         # if ".validation_hash" not in self.query_base_def["select"]["fields"]:
         #     fields += ', ".validation_hash"'
 
         order_by = (
-            "ORDER BY "
+            " ORDER BY "
             + ", ".join([f'"{ob[0]}" {ob[1]}' for ob in order_by_data])
             + """, ".validation_hash" ASC """
             if order_by_data
@@ -311,9 +330,11 @@ class Query(qc.QObject):
 
         if self.query_template is None:
             return []
-        return conn.sql(
+        cols = conn.sql(
             self.select_query(paginated=True, columns="COLUMNS('^[^.].+$')")
         ).columns
+        conn.close()
+        return cols
 
     def get_variant_info(self, validation_hash: int, columns: List[str]):
         conn = self.datalake.get_database("validation")
@@ -366,7 +387,6 @@ class Query(qc.QObject):
 
         try:
             q = self.select_query()
-            print(q)
             dict_data = run_sql(q, conn)
         except db.Error as e:
             print(e)

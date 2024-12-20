@@ -44,7 +44,7 @@ class FieldsModel(qc.QAbstractListModel):
             | qc.Qt.ItemFlag.ItemIsSelectable
         )
 
-    def setData(self, index, value, role=qc.Qt.ItemDataRole.CheckStateRole):
+    def setData(self, index, value, role):
         if role == qc.Qt.ItemDataRole.CheckStateRole:
             self.fields[index.row()][1] = (
                 True if value == qc.Qt.CheckState.Checked else False

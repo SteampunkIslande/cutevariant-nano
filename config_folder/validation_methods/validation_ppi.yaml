@@ -91,8 +91,6 @@ steps:
           - agg.ref_count AS 'Nombre d''allèles de référence dans la base'
           - agg.var_count AS 'Nombre de variants détectés dans la base'
           - recur.count AS 'Nombre d''observations du variant dans ce run'
-          - main_table.funcotator_ClinVar_VCF_ID AS 'Numéro d''accession clinvar'
-          - main_table.funcotator_ClinVar_VCF_CLNSIG AS 'Signification CLINVAR'
           - main_table."snpeff_HGVS.c" AS 'c. de l anomalie'
           - main_table."snpeff_HGVS.p" AS 'p. de l anomalie'
           - refseq_contigs.refseq AS '.NC'
@@ -176,8 +174,8 @@ steps:
           - "'g.'||main_table.chromosome||'-'||main_table.position||main_table.reference||'-'||main_table.alternate AS 'g. de l anomalie'"
           - main_table.snpeff_Annotation AS 'Consequence fonctionnelle de l anomalie'
           - main_table.identifier as 'rsID'
-          - main_table.funcotator_ClinVar_VCF_ID AS 'Numéro d''accession clinvar'
-          - main_table.funcotator_ClinVar_VCF_CLNSIG AS 'Signification CLINVAR'
+          - user_table.clnacc AS 'Numéro d''accession clinvar'
+          - user_table.clnsig AS 'Signification CLINVAR'
           - MAP{{0:'Référence',1:'Hétérozygote',2:'Homozygote'}}[cv_GT] AS 'Statut du resultat'
           - "'detecte' AS 'Statut de detection'"
           - "user_table.acmg_classification AS 'Pathogenicite de l anomalie'"
@@ -254,8 +252,8 @@ final:
         - "'g.'||main_table.chromosome||'-'||main_table.position||main_table.reference||'-'||main_table.alternate AS 'g. de l anomalie'"
         - main_table.snpeff_Annotation AS 'Consequence fonctionnelle de l anomalie'
         - main_table.identifier as 'rsID'
-        - main_table.funcotator_ClinVar_VCF_ID AS 'Numéro d''accession clinvar'
-        - main_table.funcotator_ClinVar_VCF_CLNSIG AS 'Signification CLINVAR'
+        - user_table.clnacc AS 'Numéro d''accession clinvar'
+        - user_table.clnsig AS 'Signification CLINVAR'
         - MAP{{0:'Référence',1:'Hétérozygote',2:'Homozygote'}}[cv_GT] AS 'Statut du resultat'
         - "'detecte' AS 'Statut de detection'"
         - "user_table.acmg_classification AS 'Pathogenicite de l anomalie'"
