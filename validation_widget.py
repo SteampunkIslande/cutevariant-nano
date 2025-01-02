@@ -303,7 +303,7 @@ class ValidationWidget(qw.QWidget):
         )
         conn = self.datalake.get_database("validation")
         conn.sql(
-            f"COPY ({final_query}) TO '{genno_export_folder / self.validation_name}.csv' (FORMAT CSV, HEADER)"
+            f"COPY ({final_query}) TO '{genno_export_folder / self.validation_name}.csv' (FORMAT CSV, HEADER, SEPARATOR ';')"
         )
         conn.close()
 
