@@ -37,13 +37,6 @@ class FieldsModel(qc.QAbstractListModel):
             )
         return None
 
-    def flags(self, index):
-        return (
-            qc.Qt.ItemFlag.ItemIsUserCheckable
-            | qc.Qt.ItemFlag.ItemIsEnabled
-            | qc.Qt.ItemFlag.ItemIsSelectable
-        )
-
     def setData(self, index, value, role):
         if role == qc.Qt.ItemDataRole.CheckStateRole:
             self.fields[index.row()][1] = (
@@ -78,42 +71,65 @@ class FieldsModel(qc.QAbstractListModel):
             self.dataChanged.emit(self.index(i), self.index(i))
         self.model_changed.emit()
 
-    # def supportedDropActions(self):
-    #     return qc.Qt.DropAction.MoveAction
+    def supportedDropActions(self):
+        return qc.Qt.DropAction.MoveAction
 
-    # def flags(self, index):
-    #     default_flags = super().flags(index)
-    #     return (
-    #         default_flags
-    #         | qc.Qt.ItemFlag.ItemIsDragEnabled
-    #         | qc.Qt.ItemFlag.ItemIsDropEnabled
-    #     )
+    def flags(self, index):
+        default_flags = super().flags(index)
+        return (
+            default_flags
+            | qc.Qt.ItemFlag.ItemIsDragEnabled
+            | qc.Qt.ItemFlag.ItemIsDropEnabled
+        )
 
-    # def mimeTypes(self):
-    #     return []
+    def mimeTypes(self):
+        return ["text/plain"]
 
-    # def mimeData(self, indexes):
-    #     mime_data = qc.QMimeData()
+    def mimeData(self, indexes):
+        mime_data = qc.QMimeData()
+        if len(indexes) != 1:
+            return mime_data
 
-    #     for index in indexes:
-    #         if index.isValid():
-    #             text = self.data(index, qc.Qt.ItemDataRole.DisplayRole)
-    #             mime_data.setText(text)
-    #     return mime_data
+        index = indexes[0]
+        if index.isValid():
+            text = f"{index.row()}\t{self.data(index, qc.Qt.ItemDataRole.DisplayRole)}"
+            mime_data.setText(text)
+        return mime_data
 
-    # def dropMimeData(self, data, action, row, column, parent):
-    #     if action == qc.Qt.DropAction.IgnoreAction:
-    #         return True
-    #     if not data.hasText():
-    #         return False
-    #     if row == -1:
-    #         row = parent.row()
-    #     self.insertRows(row, 1, qc.QModelIndex())
-    #     self.fields[row] = [data.text(), True]
-    #     return True
+    def moveRow(self, sourceParent, sourceRow, destinationParent, destinationChild):
+        if sourceParent != destinationParent:
+            return False
+        if sourceRow == destinationChild:
+            return False
+        self.beginMoveRows(
+            sourceParent, sourceRow, sourceRow + 1, destinationParent, destinationChild
+        )
+        self.fields.insert(destinationChild, self.fields.pop(sourceRow))
+        self.endMoveRows()
+        self.model_changed.emit()
 
-    # def removeRows(self, row, count, parent=qc.QModelIndex()):
-    #     self.beginRemoveRows(parent, row, row + count - 1)
-    #     del self.fields[row : row + count]
-    #     self.endRemoveRows()
-    #     return True
+    def canDropMimeData(self, data, action, row, column, parent):
+        if parent.isValid():
+            return False
+        if action == qc.Qt.DropAction.MoveAction:
+            if data.hasText():
+                return True
+        return False
+
+    def dropMimeData(self, data, action, row, column, parent):
+        if action == qc.Qt.DropAction.IgnoreAction:
+            return True
+        if not data.hasText():
+            return False
+        if row == -1:
+            row = 0
+        source_row, text = data.text().split("\t")
+        source_row = int(source_row)
+        self.moveRow(qc.QModelIndex(), source_row, qc.QModelIndex(), row)
+        return True
+
+    def removeRows(self, row, count, parent=qc.QModelIndex()):
+        self.beginRemoveRows(parent, row, row + count - 1)
+        del self.fields[row : row + count]
+        self.endRemoveRows()
+        return True

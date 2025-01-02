@@ -70,7 +70,6 @@ def insert_validation_data(
     conn.sql(
         f"""UPDATE "{table_uuid}" SET accepted = {accepted}, comment = comment || [row('{comment}','{username}',NOW())], tags = {duck_db_literal_string_list(tags)}, acmg_classification = '{acmg_classification}', distribution_anomalie = '{distribution_anomalie}' WHERE validation_hash = {validation_hash}"""
     )
-    conn.close()
 
 
 class QueryTableWidget(qw.QWidget):
