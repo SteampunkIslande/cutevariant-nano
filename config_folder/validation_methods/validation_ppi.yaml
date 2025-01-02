@@ -231,7 +231,7 @@ final:
     select:
       fields:
         - "'hg19' AS 'Version genome' "
-        - "main_table.sample_name AS 'Sample ID'"
+        - "regexp_replace(main_table.sample_name,'-[MF]?_S\\d+$','') AS 'Sample ID'"
         - if(len(main_table.reference)>len(main_table.alternate),'deletion',if(len(main_table.reference)<len(main_table.alternate),'insertion','substitution')) AS 'Famille de l anomalie'
         - main_table.chromosome||':'||main_table.position||':'||main_table.reference||'>'||main_table.alternate AS 'Libelle de l anomalie'
         - main_table.chromosome AS Chr
@@ -275,7 +275,7 @@ final:
         - select:
             fields:
               - variant_hash
-              - COUNT(*) as count
+              - COUNT(*) as recur_count
             tables:
               - select:
                   fields:
@@ -293,13 +293,11 @@ final:
         - select:
             fields:
               - name
-              - chrom
-              - chromStart
-              - chromEnd
+              - symbol
             tables:
               - expression: read_parquet('{pwd}/annotations/hgnc.hg19.parquet')
           alias: hgnc
-          "on": main_table.chromosome = hgnc.chrom AND main_table.position <= hgnc.chromEnd AND main_table.position >= hgnc.chromStart
+          "on": main_table.snpeff_Gene_Name = hgnc.symbol
           how: ""
       order_by:
         - field: main_table.chromosome
