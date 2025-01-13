@@ -1,10 +1,37 @@
 from html import escape
 
 import PySide6.QtCore as qc
+import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
 
 from filters import FilterItem, FilterType
+from filters_model import FilterModel
 from query import Query
+
+
+# A simple table view with each row being a filter shown to the user as a string.
+# The default string is the SQL representation of the filter. The user can edit the filter by double-clicking on it.
+# Everytime the filters model is changed, we add a row to the table view.
+class FiltersHistoryWidget(qw.QWidget):
+
+    def __init__(self, filters_model: FilterModel, parent=None):
+        super().__init__(parent)
+
+        self.table = qw.QTableView(self)
+
+        self.filters_model = filters_model
+        self.filters_model.model_changed.connect(self.update_table)
+
+        self.model = qg.QStandardItemModel(0, 1, self)
+
+        self._layout = qw.QVBoxLayout()
+        self.setLayout(self._layout)
+
+    def update_table(self):
+        self.table.resizeColumnsToContents()
+        self.table.resizeRowsToContents()
+
+        self._layout.addWidget(self.table)
 
 
 class FiltersWidgetItemDelegate(qw.QStyledItemDelegate):
@@ -81,6 +108,10 @@ class FiltersWidget(qw.QWidget):
         self._layout.addWidget(self.filters_view)
 
     def setup_query_variables(self):
+        # self.query_variables_widget =
+        pass
+
+    def setup_filter_history(self):
         pass
 
     def setup_filters_label(self):
@@ -99,6 +130,7 @@ class FiltersWidget(qw.QWidget):
         self._filters_label.setText(
             "<b>Resulting filter:</b><br/>" + escape(str(self.model))
         )
+        self._filters_label.setWordWrap(True)
 
     def add_filter(self, filter_type: FilterType):
         index = self.filters_view.currentIndex()

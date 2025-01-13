@@ -52,7 +52,7 @@ class Inspector(qw.QWidget):
         self.fields_widget = FieldsWidget(self.datalake.get_query("validation"))
 
         self.main_widget.addTab(
-            self.validation_widget_container, qc.QCoreApplication.tr("Validation")
+            self.validation_widget_container, qc.QCoreApplication.tr("Source")
         )
         self.main_widget.addTab(
             self.filters_widget, qc.QCoreApplication.tr("Filtres de validation")

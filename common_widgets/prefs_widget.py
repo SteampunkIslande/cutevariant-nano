@@ -92,6 +92,8 @@ class PrefsWidget(qw.QDialog):
         self.layouts = {"General": self.general_layout}
         self.editors = {}
 
+        possible_values = None
+
         for key, value in self.prefs.items():
             main_key, sub_key = key.split(".", 1)
 
@@ -108,7 +110,7 @@ class PrefsWidget(qw.QDialog):
                 self.layouts[main_key] = layout
 
             if ":" in sub_key:
-                key_name, editor_type = sub_key.split(":")
+                key_name, editor_type, *possible_values = sub_key.split(":")
             else:
                 if type(value) == int:
                     editor_type = "integer"
@@ -120,7 +122,7 @@ class PrefsWidget(qw.QDialog):
                     editor_type = "string"
                 key_name = sub_key
 
-            self.add_editor(layout, key_name, editor_type, key, value)
+            self.add_editor(layout, key_name, editor_type, key, value, possible_values)
 
         self.save_button = qw.QPushButton("Save")
         self.save_button.setDefault(True)
@@ -148,6 +150,7 @@ class PrefsWidget(qw.QDialog):
         editor_type: str,
         key: str,
         value: Union[str, int, bool],
+        possible_values: list[str] = None,
     ):
 
         if editor_type == "existing_file":
@@ -167,6 +170,11 @@ class PrefsWidget(qw.QDialog):
         elif editor_type == "bool":
             editor = qw.QCheckBox()
             editor.setChecked(value)
+            layout.addRow(key_name, editor)
+        elif editor_type == "combo_box":
+            editor = qw.QComboBox()
+            editor.addItems(possible_values)
+            editor.setCurrentText(value)
             layout.addRow(key_name, editor)
         else:
             editor = qw.QLineEdit()
@@ -188,13 +196,14 @@ class PrefsWidget(qw.QDialog):
                 self.prefs[key] = editor.text()
             elif isinstance(editor, ExistingDirEditor):
                 self.prefs[key] = editor.text()
+            elif isinstance(editor, qw.QComboBox):
+                self.prefs[key] = editor.currentText()
             else:
                 raise ValueError(f"Unknown editor type: {type(editor)}")
         self.prefs = {
             k if not k.startswith("General.") else k[8:]: v
             for k, v in self.prefs.items()
         }
-        print(self.prefs)
         self.accept()
 
     @staticmethod
