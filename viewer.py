@@ -98,12 +98,11 @@ class MainWindow(qw.QMainWindow):
         user_prefs_folder = get_user_prefs_file().parent
         user_prefs_folder.mkdir(parents=True, exist_ok=True)
 
+        last_session_path = get_last_session_path()
         # Save last query
         if self.datalake.datalake_path:
-            self.datalake.save(user_prefs_folder / "last_session.json")
-            save_user_prefs(
-                {"last_session": str(user_prefs_folder / "last_session.json")}
-            )
+            self.datalake.save(last_session_path)
+            save_user_prefs({"last_session": last_session_path})
         event.accept()
 
     def on_query_changed(self):

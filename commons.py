@@ -61,7 +61,7 @@ def save_user_prefs(prefs: dict):
     old_prefs.update(prefs)
 
     with open(user_prefs, "w", encoding="utf-8") as f:
-        json.dump(old_prefs, f)
+        json.dump(old_prefs, f, ensure_ascii=False)
 
 
 def load_user_prefs():

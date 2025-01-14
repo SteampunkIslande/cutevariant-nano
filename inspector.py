@@ -8,6 +8,7 @@ from order_by_widget import OrderByWidget
 from query_table_widget import QueryTableWidget
 from validation_widget import ValidationWidgetContainer
 from variant_validation_widget import VariantValidationWidget
+from immuno_explorer import ImmunoExplorer
 
 
 class Inspector(qw.QWidget):
@@ -72,11 +73,12 @@ class Inspector(qw.QWidget):
             self.query_table_widget,
             self.validation_widget_container.validation_widget,
         )
-        self.variant_widget.addTab(
-            self.variant_validation_widget,
-            qc.QCoreApplication.tr("Validation des variants"),
+
+        self.immuno_validation_widget = ImmunoExplorer(
+            self.datalake.get_query("validation"),
+            self.query_table_widget,
+            self.validation_widget_container.validation_widget,
         )
-        self.variant_tabs["variant_validation"] = self.variant_validation_widget
 
         # self.variant_info_widget = VariantInfoWidget(
         #     self.validation_widget_container.validation_widget, self.query_table_widget
@@ -86,3 +88,31 @@ class Inspector(qw.QWidget):
         #     qc.QCoreApplication.tr("Informations sur les variants"),
         # )
         # self.variant_tabs["variant"] = self.variant_info_widget
+
+    #     self.variant_widget.addTab(
+    #         self.variant_validation_widget,
+    #         qc.QCoreApplication.tr("Validation des variants"),
+    #     )
+    #     self.variant_widget.addTab(
+    #         self.immuno_validation_widget,
+    #         qc.QCoreApplication.tr("Exploration des variants - Immunologie"),
+    #     )
+
+    #     self.variant_tabs["variant_validation"] = self.variant_validation_widget
+    #     self.variant_tabs["immuno_explorer"] = self.immuno_validation_widget
+
+    #     from commons import load_user_prefs
+
+    #     prefs: dict[str, str] = load_user_prefs()
+    #     for k, v in prefs.items():
+    #         k_, *_ = k.split(":")
+    #         if k_ == "mode":
+    #             self.set_variant_widget(prefs[k])
+
+    # def set_variant_widget(self, widget_name: str):
+    #     if widget_name == "Génétique":
+    #         self.variant_widget.setCurrentWidget(self.variant_validation_widget)
+    #         self.immuno_validation_widget.hide()
+    #     elif widget_name == "Immunologie":
+    #         self.variant_widget.setCurrentWidget(self.immuno_validation_widget)
+    #         self.variant_validation_widget.hide()

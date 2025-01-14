@@ -8,6 +8,9 @@ from filters import FilterItem, FilterType
 from filters_model import FilterModel
 from query import Query
 
+from commons import get_last_session_path
+import json
+
 
 # A simple table view with each row being a filter shown to the user as a string.
 # The default string is the SQL representation of the filter. The user can edit the filter by double-clicking on it.
@@ -17,21 +20,136 @@ class FiltersHistoryWidget(qw.QWidget):
     def __init__(self, filters_model: FilterModel, parent=None):
         super().__init__(parent)
 
-        self.table = qw.QTableView(self)
+        self._layout = qw.QVBoxLayout()
 
         self.filters_model = filters_model
         self.filters_model.model_changed.connect(self.update_table)
 
-        self.model = qg.QStandardItemModel(0, 1, self)
+        self.model = qg.QStandardItemModel(0, 2, self)
 
-        self._layout = qw.QVBoxLayout()
-        self.setLayout(self._layout)
+        self.table = qw.QTableView(self)
 
-    def update_table(self):
-        self.table.resizeColumnsToContents()
-        self.table.resizeRowsToContents()
+        self.table.horizontalHeader().setStretchLastSection(True)
+        self.table.horizontalHeader().hide()
+        self.table.verticalHeader().hide()
+        self.table.setSelectionBehavior(
+            qw.QAbstractItemView.SelectionBehavior.SelectRows
+        )
+        self.table.setSelectionMode(qw.QAbstractItemView.SelectionMode.SingleSelection)
+        self.table.setModel(self.model)
 
         self._layout.addWidget(self.table)
+
+        self.load_model_from_session()
+
+        self.setLayout(self._layout)
+
+        qw.QApplication.instance().aboutToQuit.connect(self.save_filter_history)
+
+        # Add context menu to remove filters from the history, and to apply them to the current query
+
+        self.table.setContextMenuPolicy(qc.Qt.ContextMenuPolicy.CustomContextMenu)
+        self.table.customContextMenuRequested.connect(self.context_menu_requested)
+
+    def load_model_from_session(self):
+        last_session_path = get_last_session_path()
+        if last_session_path:
+            with open(last_session_path, "r") as f:
+                last_session = json.load(f)
+                if "filter_history" in last_session:
+                    for hist_item in last_session["filter_history"]:
+                        # hist_item is a dict with keys "alias" and a json representation of the filter item
+                        filter_item = FilterItem.from_json(hist_item["filter_item"])
+                        alias = hist_item["alias"]
+                        alias_item = qg.QStandardItem(alias)
+                        alias_item.setEditable(True)
+
+                        filter_item_item = qg.QStandardItem(str(filter_item))
+                        filter_item_item.setData(
+                            filter_item, qc.Qt.ItemDataRole.UserRole
+                        )
+                        filter_item_item.setEditable(False)
+
+                        self.model.appendRow(
+                            [
+                                alias_item,
+                                filter_item_item,
+                            ]
+                        )
+
+    def update_table(self):
+        # Add the last filter to the table, if it is not already there
+        last_filter_item = self.filters_model._rootItem
+        last_filter_str = str(last_filter_item)
+
+        for row in range(self.model.rowCount()):
+            filter_repr = self.model.item(row, 1).text()
+            if filter_repr == last_filter_str:
+                return
+
+        last_filter_item_item = qg.QStandardItem(last_filter_str)
+        last_filter_item_item.setData(last_filter_item, qc.Qt.ItemDataRole.UserRole)
+        last_filter_item_item.setEditable(False)
+
+        alias_item = qg.QStandardItem("Alias")
+        alias_item.setEditable(True)
+
+        self.model.appendRow(
+            [
+                alias_item,
+                last_filter_item_item,
+            ]
+        )
+
+        self.save_filter_history()
+
+    def save_filter_history(self):
+        last_session_path = get_last_session_path()
+        if last_session_path:
+            with open(last_session_path, "r") as f:
+                last_session = json.load(f)
+                last_session["filter_history"] = []
+
+                for row in range(self.model.rowCount()):
+                    alias = self.model.item(row, 0).text()
+                    filter_item: FilterItem = self.model.item(row, 1).data(
+                        qc.Qt.ItemDataRole.UserRole
+                    )
+                    last_session["filter_history"].append(
+                        {
+                            "alias": alias,
+                            "filter_item": filter_item.to_json(),
+                        }
+                    )
+
+            with open(last_session_path, "w") as f:
+                json.dump(last_session, f)
+
+    def context_menu_requested(self, pos):
+        menu = qw.QMenu(self)
+
+        remove_filter_action = menu.addAction("Remove filter")
+        remove_filter_action.triggered.connect(self.remove_filter)
+
+        apply_filter_action = menu.addAction("Apply filter to query")
+        apply_filter_action.triggered.connect(self.apply_filter)
+
+        menu.exec_(self.table.viewport().mapToGlobal(pos))
+
+    def remove_filter(self):
+        index = self.table.currentIndex()
+        if not index.isValid():
+            return
+        self.model.removeRow(index.row())
+
+    def apply_filter(self):
+        index = self.table.currentIndex()
+        if not index.isValid():
+            return
+        filter_item: FilterItem = index.siblingAtColumn(1).data(
+            qc.Qt.ItemDataRole.UserRole
+        )
+        self.filters_model.load(filter_item.to_json())
 
 
 class FiltersWidgetItemDelegate(qw.QStyledItemDelegate):
@@ -80,6 +198,7 @@ class FiltersWidget(qw.QWidget):
         self.setup_model_view()
         self.setup_query_variables()
         self.setup_filters_label()
+        self.setup_filter_history()
 
         self._layout.addStretch()
 
@@ -112,7 +231,9 @@ class FiltersWidget(qw.QWidget):
         pass
 
     def setup_filter_history(self):
-        pass
+        self.filter_history = FiltersHistoryWidget(self.model, self)
+
+        self._layout.addWidget(self.filter_history)
 
     def setup_filters_label(self):
         """Adds a label that displays current filters in the query, as the SQL (nested) string. This label

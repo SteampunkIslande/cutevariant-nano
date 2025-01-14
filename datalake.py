@@ -8,6 +8,8 @@ import PySide6.QtCore as qc
 
 import query as q
 
+from commons import get_last_session_path
+
 
 class DataLake(qc.QObject):
 
@@ -41,15 +43,16 @@ class DataLake(qc.QObject):
     def relative_to_absolute(self, path: str) -> str:
         return str(Path(self.datalake_path) / path)
 
-    def save(self, filename: Path):
-        with open(filename, "w", encoding="utf-8") as f:
-            json.dump(
-                {
-                    "datalake_path": self.datalake_path,
-                    "queries": {k: v.to_json() for k, v in self.queries.items()},
-                },
-                f,
-            )
+    def save(self, last_session_path: Path):
+        if last_session_path:
+            with open(last_session_path) as f:
+                last_session = json.load(f)
+                last_session["datalake_path"] = self.datalake_path
+                last_session["queries"] = {
+                    k: v.to_json() for k, v in self.queries.items()
+                }
+            with open(last_session_path, "w") as f:
+                json.dump(last_session, f, ensure_ascii=False)
 
     @staticmethod
     def load(filename: Path) -> "DataLake":
