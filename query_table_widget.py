@@ -11,18 +11,34 @@ import PySide6.QtWidgets as qw
 
 from common_widgets.page_selector import PageSelector
 from commons import duck_db_literal_string_list
+from fields_model import FieldsModel
 from query import Query
 from query_table_model import QueryTableModel
 
 
 class QueryTableProxyModel(qc.QSortFilterProxyModel):
+
+    def __init__(
+        self,
+        columns_model: FieldsModel,
+        columns_model_col: int = 0,
+        parent: qc.QObject = None,
+    ):
+        super().__init__(parent)
+        self.columns_model = columns_model
+        self.columns_model.model_changed.connect(self.invalidateColumnsFilter)
+        self.columns_model_col = columns_model_col
+
     # Automatically hides columns which names start with a dot
     def filterAcceptsColumn(self, source_column: int, source_parent: qc.QModelIndex):
         source_model = self.sourceModel()
         header: str = source_model.headerData(
             source_column, qc.Qt.Orientation.Horizontal
         )
-        return not header.startswith(".")
+        if header.startswith("."):
+            return False
+
+        return header in self.columns_model.checked_fields()
 
     # Rename columns by splitting on every colon
     def headerData(
@@ -82,7 +98,7 @@ class QueryTableWidget(qw.QWidget):
 
         self.query = query
         self.model = QueryTableModel(query)
-        self.proxy_model = QueryTableProxyModel()
+        self.proxy_model = QueryTableProxyModel(self.query.fields_model, 0)
         self.proxy_model.setSourceModel(self.model)
 
         self.table_view = qw.QTableView()

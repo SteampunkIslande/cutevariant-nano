@@ -120,11 +120,10 @@ class QueryTableModel(qc.QAbstractTableModel):
                         return qg.QColor.fromRgb(
                             int(draw_options["background"][1:], 16)
                         )
-                    else:
+                    elif len(draw_options["background"]) == 9:
                         return qg.QColor.fromRgba(
                             int(draw_options["background"][1:], 16)
                         )
-                return qg.QColor(draw_options["background"])
         if role == qc.Qt.ItemDataRole.FontRole:
             if "bold" in draw_options:
                 font = qg.QFont()
@@ -142,6 +141,15 @@ class QueryTableModel(qc.QAbstractTableModel):
         conn = self.query.datalake.get_database("validation")
         conn.sql(sql_query).pl().write_excel(filename)
         conn.close()
+
+    def set_style(self, style):
+        self.style = style
+        self.dataChanged.emit(
+            self.index(0, 0),
+            self.index(
+                self.rowCount(qc.QModelIndex()), self.columnCount(qc.QModelIndex())
+            ),
+        )
 
     def headerData(self, section, orientation, role=qc.Qt.ItemDataRole.DisplayRole):
         if section >= len(self.header):

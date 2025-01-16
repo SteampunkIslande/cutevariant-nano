@@ -1,15 +1,14 @@
+import json
 from html import escape
 
 import PySide6.QtCore as qc
 import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
 
+from commons import get_last_session_path
 from filters import FilterItem, FilterType
 from filters_model import FilterModel
 from query import Query
-
-from commons import get_last_session_path
-import json
 
 
 # A simple table view with each row being a filter shown to the user as a string.
@@ -48,8 +47,8 @@ class FiltersHistoryWidget(qw.QWidget):
 
         # Add context menu to remove filters from the history, and to apply them to the current query
 
-        self.table.setContextMenuPolicy(qc.Qt.ContextMenuPolicy.CustomContextMenu)
-        self.table.customContextMenuRequested.connect(self.context_menu_requested)
+        self.setup_actions()
+        self.table.setContextMenuPolicy(qc.Qt.ContextMenuPolicy.ActionsContextMenu)
 
     def load_model_from_session(self):
         last_session_path = get_last_session_path()
@@ -125,16 +124,16 @@ class FiltersHistoryWidget(qw.QWidget):
             with open(last_session_path, "w") as f:
                 json.dump(last_session, f)
 
-    def context_menu_requested(self, pos):
-        menu = qw.QMenu(self)
+    def setup_actions(self):
+        self.remove_filter_action = qg.QAction("Remove filter", self)
+        self.remove_filter_action.setShortcut(qg.QKeySequence(qc.Qt.Key.Key_Delete))
+        self.remove_filter_action.triggered.connect(self.remove_filter)
 
-        remove_filter_action = menu.addAction("Remove filter")
-        remove_filter_action.triggered.connect(self.remove_filter)
+        self.apply_filter_action = qg.QAction("Apply filter to query", self)
+        self.apply_filter_action.setShortcut(qg.QKeySequence(qc.Qt.Key.Key_Return))
+        self.apply_filter_action.triggered.connect(self.apply_filter)
 
-        apply_filter_action = menu.addAction("Apply filter to query")
-        apply_filter_action.triggered.connect(self.apply_filter)
-
-        menu.exec_(self.table.viewport().mapToGlobal(pos))
+        self.table.addActions([self.remove_filter_action, self.apply_filter_action])
 
     def remove_filter(self):
         index = self.table.currentIndex()

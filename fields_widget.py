@@ -11,8 +11,9 @@ class FieldsWidget(qw.QWidget):
         self.model = query.fields_model
 
         self.searchable_list = SearchableList(self.model)
-        self.searchable_list.view.setDragEnabled(True)
-        self.searchable_list.view.setAcceptDrops(True)
+        self.searchable_list.view.setDragDropMode(
+            qw.QAbstractItemView.DragDropMode.InternalMove
+        )
 
         layout = qw.QVBoxLayout(self)
         layout.addWidget(self.searchable_list)
