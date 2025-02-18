@@ -4,8 +4,21 @@ from pathlib import Path
 
 import duckdb as db
 import PySide6.QtCore as qc
+import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
 import yaml
+
+
+def add_action_to_menu(menu: qw.QMenuBar | qw.QMenu, path: str, action: qg.QAction):
+    current_menu = menu
+    for menu_name in path.split("/"):
+        menu = current_menu.findChild(qw.QMenu, menu_name)
+        if not menu:
+            menu = current_menu.addMenu(menu_name)
+            menu.setObjectName(menu_name)
+            current_menu = menu
+
+    current_menu.addAction(action)
 
 
 def yaml_load(file: Path):

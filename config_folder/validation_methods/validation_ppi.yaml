@@ -1,3 +1,4 @@
+#regexp_replace('ABCD-F','-[MF](_S\d+)?$','')
 genes_list:
   BGL:
     - PKLR
