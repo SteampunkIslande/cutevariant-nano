@@ -10,6 +10,7 @@ import datalake as dl
 import fields_model as fldm
 import filters_model as fltm
 import order_by_model as obm
+from app import AppComponent
 from commons import duck_db_literal_string_list, duck_db_literal_string_tuple
 from filters import FilterItem
 
@@ -76,7 +77,7 @@ def run_sql(query: str, conn: db.DuckDBPyConnection = None) -> Union[List[dict],
             return res.pl().to_dicts()
 
 
-class Query(qc.QObject):
+class Query(AppComponent):
 
     RESERVED_VARIABLES = [
         "main_table",
@@ -321,7 +322,7 @@ class Query(qc.QObject):
                 "pwd": self.datalake.datalake_path,
                 "selected_genes": duck_db_literal_string_tuple(self.selected_genes),
                 "selected_samples": duck_db_literal_string_tuple(self.selected_samples),
-                **{k: v for k, v in self.variables.items()},
+                **self.variables,
             }
         )
 

@@ -5,37 +5,29 @@ import PySide6.QtCore as qc
 import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
 
+import mainwindow as mw
 from commons import add_action_to_menu, load_user_prefs
-from mainwindow import MainWindow
 
 
 class App:
     def __init__(self):
-        self.main_window = MainWindow()
+        self.main_window = mw.MainWindow()
 
         # Very first thing to do, translations are needed to setup menus and actions (among others)
         self.load_translations()
 
         self.components: dict[str, Union[dict[int, AppComponent], dict]] = {}
 
-        print("Registering components...")
         # Find and register all components
         self.register_components()
-        print("Done.")
 
-        print("Instantiating components on setup...")
         # Instantiate components that should be instantiated on setup
         self.setup_app()
-        print("Done.")
 
-        print("Starting...")
         # Allow all the instantiated components to connect to one another, now that they have been instantiated
         self.start()
-        print("Done")
 
-        print("Showing main window...")
         self.main_window.show()
-        print("Running!")
 
     # COMPONENT REGISTRATION
 
@@ -166,7 +158,7 @@ class AppComponent(qc.QObject, ABC, metaclass=_ABCQObjectMeta):
         pass
 
     @abstractmethod
-    def widget(self):
+    def widget(self) -> Union[None, qw.QWidget]:
         """Return this component's associated widget, if applicable (i.e. WIDGET is in component_type)"""
         pass
 
@@ -203,6 +195,5 @@ if __name__ == "__main__":
     pyside_app = qw.QApplication(sys.argv)
 
     app = App()
-    print("Started APP")
 
     sys.exit(pyside_app.exec())

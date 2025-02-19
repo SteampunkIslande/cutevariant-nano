@@ -1,39 +1,67 @@
+from enum import Enum
+
 import PySide6.QtCore as qc
 import PySide6.QtWidgets as qw
+
+import app as ap
+
+
+class WindowRegion(Enum):
+
+    LEFT = 0
+    UPPER = 1
+    LOWER = 2
 
 
 class MainWindow(qw.QMainWindow):
 
-    def __init__(self, parent=None, flags=qc.Qt.WindowType.Desktop):
-        super().__init__(parent, flags)
+    def __init__(self):
+        super().__init__()
 
-        # Create the main vertical splitter
-        self.vertical_splitter = qw.QSplitter()
-        self.vertical_splitter.setOrientation(qc.Qt.Orientation.Vertical)
-
-        # Create the left tab widget
-        self.left_tab_widget = qw.QTabWidget()
-        self.vertical_splitter.addWidget(self.left_tab_widget)
-
-        # Create the right horizontal splitter
         self.horizontal_splitter = qw.QSplitter()
         self.horizontal_splitter.setOrientation(qc.Qt.Orientation.Horizontal)
 
-        # Create the tab widgets for the horizontal splitter
-        self.lower_widget = qw.QTabWidget()
-        self.horizontal_splitter.addWidget(self.lower_widget)
+        self.left_tab_widget = qw.QTabWidget()
+        self.horizontal_splitter.addWidget(self.left_tab_widget)
 
-        # Add the horizontal splitter to the vertical splitter
-        self.vertical_splitter.addWidget(self.horizontal_splitter)
+        self.vertical_splitter = qw.QSplitter()
+        self.vertical_splitter.setOrientation(qc.Qt.Orientation.Vertical)
 
-        # Set the central widget of the main window
-        self.setCentralWidget(self.vertical_splitter)
+        self.lower_tab_widget = qw.QTabWidget()
+        self.upper_tab_widget = qw.QTabWidget()
+        self.vertical_splitter.addWidget(self.upper_tab_widget)
+        self.vertical_splitter.addWidget(self.lower_tab_widget)
 
-        self.upper_widget = None
+        self.horizontal_splitter.addWidget(self.vertical_splitter)
 
-    def set_upper_widget(self, widget: qw.QWidget):
-        self.upper_widget = widget
-        self.horizontal_splitter.insertWidget(0, self.upper_widget)
+        self.widget_regions = {
+            WindowRegion.LEFT: self.left_tab_widget,
+            WindowRegion.UPPER: self.upper_tab_widget,
+            WindowRegion.LOWER: self.lower_tab_widget,
+        }
+
+        self.setCentralWidget(self.horizontal_splitter)
+        screen_size = qw.QApplication.screens()[0].geometry()
+        width = screen_size.width()
+        height = screen_size.height()
+        left = screen_size.left()
+        top = screen_size.top()
+
+        self.setGeometry(
+            int(left + (width) / 4),
+            int(top + (height) / 4),
+            int((width) / 2),
+            int(top + (height) / 2),
+        )
+
+    def add_component_to_window(self, component: ap.AppComponent, region: WindowRegion):
+        if component.widget() is None:
+            return
+
+        # TODO: If needed, maybe we should store this into component
+        tab_index = self.widget_regions[region].addTab(
+            component.widget(), component.widget().windowTitle()
+        )
 
 
 if __name__ == "__main__":

@@ -38,9 +38,9 @@ class Datalake(app.AppComponent):
         return self.signals_dict.get(signal_name)
 
     def get_menubar_entries(self):
-        set_datalake_path_action = qg.QAction(self.app.translate("Open datalake"))
-        set_datalake_path_action.triggered.connect(self.set_datalake_path)
-        return [(self.app.translate("File"), set_datalake_path_action)]
+        self.set_datalake_path_action = qg.QAction(self.app.translate("Open datalake"))
+        self.set_datalake_path_action.triggered.connect(self.set_datalake_path)
+        return [(self.app.translate("File"), self.set_datalake_path_action)]
 
     def get_contextmenu_entries(self, local_info: dict):
         return []
@@ -60,7 +60,6 @@ def register_component():
     return "datalake", {
         "instantiation_policy": "singleton",
         "instantiate_on": "setup",
-        "context_menu_actions": {},
         "component_type": ["LOGICAL"],
         "class": Datalake,
     }
