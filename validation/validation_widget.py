@@ -4,14 +4,15 @@ from typing import List
 import duckdb as db
 import PySide6.QtCore as qc
 import PySide6.QtWidgets as qw
+from validation_model import VALIDATION_TABLE_COLUMNS, ValidationModel
+from validation_wizard import ValidationWizard
 
-import datalake as dl
+import app as ap
+import datalake.datalake_component as dl
 from common_widgets.multiwidget_holder import MultiWidgetHolder
 from common_widgets.searchable_table import SearchableTable
 from commons import get_config_folder, load_user_prefs, save_user_prefs, yaml_load
-from query_table_widget import QueryTableWidget
-from validation_model import VALIDATION_TABLE_COLUMNS, ValidationModel
-from validation_wizard import ValidationWizard
+from query.query_table_widget import QueryTableWidget
 
 
 def finish_validation(conn: db.DuckDBPyConnection, table_uuid: str):
@@ -24,7 +25,7 @@ class ValidationWelcomeWidget(qw.QWidget):
 
     validation_start = qc.Signal()
 
-    def __init__(self, datalake: dl.DataLake, parent=None):
+    def __init__(self, datalake: dl.Datalake, parent=None):
         super().__init__(parent)
         self.datalake = datalake
         self.model = ValidationModel(self.datalake, self)
@@ -75,20 +76,8 @@ class ValidationWelcomeWidget(qw.QWidget):
 
         wizard = ValidationWizard(self.datalake, self)
         if wizard.exec() == qw.QDialog.DialogCode.Accepted:
-            file_names = wizard.data["file_names"]
-            sample_names = wizard.data["sample_names"]
-            genes_list = wizard.data["gene_names"]
-            validation_name = wizard.data["validation_name"]
-            validation_method = wizard.data["validation_method"]
 
-            self.model.new_validation(
-                validation_name,
-                username,
-                file_names,
-                sample_names,
-                genes_list,
-                validation_method,
-            )
+            self.model.new_validation(username=username, **wizard.data)
 
     def on_start_validation_clicked(self):
         selected_validation = self.get_selected_validation()
@@ -176,7 +165,7 @@ class ValidationWidget(qw.QWidget):
 
     def __init__(
         self,
-        datalake: dl.DataLake,
+        datalake: dl.Datalake,
         query_widget: QueryTableWidget,
         validation_model: ValidationModel,
         parent=None,
@@ -418,13 +407,13 @@ class ValidationWidgetContainer(qw.QWidget):
 
     def __init__(
         self,
-        datalake: dl.DataLake,
+        app: ap.App,
         query_widget: QueryTableWidget,
         parent=None,
     ):
         super().__init__(parent)
 
-        self.datalake = datalake
+        self.datalake = app.get_component("datalake")
         self.query_widget = query_widget
 
         self._layout = qw.QVBoxLayout(self)

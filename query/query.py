@@ -6,13 +6,13 @@ from typing import List, Union
 import duckdb as db
 import PySide6.QtCore as qc
 
-import datalake as dl
-import fields_model as fldm
-import filters_model as fltm
-import order_by_model as obm
+import datalake.datalake_component as dl
+import fields.fields_model as fldm
+import filters.filters_model as fltm
+import order_by.order_by_model as obm
 from app import AppComponent
 from commons import duck_db_literal_string_list, duck_db_literal_string_tuple
-from filters import FilterItem
+from filters.filters import FilterItem
 
 
 def build_query_template(data: dict) -> str:
@@ -92,7 +92,7 @@ class Query(AppComponent):
 
     query_setup_changed = qc.Signal()
 
-    def __init__(self, datalake: "dl.DataLake", parent=None):
+    def __init__(self, datalake: dl.Datalake, parent=None):
         super().__init__(parent)
         self.datalake = datalake
         self.init_state()

@@ -37,7 +37,6 @@ class FilterItem:
 
     def remove_child(self, row: int):
         if row < len(self.children):
-            print("Removing child at row", row)
             self.children.pop(row)
 
     def internal_move(self, new_parent: "FilterItem", new_row: int):

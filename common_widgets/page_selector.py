@@ -4,7 +4,7 @@
 import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
 
-from query import Query
+from query.query import Query
 
 
 class PageSelector(qw.QWidget):

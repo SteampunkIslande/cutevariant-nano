@@ -1,5 +1,5 @@
 import app
-from filters import FilterItem
+from filters.filters import FilterItem
 
 
 class QueryDataPrep(app.AppComponent):

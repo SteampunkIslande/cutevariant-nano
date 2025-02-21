@@ -16,7 +16,7 @@ class App:
         # Very first thing to do, translations are needed to setup menus and actions (among others)
         self.load_translations()
 
-        self.components: dict[str, Union[dict[int, AppComponent], dict]] = {}
+        self.components: dict[str, Union[dict[str, AppComponent], dict]] = {}
 
         # Find and register all components
         self.register_components()
@@ -34,9 +34,11 @@ class App:
     def register_components(self):
         # To be able to compile with nuitka, manually import all the components in the project.
         # If you'd like your own component to be included, just add it to the source folder and import it here
-        import datalake_component
+        from app_manager import app_manager_component
+        from datalake import datalake_component
 
         self.register_component(*datalake_component.register_component())
+        self.register_component(*app_manager_component.register_component())
 
     def register_component(self, component_name: str, component_definition: dict):
         self.components[component_name] = {
@@ -50,21 +52,20 @@ class App:
         for component_name, component in self.components.items():
             definition = component["definition"]
             instantiate_on = definition["instantiate_on"]
+            instantiation_policy = definition["instantiation_policy"]
             if instantiate_on == "setup":
-                self.instantiate_component(component_name, definition)
+                if instantiation_policy == "singleton":
+                    self.instantiate_singleton(component_name)
 
-    def instantiate_component(self, component_name: str, definition: dict):
+    def instantiate_singleton(self, component_name: str):
+        if component_name not in self.components:
+            return
+        if len(self.components[component_name]["instances"]) != 0:
+            return
 
-        instances: dict[int, AppComponent] = self.components[component_name][
-            "instances"
-        ]
-        if definition["instantiation_policy"] == "singleton":
-            if len(instances) == 1:
-                # Dirty way to ensure a singleton. TODO: when debugging will be implemented, this should be notified
-                return
-
-        instance_id = max(instances.keys()) + 1 if instances.keys() else 1
-        new_instance: AppComponent = definition["class"](self, instance_id)
+        new_instance: AppComponent = self.instantiate_component(
+            component_name, component_name
+        )
 
         new_instance_menu_entries: list[tuple[str, qg.QAction]] = (
             new_instance.get_menubar_entries()
@@ -75,7 +76,33 @@ class App:
             entry_path, entry_action = menu_entry
             add_action_to_menu(self.main_window.menuBar(), entry_path, entry_action)
 
-        instances[instance_id] = new_instance
+        self.components[component_name][component_name] = new_instance
+
+    def instantiate_component(
+        self,
+        component_name: str,
+        instance_name: str,
+        parent_component: "AppComponent" = None,
+    ):
+        if component_name not in self.components:
+            # TODO: Maybe this should raise?
+            return
+        definition = self.components[component_name]["definition"]
+
+        instances: dict[int, AppComponent] = self.components[component_name][
+            "instances"
+        ]
+        if definition["instantiation_policy"] == "singleton":
+            if len(instances) == 1:
+                # Dirty way to ensure a singleton. TODO: when debugging will be implemented, this should be notified
+                return
+
+        new_instance: AppComponent = definition["class"](
+            self, instance_name, parent_component
+        )
+        instances[instance_name] = new_instance
+
+        return new_instance
 
     # APP START
 
@@ -88,12 +115,15 @@ class App:
     # RUNNING APP LIFE CYCLE
 
     def get_component(
-        self, component_name: str, instance_id: int
+        self, component_name: str, instance_name: str = None
     ) -> Union["AppComponent", None]:
         if component_name not in self.components:
             return
 
-        return self.components[component_name]["instances"].get(instance_id)
+        # If we don't specify instance name, then this means it's a singleton
+        instance_name = instance_name or component_name
+
+        return self.components[component_name]["instances"].get(instance_name)
 
     def window(self):
         return self.main_window
@@ -131,7 +161,7 @@ class _ABCQObjectMeta(QObjectMeta, ABCMeta):
 class AppComponent(qc.QObject, ABC, metaclass=_ABCQObjectMeta):
 
     @abstractmethod
-    def __init__(self, app: App, instance_id: int):
+    def __init__(self, app: App, instance_name: str, parent_component: "AppComponent"):
         pass
 
     @abstractmethod

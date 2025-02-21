@@ -11,6 +11,7 @@ class WindowRegion(Enum):
     LEFT = 0
     UPPER = 1
     LOWER = 2
+    RIGHT = 3
 
 
 class MainWindow(qw.QMainWindow):
@@ -22,7 +23,6 @@ class MainWindow(qw.QMainWindow):
         self.horizontal_splitter.setOrientation(qc.Qt.Orientation.Horizontal)
 
         self.left_tab_widget = qw.QTabWidget()
-        self.horizontal_splitter.addWidget(self.left_tab_widget)
 
         self.vertical_splitter = qw.QSplitter()
         self.vertical_splitter.setOrientation(qc.Qt.Orientation.Vertical)
@@ -32,12 +32,17 @@ class MainWindow(qw.QMainWindow):
         self.vertical_splitter.addWidget(self.upper_tab_widget)
         self.vertical_splitter.addWidget(self.lower_tab_widget)
 
+        self.right_tab_widget = qw.QTabWidget()
+
+        self.horizontal_splitter.addWidget(self.left_tab_widget)
         self.horizontal_splitter.addWidget(self.vertical_splitter)
+        self.horizontal_splitter.addWidget(self.right_tab_widget)
 
         self.widget_regions = {
             WindowRegion.LEFT: self.left_tab_widget,
             WindowRegion.UPPER: self.upper_tab_widget,
             WindowRegion.LOWER: self.lower_tab_widget,
+            WindowRegion.RIGHT: self.right_tab_widget,
         }
 
         self.setCentralWidget(self.horizontal_splitter)
@@ -52,6 +57,14 @@ class MainWindow(qw.QMainWindow):
             int(top + (height) / 4),
             int((width) / 2),
             int(top + (height) / 2),
+        )
+
+        left_tab_size = self.width() // 5
+        right_tab_size = self.width() // 5
+        central_tab_size = self.width() - left_tab_size - right_tab_size
+
+        self.horizontal_splitter.setSizes(
+            [left_tab_size, central_tab_size, right_tab_size]
         )
 
     def add_component_to_window(self, component: ap.AppComponent, region: WindowRegion):

@@ -243,5 +243,5 @@ if __name__ == "__main__":
         },
     }
     widget = PrefsWidget(prefs)
-    widget.show()
-    sys.exit(app.exec())
+    if widget.exec() == qw.QDialog.DialogCode.Accepted:
+        sys.exit(app.exec())

@@ -5,7 +5,7 @@ from typing import List
 import duckdb as db
 import PySide6.QtCore as qc
 
-import datalake as dl
+import datalake.datalake_component as dl
 from commons import duck_db_literal_string_list
 
 VALIDATION_TABLE_COLUMNS = {
@@ -28,7 +28,7 @@ VALIDATION_TABLE_COLUMNS = {
 
 def new_validation(
     conn: db.DuckDBPyConnection,
-    datalake: dl.DataLake,
+    datalake: dl.Datalake,
     validation_name: str,
     username: str,
     parquet_files: List[str],

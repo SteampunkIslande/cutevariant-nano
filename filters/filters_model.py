@@ -22,8 +22,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-import query as q
-from filters import FilterItem, FilterType
+import query.query as q
+from filters.filters import FilterItem, FilterType
 
 # Copyright (C) 2022 The Qt Company Ltd.
 # SPDX-License-Identifier: LicenseRef-Qt-Commercial OR BSD-3-Clause

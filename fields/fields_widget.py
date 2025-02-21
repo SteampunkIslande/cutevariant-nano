@@ -1,6 +1,6 @@
 import PySide6.QtWidgets as qw
 
-import query as q
+import query.query as q
 from common_widgets.searchable_list import SearchableList
 
 

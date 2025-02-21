@@ -1,0 +1,113 @@
+import os
+from pathlib import Path
+
+import duckdb as db
+import PySide6.QtCore as qc
+import PySide6.QtGui as qg
+import PySide6.QtWidgets as qw
+
+import app
+
+
+class DatabaseConnection:
+
+    def __init__(self, datalake: "Datalake", database_name: str):
+        database = Path(datalake.datalake_path) / f"{database_name}.db"
+
+        # If the database already exists, we shouldn't initialize it
+        if database.exists():
+            self.conn = db.connect(str(database))
+        else:
+            self.conn = db.connect(str(database))
+            self.init_conn()
+
+    def __enter__(self):
+        return self.conn
+
+    def __exit__(self, type, value, traceback):
+        return True
+
+    def init_conn(self):
+        self.conn.sql(
+            "CREATE TABLE validations (parquet_files TEXT[], sample_names TEXT[], gene_names TEXT[], username TEXT, validation_name TEXT, table_uuid TEXT, creation_date DATETIME, completed BOOLEAN, validation_method TEXT)"
+        )
+        self.conn.sql(
+            "CREATE TYPE COMMENT AS STRUCT(comment TEXT, username TEXT, creation_timestamp TIMESTAMP)"
+        )
+
+
+class Datalake(app.AppComponent):
+
+    folder_changed = qc.Signal(int, str)
+
+    def __init__(
+        self,
+        app: app.App,
+        instance_name: str,
+        parent_component: app.AppComponent = None,
+    ):
+        self.app = app
+        self.instance_name = instance_name
+
+        self.signals_dict = {"folder_changed": self.folder_changed}
+
+        self.datalake_path = None
+
+    def load_from_session(self, session: dict):
+        self.datalake_path = session.get("datalake_path")
+        if not os.path.isdir(self.datalake_path):
+            self.datalake_path = None
+        self.folder_changed.emit()
+
+    def save_to_session(self):
+        return {"datalake_path": self.datalake_path}
+
+    def on_start(self):
+        pass
+
+    def widget(self):
+        return None
+
+    def get_signal(self, signal_name: str):
+        return self.signals_dict.get(signal_name)
+
+    def get_menubar_entries(self):
+        self.set_datalake_path_action = qg.QAction(self.app.translate("Open datalake"))
+        self.set_datalake_path_action.triggered.connect(self.set_datalake_path)
+        return [(self.app.translate("File"), self.set_datalake_path_action)]
+
+    def get_contextmenu_entries(self, local_info: dict):
+        return []
+
+    def set_datalake_path(self):
+        existing_dir = qw.QFileDialog.getExistingDirectory(self.app.window())
+        if os.path.isdir(existing_dir):
+            self.datalake_path = existing_dir
+            self.folder_changed.emit(self.instance_name, self.datalake_path)
+
+    def relative_to_absolute(self, path: str) -> str:
+        if self.datalake_path:
+            return os.path.join(self.datalake_path, path)
+
+    def run_with_connection(self, database_name, func, *args, **kwargs):
+        """
+        Executes a function within the context of a database connection.
+        This method establishes a connection to the specified database,
+        executes the provided function with the connection and any additional
+        arguments, and ensures that the connection is properly closed afterwards.
+        Args:
+            database_name (str): The name of the database to connect to.
+            func (callable): The function to execute with the database connection.
+            *args: Variable length argument list to pass to the function.
+            **kwargs: Arbitrary keyword arguments to pass to the function.
+        """
+        with DatabaseConnection(self, database_name) as conn:
+            func(conn, args, kwargs)
+
+
+def register_component():
+    return "datalake", {
+        "instantiation_policy": "singleton",
+        "instantiate_on": "setup",
+        "class": Datalake,
+    }

@@ -11,9 +11,9 @@ import PySide6.QtWidgets as qw
 
 from common_widgets.page_selector import PageSelector
 from commons import duck_db_literal_string_list
-from fields_model import FieldsModel
-from query import Query
-from query_table_model import QueryTableModel
+from fields.fields_model import FieldsModel
+from query.query import Query
+from query.query_table_model import QueryTableModel
 
 
 class QueryTableProxyModel(qc.QSortFilterProxyModel):

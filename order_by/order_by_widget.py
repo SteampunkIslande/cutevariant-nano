@@ -2,7 +2,7 @@ import PySide6.QtCore as qc
 import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
 
-from query import Query
+from query.query import Query
 
 # Class for a custom editor for the order by widget (for the first column, add a combobox with the field names, and for the second column, add a combobox with the order options (ASC, DESC))
 

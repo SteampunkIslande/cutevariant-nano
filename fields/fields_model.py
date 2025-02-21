@@ -4,7 +4,7 @@
 import PySide6.QtCore as qc
 import PySide6.QtGui as qg
 
-import query as q
+import query.query as q
 
 # class FieldsModel(qc.QAbstractListModel):
 

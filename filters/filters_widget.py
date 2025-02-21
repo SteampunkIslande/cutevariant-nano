@@ -4,11 +4,11 @@ from html import escape
 import PySide6.QtCore as qc
 import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
+from filters_model import FilterModel
 
 from commons import get_last_session_path
-from filters import FilterItem, FilterType
-from filters_model import FilterModel
-from query import Query
+from filters.filters import FilterItem, FilterType
+from query.query import Query
 
 
 # A simple table view with each row being a filter shown to the user as a string.
