@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import List
 
 import duckdb as db
+import polars as pl
 import PySide6.QtCore as qc
 
 import datalake.datalake_component as dl
@@ -28,7 +29,6 @@ VALIDATION_TABLE_COLUMNS = {
 
 def new_validation(
     conn: db.DuckDBPyConnection,
-    datalake: dl.Datalake,
     validation_name: str,
     username: str,
     parquet_files: List[str],
@@ -36,32 +36,24 @@ def new_validation(
     gene_names: List[str],
     validation_method: str,
 ):
+    # Generate a unique identifier for the new table
     table_uuid = (
         conn.sql("SELECT ('validation_' || uuid()) as uuid").pl().to_dicts()[0]["uuid"]
     )
     try:
-        if not all(
-            (Path(datalake.datalake_path) / Path(p)).exists() for p in parquet_files
-        ):
-            raise ValueError(
-                "All parquet files must be in the datalake and relative to it"
-            )
+        conn.sql("BEGIN TRANSACTION;")
         conn.sql(
             f"INSERT INTO validations VALUES ({duck_db_literal_string_list(parquet_files)}, {duck_db_literal_string_list(sample_names) if sample_names else 'NULL'}, {gene_names if gene_names else 'NULL'} , '{username}', '{validation_name}', '{table_uuid}', NOW(), FALSE, '{validation_method}')"
         )
         conn.sql(
             f"CREATE TABLE '{table_uuid}' (validation_hash UBIGINT,sample_name TEXT,run_name TEXT,transcript_ID TEXT,variant_hash UBIGINT, accepted BOOLEAN,comment COMMENT[], tags TEXT[], acmg_classification TEXT, clnacc TEXT, clnsig TEXT, distribution_anomalie TEXT)"
         )
+        conn.sql("COMMIT;")
     except db.Error as e:
         print(e)
         # No matter what the exact error is, we should rollback the transaction
         # Manual rollback
-        conn.sql(f"DELETE FROM validations WHERE table_uuid = '{table_uuid}'")
-        conn.sql(f"""DROP TABLE IF EXISTS "{table_uuid}" """)
-    except ValueError as e:
-        print(e)
-        conn.sql(f"DELETE FROM validations WHERE table_uuid = '{table_uuid}'")
-        conn.sql(f"""DROP TABLE IF EXISTS "{table_uuid}" """)
+        conn.sql("ROLLBACK;")
 
 
 def insert_validation_data(
@@ -119,7 +111,7 @@ def get_validation_name_from_table_uuid(conn: db.DuckDBPyConnection, table_uuid:
 
 class ValidationModel(qc.QAbstractTableModel):
 
-    def __init__(self, datalake: dl.DataLake, parent: qc.QObject | None = ...) -> None:
+    def __init__(self, datalake: dl.Datalake, parent: qc.QObject | None = ...) -> None:
         super().__init__(parent)
         self.datalake = datalake
         self.headers = []
@@ -183,10 +175,9 @@ class ValidationModel(qc.QAbstractTableModel):
         validation_method: str,
     ):
         if self.datalake.datalake_path:
-            conn = self.datalake.get_database("validation")
-            new_validation(
-                conn,
-                self.datalake,
+            self.datalake.run_with_connection(
+                "validation",
+                new_validation,
                 validation_name,
                 username,
                 parquet_files,
@@ -195,7 +186,6 @@ class ValidationModel(qc.QAbstractTableModel):
                 validation_method,
             )
             self.update()
-            conn.close()
 
     def insert_validation_data(
         self,
@@ -233,9 +223,10 @@ class ValidationModel(qc.QAbstractTableModel):
         self.beginResetModel()
         self.headers = []
         self._data = []
-        conn = self.datalake.get_database("validation")
-        query_res = conn.sql("SELECT * FROM validations").pl()
+        query_res: pl.DataFrame = self.datalake.run_with_connection(
+            "validation",
+            lambda conn: conn.sql("SELECT * FROM validations").pl(),
+        )
         self.headers = query_res.columns
         self._data = [tuple(v for v in d.values()) for d in query_res.to_dicts()]
         self.endResetModel()
-        conn.close()

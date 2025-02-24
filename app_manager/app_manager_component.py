@@ -1,6 +1,8 @@
 import app
 import datalake
 import datalake.datalake_component as datalake
+import mainwindow
+import validation_selection.validation_selection_component as validation_selection_component
 import widget_holder.widget_holder_component as widget_holder
 
 
@@ -18,31 +20,86 @@ class AppManager(app.AppComponent):
         self.genotype_info_holder = None
         self.fields_widget_holder = None
         self.filters_widget_holder = None
+        self.validation_widget_holder = None
+
+        self.validation_selection_widget = None
+
+        self.main_window = None
+
+    def get_instance_name(self):
+        return self.instance_name
+
+    def load_from_session(self, session):
+        pass
+
+    def save_to_session(self):
+        pass
 
     def on_start(self):
         self.datalake: datalake.Datalake = self.app.get_component("datalake")
 
+        # Instantiate appropriate components for variant validation
         self.variant_info_holder: widget_holder.WidgetHolderComponent = (
             self.app.instantiate_component("widget_holder", "variant_info_holder", self)
         )
-
         self.genotype_info_holder: widget_holder.WidgetHolderComponent = (
             self.app.instantiate_component(
                 "widget_holder", "genotype_info_holder", self
             )
         )
-
         self.fields_widget_holder: widget_holder.WidgetHolderComponent = (
             self.app.instantiate_component(
                 "widget_holder", "fields_widget_holder", self
             )
         )
-
         self.filters_widget_holder: widget_holder.WidgetHolderComponent = (
             self.app.instantiate_component(
                 "widget_holder", "filters_widget_holder", self
             )
         )
+        self.validation_widget_holder: widget_holder.WidgetHolderComponent = (
+            self.app.instantiate_component(
+                "widget_holder", "validation_widget_holder", self
+            )
+        )
+
+        self.validation_selection_widget: (
+            validation_selection_component.ValidationSelectionComponent
+        ) = self.app.instantiate_component(
+            "validation_selection", "validation_selection", self
+        )
+
+        self.validation_widget_holder.add_component(self.validation_selection_widget)
+
+        self.main_window = self.app.window()
+
+        self.main_window.add_component_to_window(
+            self.variant_info_holder, mainwindow.WindowRegion.LEFT
+        )
+        self.main_window.add_component_to_window(
+            self.genotype_info_holder, mainwindow.WindowRegion.LEFT
+        )
+        self.main_window.add_component_to_window(
+            self.fields_widget_holder, mainwindow.WindowRegion.LOWER
+        )
+        self.main_window.add_component_to_window(
+            self.filters_widget_holder, mainwindow.WindowRegion.LOWER
+        )
+        self.main_window.add_component_to_window(
+            self.validation_widget_holder, mainwindow.WindowRegion.RIGHT
+        )
+
+    def widget(self):
+        return None
+
+    def get_signal(self, signal_name):
+        return
+
+    def get_menubar_entries(self):
+        return []
+
+    def get_contextmenu_entries(self, local_info):
+        return []
 
 
 def register_component():

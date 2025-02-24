@@ -36,9 +36,13 @@ class App:
         # If you'd like your own component to be included, just add it to the source folder and import it here
         from app_manager import app_manager_component
         from datalake import datalake_component
+        from validation_selection import validation_selection_component
+        from widget_holder import widget_holder_component
 
         self.register_component(*datalake_component.register_component())
         self.register_component(*app_manager_component.register_component())
+        self.register_component(*widget_holder_component.register_component())
+        self.register_component(*validation_selection_component.register_component())
 
     def register_component(self, component_name: str, component_definition: dict):
         self.components[component_name] = {
@@ -55,6 +59,7 @@ class App:
             instantiation_policy = definition["instantiation_policy"]
             if instantiate_on == "setup":
                 if instantiation_policy == "singleton":
+                    print(f"Instantiating {component_name}...")
                     self.instantiate_singleton(component_name)
 
     def instantiate_singleton(self, component_name: str):
@@ -162,7 +167,11 @@ class AppComponent(qc.QObject, ABC, metaclass=_ABCQObjectMeta):
 
     @abstractmethod
     def __init__(self, app: App, instance_name: str, parent_component: "AppComponent"):
-        pass
+        raise NotImplementedError()
+
+    @abstractmethod
+    def get_instance_name(self) -> str:
+        raise NotImplementedError()
 
     @abstractmethod
     def load_from_session(self, session: dict):
@@ -171,7 +180,7 @@ class AppComponent(qc.QObject, ABC, metaclass=_ABCQObjectMeta):
         Args:
             session (dict): The serialized representation of this `AppComponent` from saved session.
         """
-        pass
+        raise NotImplementedError()
 
     @abstractmethod
     def save_to_session(self) -> dict:
@@ -180,21 +189,21 @@ class AppComponent(qc.QObject, ABC, metaclass=_ABCQObjectMeta):
         Returns:
             dict: The serialized representation of this `AppComponent`
         """
-        pass
+        raise NotImplementedError()
 
     @abstractmethod
     def on_start(self):
         """Here is the place to connect to required components. If they were instantiated on setup, they should all exist at this point"""
-        pass
+        raise NotImplementedError()
 
     @abstractmethod
     def widget(self) -> Union[None, qw.QWidget]:
         """Return this component's associated widget, if applicable (i.e. WIDGET is in component_type)"""
-        pass
+        raise NotImplementedError()
 
     @abstractmethod
     def get_signal(self, signal_name: str) -> Union[qc.SignalInstance, None]:
-        pass
+        raise NotImplementedError()
 
     @abstractmethod
     def get_menubar_entries(self) -> list[tuple[str, qg.QAction]]:
@@ -203,7 +212,7 @@ class AppComponent(qc.QObject, ABC, metaclass=_ABCQObjectMeta):
         Returns:
             list[tuple[str, qg.QAction]]: Each tuple of the list should be of the form `("Path/to/last/parent/menu",QAction("My action"))`. It is the responsibility of the implementer to connect the returned actions' `triggered` signals.
         """
-        pass
+        raise NotImplementedError()
 
     @abstractmethod
     def get_contextmenu_entries(self, local_info: dict) -> list[tuple[str, qg.QAction]]:
@@ -216,7 +225,7 @@ class AppComponent(qc.QObject, ABC, metaclass=_ABCQObjectMeta):
         Returns:
             list[tuple[str, qg.QAction]]: Each tuple of the list should be of the form `("Path/to/last/parent/menu",QAction("My action"))`. It is the responsibility of the implementer to connect the returned actions' signals.
         """
-        pass
+        raise NotImplementedError()
 
 
 if __name__ == "__main__":

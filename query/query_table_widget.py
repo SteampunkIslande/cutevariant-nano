@@ -12,7 +12,7 @@ import PySide6.QtWidgets as qw
 from common_widgets.page_selector import PageSelector
 from commons import duck_db_literal_string_list
 from fields.fields_model import FieldsModel
-from query.query import Query
+from query.query_component import Query
 from query.query_table_model import QueryTableModel
 
 

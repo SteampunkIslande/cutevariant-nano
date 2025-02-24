@@ -1,4 +1,5 @@
 import os
+import typing
 from pathlib import Path
 
 import duckdb as db
@@ -53,6 +54,9 @@ class Datalake(app.AppComponent):
 
         self.datalake_path = None
 
+    def get_instance_name(self):
+        return self.instance_name
+
     def load_from_session(self, session: dict):
         self.datalake_path = session.get("datalake_path")
         if not os.path.isdir(self.datalake_path):
@@ -89,7 +93,13 @@ class Datalake(app.AppComponent):
         if self.datalake_path:
             return os.path.join(self.datalake_path, path)
 
-    def run_with_connection(self, database_name, func, *args, **kwargs):
+    def run_with_connection(
+        self,
+        database_name,
+        func: typing.Callable[[db.DuckDBPyConnection, typing.Any], typing.Any],
+        *args,
+        **kwargs,
+    ):
         """
         Executes a function within the context of a database connection.
         This method establishes a connection to the specified database,
@@ -102,7 +112,8 @@ class Datalake(app.AppComponent):
             **kwargs: Arbitrary keyword arguments to pass to the function.
         """
         with DatabaseConnection(self, database_name) as conn:
-            func(conn, args, kwargs)
+            res = func(conn, *args, **kwargs)
+        return res
 
 
 def register_component():

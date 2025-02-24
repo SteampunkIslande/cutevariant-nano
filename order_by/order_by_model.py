@@ -3,7 +3,7 @@
 import PySide6.QtCore as qc
 from PySide6.QtCore import Signal
 
-import query as q
+import query.query_component as q
 
 
 class OrderByModel(qc.QAbstractTableModel):

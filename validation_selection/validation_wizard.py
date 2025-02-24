@@ -15,7 +15,7 @@ from commons import (
     load_user_prefs,
     yaml_load,
 )
-from datalake import DataLake
+from datalake.datalake_component import Datalake
 
 
 class IntroPage(qw.QWizardPage):
@@ -103,7 +103,7 @@ class IntroPage(qw.QWizardPage):
 
 class ParquetSelectPage(qw.QWizardPage):
 
-    def __init__(self, datalake: DataLake, data: dict, parent=None):
+    def __init__(self, datalake: Datalake, data: dict, parent=None):
         super().__init__(parent)
         self.setTitle(qc.QCoreApplication.tr("Sélection du run"))
         self.setSubTitle(
@@ -197,7 +197,7 @@ class ParquetSelectPage(qw.QWizardPage):
 
 class SamplesSelectPage(qw.QWizardPage):
 
-    def __init__(self, datalake: DataLake, data: dict, parent=None):
+    def __init__(self, datalake: Datalake, data: dict, parent=None):
         super().__init__(parent)
         self.setTitle(qc.QCoreApplication.tr("Sélection des échantillons"))
         self.setSubTitle(
@@ -252,7 +252,7 @@ class SamplesSelectPage(qw.QWizardPage):
 
 
 class GeneListSelectPage(qw.QWizardPage):
-    def __init__(self, datalake: DataLake, data: dict, parent=None):
+    def __init__(self, datalake: Datalake, data: dict, parent=None):
         super().__init__(parent)
         self.setTitle(qc.QCoreApplication.tr("Sélection de la liste de gènes"))
         self.setSubTitle(
@@ -325,7 +325,7 @@ class GeneListSelectPage(qw.QWizardPage):
 
 class ValidationWizard(qw.QWizard):
 
-    def __init__(self, datalake: DataLake, parent=None):
+    def __init__(self, datalake: Datalake, parent=None):
         super().__init__(parent)
 
         self.data = {

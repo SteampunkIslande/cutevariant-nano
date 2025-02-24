@@ -22,7 +22,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-import query.query as q
+import query.query_component as q
 from filters.filters import FilterItem, FilterType
 
 # Copyright (C) 2022 The Qt Company Ltd.

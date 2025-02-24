@@ -7,7 +7,7 @@ import PySide6.QtCore as qc
 import PySide6.QtGui as qg
 
 from commons import get_config_folder, load_user_prefs
-from query.query import Query
+from query.query_component import Query
 
 
 def load_style():

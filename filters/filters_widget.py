@@ -8,7 +8,7 @@ from filters_model import FilterModel
 
 from commons import get_last_session_path
 from filters.filters import FilterItem, FilterType
-from query.query import Query
+from query.query_component import Query
 
 
 # A simple table view with each row being a filter shown to the user as a string.

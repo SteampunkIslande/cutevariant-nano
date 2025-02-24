@@ -1,6 +1,6 @@
 from PySide6.QtCore import SignalInstance
 from PySide6.QtGui import QAction
-from PySide6.QtWidgets import QWidget
+from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
 
 import app
 
@@ -21,6 +21,18 @@ class WidgetHolderComponent(app.AppComponent):
         self.held_components: dict[str, "app.AppComponent"] = {}
         self.current_component_name = None
 
+        self._layout_widget = QWidget()
+        self._layout = QVBoxLayout()
+
+        self._layout_widget.setLayout(self._layout)
+
+        self.place_holder = QLabel(f"Instance::{instance_name}")
+        self.place_holder.setWindowTitle(instance_name)
+        self._layout.addWidget(self.place_holder)
+
+    def get_instance_name(self):
+        return self.instance_name
+
     def load_from_session(self, session: dict):
         # Implement loading logic here
         pass
@@ -34,15 +46,32 @@ class WidgetHolderComponent(app.AppComponent):
         pass
 
     def add_component(self, component: "app.AppComponent"):
-        pass
+
+        component_name = component.get_instance_name()
+
+        if component_name in self.held_components:
+            # Maybe should raise?
+            return False
+        self.held_components[component_name] = component
+        if self.held_components.get(self.current_component_name, None) is None:
+            self.current_component_name = component_name
+
+        for name, comp in self.held_components.items():
+            if name != component_name:
+                if comp.widget():
+                    comp.widget().hide()
+                    self._layout.removeWidget(comp.widget())
+            else:
+                if comp.widget():
+                    self._layout.addWidget(comp.widget())
 
     def widget(self) -> QWidget:
         if self.current_component_name is None:
-            return
+            return self.place_holder
         current_component = self.held_components.get(self.current_component_name)
         if current_component is None:
-            return
-        return self.held_components.get(self.current_component_name)
+            return self.place_holder
+        return self.held_components.get(self.current_component_name).widget()
 
     def get_signal(self, signal_name: str) -> SignalInstance:
         # Implement signal retrieval logic here

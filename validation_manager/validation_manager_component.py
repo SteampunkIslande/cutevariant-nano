@@ -4,112 +4,17 @@ from typing import List
 import duckdb as db
 import PySide6.QtCore as qc
 import PySide6.QtWidgets as qw
-from validation_model import VALIDATION_TABLE_COLUMNS, ValidationModel
-from validation_wizard import ValidationWizard
 
-import app as ap
 import datalake.datalake_component as dl
-from common_widgets.multiwidget_holder import MultiWidgetHolder
-from common_widgets.searchable_table import SearchableTable
 from commons import get_config_folder, load_user_prefs, save_user_prefs, yaml_load
 from query.query_table_widget import QueryTableWidget
+from validation_selection.validation_widget import ValidationModel, finish_validation
 
 
 def finish_validation(conn: db.DuckDBPyConnection, table_uuid: str):
     conn.sql(
         f"UPDATE validations SET completed = TRUE WHERE table_uuid = '{table_uuid}'"
     )
-
-
-class ValidationWelcomeWidget(qw.QWidget):
-
-    validation_start = qc.Signal()
-
-    def __init__(self, datalake: dl.Datalake, parent=None):
-        super().__init__(parent)
-        self.datalake = datalake
-        self.model = ValidationModel(self.datalake, self)
-        self.query = self.datalake.get_query("validation")
-
-        self._layout = qw.QVBoxLayout(self)
-
-        self.new_validation_button = qw.QPushButton(
-            qc.QCoreApplication.tr("Nouvelle validation"), self
-        )
-        self.new_validation_button.clicked.connect(self.on_new_validation_clicked)
-
-        self.start_validation_button = qw.QPushButton(
-            qc.QCoreApplication.tr("Démarrer/Continuer une validation"), self
-        )
-        self.start_validation_button.clicked.connect(self.on_start_validation_clicked)
-
-        if not self.datalake.datalake_path:
-            self.new_validation_button.setEnabled(False)
-            self.start_validation_button.setEnabled(False)
-
-        self.datalake.folder_changed.connect(self.on_datalake_changed)
-
-        self.table = SearchableTable(self.model, parent=self)
-        self.hide_unwanted_columns()
-
-        self.init_layout()
-
-    def hide_unwanted_columns(self):
-        self.table.view.hideColumn(VALIDATION_TABLE_COLUMNS["table_uuid"])
-
-    def on_new_validation_clicked(self):
-        if not self.datalake:
-            return
-        username = Path.home().name
-
-        # Make sure we have a config folder (before we start the wizard)
-        success, _ = get_config_folder()
-        if not success:
-            qw.QMessageBox.critical(
-                self,
-                qc.QCoreApplication.tr("Erreur"),
-                qc.QCoreApplication.tr(
-                    "Pas de dossier de configuration sélectionné, abandon."
-                ),
-            )
-            return
-
-        wizard = ValidationWizard(self.datalake, self)
-        if wizard.exec() == qw.QDialog.DialogCode.Accepted:
-
-            self.model.new_validation(username=username, **wizard.data)
-
-    def on_start_validation_clicked(self):
-        selected_validation = self.get_selected_validation()
-        if selected_validation:
-            self.validation_start.emit()
-        else:
-            qw.QMessageBox.warning(
-                self,
-                qc.QCoreApplication.tr("Validation"),
-                qc.QCoreApplication.tr(
-                    "Veuillez sélectionner une validation à exécuter."
-                ),
-            )
-
-    def init_layout(self):
-        self._layout.addWidget(self.table)
-        self._layout.addWidget(self.new_validation_button)
-        self._layout.addWidget(self.start_validation_button)
-        self.setLayout(self._layout)
-
-    def on_datalake_changed(self):
-        self.model.update()
-        self.hide_unwanted_columns()
-        if self.datalake and self.datalake.datalake_path:
-            self.new_validation_button.setEnabled(True)
-            self.start_validation_button.setEnabled(True)
-
-    def get_selected_validation(self):
-        selected = self.table.view.selectionModel().selectedRows()
-        if selected:
-            return selected[0].data(qc.Qt.ItemDataRole.UserRole)
-        return None
 
 
 class StepModel(qc.QAbstractListModel):
@@ -401,91 +306,3 @@ class ValidationWidget(qw.QWidget):
             print(self.validation_table_uuid)
         finally:
             conn.close()
-
-
-class ValidationWidgetContainer(qw.QWidget):
-
-    def __init__(
-        self,
-        app: ap.App,
-        query_widget: QueryTableWidget,
-        parent=None,
-    ):
-        super().__init__(parent)
-
-        self.datalake = app.get_component("datalake")
-        self.query_widget = query_widget
-
-        self._layout = qw.QVBoxLayout(self)
-
-        self.validation_welcome_widget = ValidationWelcomeWidget(self.datalake, self)
-        self.validation_welcome_widget.validation_start.connect(
-            self.on_validation_start
-        )
-
-        self.validation_model = self.validation_welcome_widget.model
-
-        self.validation_widget = ValidationWidget(
-            self.datalake,
-            self.query_widget,
-            self.validation_welcome_widget.model,
-            self,
-        )
-        self.validation_widget.return_to_validation.connect(
-            self.on_return_to_validation
-        )
-
-        self.multi_widget = MultiWidgetHolder(self)
-        self.multi_widget.add_widget(self.validation_welcome_widget, "welcome")
-        self.multi_widget.add_widget(self.validation_widget, "validation")
-
-        self.multi_widget.set_current_widget("welcome")
-
-        self._layout.addWidget(self.multi_widget)
-
-        qc.QCoreApplication.instance().aboutToQuit.connect(self.on_close)
-
-        # Don't load previous session for now
-        # self.load_previous_session()
-
-        self.validation_query = self.datalake.get_query("validation")
-
-        self.setLayout(self._layout)
-
-    def on_validation_start(self):
-        if not self.validation_welcome_widget.get_selected_validation():
-            return
-        self.multi_widget.set_current_widget("validation")
-        self.validation_widget.init_state()
-
-        success, _ = get_config_folder()
-        if not success:
-            qw.QMessageBox.critical(
-                self,
-                qc.QCoreApplication.tr("Erreur"),
-                qc.QCoreApplication.tr(
-                    "Pas de dossier de configuration sélectionné, abandon."
-                ),
-            )
-            return
-
-        selected_validation = self.validation_welcome_widget.get_selected_validation()
-
-        self.validation_widget.start_validation(selected_validation)
-
-    def on_return_to_validation(self):
-        self.multi_widget.set_current_widget("welcome")
-        self.validation_widget.init_state()
-        self.validation_welcome_widget.model.update()
-
-        self.validation_query.init_state()
-
-    def load_previous_session(self):
-        userprefs = load_user_prefs()
-        if "last_widget_shown" in userprefs:
-            self.multi_widget.set_current_widget(userprefs["last_widget_shown"])
-
-    def on_close(self):
-        save_user_prefs(
-            {"last_widget_shown": self.multi_widget.get_current_widget_name()}
-        )
