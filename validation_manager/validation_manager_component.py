@@ -1,14 +1,12 @@
 from pathlib import Path
-from typing import List
 
 import duckdb as db
 import PySide6.QtCore as qc
 import PySide6.QtWidgets as qw
 
-import datalake.datalake_component as dl
+import app as ap
+
 from commons import get_config_folder, load_user_prefs, save_user_prefs, yaml_load
-from query.query_table_widget import QueryTableWidget
-from validation_selection.validation_widget import ValidationModel, finish_validation
 
 
 def finish_validation(conn: db.DuckDBPyConnection, table_uuid: str):
@@ -17,85 +15,14 @@ def finish_validation(conn: db.DuckDBPyConnection, table_uuid: str):
     )
 
 
-class StepModel(qc.QAbstractListModel):
-
-    def __init__(self, steps: List[dict], parent=None):
-        super().__init__(parent)
-        self.steps = steps
-
-    def rowCount(self, parent: qc.QModelIndex):
-        if parent.isValid():
-            return 0
-        return len(self.steps)
-
-    def columnCount(self, parent: qc.QModelIndex):
-        if parent.isValid():
-            return 0
-        return 1
-
-    def data(self, index: qc.QModelIndex, role: int):
-        if not index.isValid():
-            return None
-        if role == qc.Qt.ItemDataRole.DisplayRole:
-            return self.steps[index.row()]["title"]
-        if role == qc.Qt.ItemDataRole.ToolTipRole:
-            return self.steps[index.row()]["description"]
-        if role == qc.Qt.ItemDataRole.UserRole:
-            return self.steps[index.row()]["query"]
-        return None
-
-    def headerData(self, section: int, orientation: qc.Qt.Orientation, role: int):
-        if (
-            orientation == qc.Qt.Orientation.Horizontal
-            and role == qc.Qt.ItemDataRole.DisplayRole
-            and section == 0
-        ):
-            return "Steps"
-        return None
-
-    def set_steps(self, steps):
-        self.beginResetModel()
-        self.steps = steps
-        self.endResetModel()
-
-    def flags(self, index: qc.QModelIndex):
-        return qc.Qt.ItemFlag.ItemIsSelectable | qc.Qt.ItemFlag.ItemIsEnabled
-
-
-class ValidationWidget(qw.QWidget):
+class ValidationManagerWidget(qw.QWidget):
 
     return_to_validation = qc.Signal()
-    method_changed = qc.Signal()
-    current_variant_changed = qc.Signal()
 
-    def __init__(
-        self,
-        datalake: dl.Datalake,
-        query_widget: QueryTableWidget,
-        validation_model: ValidationModel,
-        parent=None,
-    ):
+    def __init__(self, parent: qw.QWidget = None):
         super().__init__(parent)
-        self.datalake = datalake
-        self.query = self.datalake.get_query("validation")
-
-        self.validation_model = validation_model
-
-        self.query_widget = query_widget
 
         self._layout = qw.QVBoxLayout(self)
-
-        self.step_model = StepModel([], self)
-        self.step_selection_list_view = qw.QListView(self)
-
-        self.step_selection_list_view.setModel(self.step_model)
-        self.step_selection_list_view.setSelectionMode(
-            qw.QAbstractItemView.SelectionMode.SingleSelection
-        )
-
-        self.step_selection_list_view.selectionModel().currentChanged.connect(
-            self.update_step
-        )
 
         self.validate_button = qw.QPushButton("", self)
         self.validate_button.clicked.connect(self.validate)
@@ -111,7 +38,6 @@ class ValidationWidget(qw.QWidget):
 
     def setup_layout(self):
 
-        self._layout.addWidget(self.step_selection_list_view)
         # Add vertical spacer
         self._layout.addStretch()
 
@@ -120,12 +46,6 @@ class ValidationWidget(qw.QWidget):
         self.setLayout(self._layout)
 
     def init_state(self):
-
-        # The current step index
-        self.current_step_id = 0
-
-        # The method array (a list of steps, each step being a dict with fields, tables, joins, etc.)
-        self.method = None
 
         # The table uuid of the selected validation
         self.validation_table_uuid = None
@@ -159,9 +79,6 @@ class ValidationWidget(qw.QWidget):
         self.return_to_validation.emit()
 
     def export_csv(self):
-        if not self.datalake:
-            # WTF ? This should never happen
-            return
         user_prefs = load_user_prefs()
         if "genno_export_folder" not in user_prefs:
             qw.QMessageBox.warning(
@@ -306,3 +223,8 @@ class ValidationWidget(qw.QWidget):
             print(self.validation_table_uuid)
         finally:
             conn.close()
+
+
+class ValidationManagerComponent(ap.AppComponent):
+
+    pass

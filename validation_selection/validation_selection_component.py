@@ -37,7 +37,7 @@ class ValidationSelectionComponent(app.AppComponent):
 
 def register_component():
     return "validation_selection", {
-        "instantiation_policy": "multi",
+        "instantiation_policy": "singleton",
         "instantiate_on": "demand",
         "class": ValidationSelectionComponent,
     }

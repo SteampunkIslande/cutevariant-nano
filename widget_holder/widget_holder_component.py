@@ -53,8 +53,21 @@ class WidgetHolderComponent(app.AppComponent):
             # Maybe should raise?
             return False
         self.held_components[component_name] = component
-        if self.held_components.get(self.current_component_name, None) is None:
-            self.current_component_name = component_name
+
+        success = self.set_current_component(component_name)
+
+        if not success:
+            self._layout.addWidget(self.place_holder)
+            self.place_holder.show()
+
+        return success
+
+    def set_current_component(self, component_name: str):
+        if component_name not in self.held_components:
+            return False
+        if self.current_component_name == component_name:
+            return False
+        self.current_component_name = component_name
 
         for name, comp in self.held_components.items():
             if name != component_name:
@@ -64,6 +77,12 @@ class WidgetHolderComponent(app.AppComponent):
             else:
                 if comp.widget():
                     self._layout.addWidget(comp.widget())
+                    comp.widget().show()
+
+        # Make sure we don't keep the placeholder
+        self._layout.removeWidget(self.place_holder)
+        self.place_holder.hide()
+        return True
 
     def widget(self) -> QWidget:
         if self.current_component_name is None:
