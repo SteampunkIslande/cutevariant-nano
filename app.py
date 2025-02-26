@@ -1,4 +1,5 @@
-from abc import ABC, ABCMeta, abstractmethod
+import json
+from pathlib import Path
 from typing import Union
 
 import PySide6.QtCore as qc
@@ -6,12 +7,15 @@ import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
 
 import mainwindow as mw
-from commons import add_action_to_menu, load_user_prefs
+from commons import add_action_to_menu, get_config_folder, load_user_prefs
 
 
 class App:
     def __init__(self):
-        self.main_window = mw.MainWindow()
+        self.main_window = mw.MainWindow(self)
+        self.main_window.closing.connect(self.on_close)
+
+        self.missing_translations = set()
 
         # Very first thing to do, translations are needed to setup menus and actions (among others)
         self.load_translations()
@@ -36,13 +40,13 @@ class App:
         # If you'd like your own component to be included, just add it to the source folder and import it here
         from app_manager import app_manager_component
         from datalake import datalake_component
-        from validation_selection import validation_selection_component
+        from validation_manager import validation_manager_component
         from widget_holder import widget_holder_component
 
         self.register_component(*datalake_component.register_component())
         self.register_component(*app_manager_component.register_component())
         self.register_component(*widget_holder_component.register_component())
-        self.register_component(*validation_selection_component.register_component())
+        self.register_component(*validation_manager_component.register_component())
 
     def register_component(self, component_name: str, component_definition: dict):
         self.components[component_name] = {
@@ -81,8 +85,6 @@ class App:
             entry_path, entry_action = menu_entry
             add_action_to_menu(self.main_window.menuBar(), entry_path, entry_action)
 
-        self.components[component_name][component_name] = new_instance
-
     def instantiate_component(
         self,
         component_name: str,
@@ -117,6 +119,11 @@ class App:
                 instance: AppComponent
                 instance.on_start()
 
+        last_session_path: Path = self.get_last_session_path()
+
+        if last_session_path is not None and last_session_path.is_file():
+            self.load_session(last_session_path)
+
     # RUNNING APP LIFE CYCLE
 
     def get_component(
@@ -133,16 +140,29 @@ class App:
     def window(self):
         return self.main_window
 
+    # UTILS
+
+    def get_config_folder(self):
+        succes, config_folder = get_config_folder()
+        if not succes:
+            qw.QMessageBox.critical(
+                self,
+                self.translate("Error"),
+                self.translate("No configuration file found, aborting."),
+            )
+            return False, None
+        return succes, config_folder
+
     # TRANSLATIONS
 
     def load_translations(self):
         user_prefs: dict = load_user_prefs()
-        lang = user_prefs.get("language")
+        lang = user_prefs.get("language", "fr_FR")
         self.translations = {}
         if lang:
             from translations import TRANSLATIONS
 
-            self.translations = TRANSLATIONS.get(lang)
+            self.translations = TRANSLATIONS.get(lang, dict())
 
     def translate(self, from_str: str) -> str:
         """Translates given `from_str` to the selected language. If translation doesn't exist, this will return `from_str`
@@ -153,27 +173,60 @@ class App:
         Returns:
             str: Translated string
         """
+        if from_str not in self.translations:
+            self.missing_translations.add(from_str)
         return self.translations.get(from_str, from_str)
 
+    def load_session(self, path: Path):
+        pass
 
-QObjectMeta = type(qc.QObject)
+    def save_session(self, path: Path):
+        if not path.parent.exists():
+            path.parent.mkdir(parents=True, exist_ok=True)
+
+        session = {}
+        for comp_name, comp_info in self.components.items():
+            session[comp_name] = {}
+            if comp_info["definition"]["instantiation_policy"] == "singleton":
+                if comp_info["instances"]:
+                    instance: AppComponent = comp_info["instances"][comp_name]
+                    session[comp_name] = instance.save_to_session()
+            else:
+                session[comp_name] = {}
+                for instance_name, instance in comp_info["instances"].items():
+                    instance: AppComponent
+                    session[comp_name][instance_name] = instance.save_to_session()
+
+        with open(path, "w") as f:
+            json.dump(session, f)
+
+    def get_last_session_path(self):
+        user_prefs: dict = load_user_prefs()
+        last_sesssion_path: str = user_prefs.get("last_session")
+        if last_sesssion_path:
+            last_sesssion_path = Path(last_sesssion_path)
+        return last_sesssion_path
+
+    def on_close(self):
+        # Save missing translations
+        if self.missing_translations:
+            with open("missing_translations.txt", "w") as f:
+                for k in self.missing_translations:
+                    f.write(f'"{k}":"",\n')
+
+        last_sesssion_path = self.get_last_session_path()
+        if last_sesssion_path:
+            self.save_session(last_sesssion_path)
 
 
-class _ABCQObjectMeta(QObjectMeta, ABCMeta):
-    pass
+class AppComponent(qc.QObject):
 
-
-class AppComponent(qc.QObject, ABC, metaclass=_ABCQObjectMeta):
-
-    @abstractmethod
     def __init__(self, app: App, instance_name: str, parent_component: "AppComponent"):
-        raise NotImplementedError()
+        super().__init__()
 
-    @abstractmethod
     def get_instance_name(self) -> str:
         raise NotImplementedError()
 
-    @abstractmethod
     def load_from_session(self, session: dict):
         """Load this AppComponent from `session` dict.
 
@@ -182,7 +235,6 @@ class AppComponent(qc.QObject, ABC, metaclass=_ABCQObjectMeta):
         """
         raise NotImplementedError()
 
-    @abstractmethod
     def save_to_session(self) -> dict:
         """Get serialized representation of this `AppComponent`
 
@@ -191,21 +243,17 @@ class AppComponent(qc.QObject, ABC, metaclass=_ABCQObjectMeta):
         """
         raise NotImplementedError()
 
-    @abstractmethod
     def on_start(self):
         """Here is the place to connect to required components. If they were instantiated on setup, they should all exist at this point"""
         raise NotImplementedError()
 
-    @abstractmethod
     def widget(self) -> Union[None, qw.QWidget]:
         """Return this component's associated widget, if applicable (i.e. WIDGET is in component_type)"""
         raise NotImplementedError()
 
-    @abstractmethod
     def get_signal(self, signal_name: str) -> Union[qc.SignalInstance, None]:
         raise NotImplementedError()
 
-    @abstractmethod
     def get_menubar_entries(self) -> list[tuple[str, qg.QAction]]:
         """Returns a list of actions that should be available from the main window's menu bar.
 
@@ -214,7 +262,6 @@ class AppComponent(qc.QObject, ABC, metaclass=_ABCQObjectMeta):
         """
         raise NotImplementedError()
 
-    @abstractmethod
     def get_contextmenu_entries(self, local_info: dict) -> list[tuple[str, qg.QAction]]:
         """Returns a list of actions that should be available from a context menu, that this AppComponent would be able to run.
         This method is invoked whenever `self`'s actions could be useful
@@ -232,6 +279,8 @@ if __name__ == "__main__":
     import sys
 
     pyside_app = qw.QApplication(sys.argv)
+    pyside_app.setApplicationName("cutevariant-nano")
+    pyside_app.setOrganizationName("CharlesMB")
 
     app = App()
 

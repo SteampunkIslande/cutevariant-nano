@@ -16,7 +16,9 @@ class WindowRegion(Enum):
 
 class MainWindow(qw.QMainWindow):
 
-    def __init__(self):
+    closing = qc.Signal()
+
+    def __init__(self, app: ap.App):
         super().__init__()
 
         self.horizontal_splitter = qw.QSplitter()
@@ -67,6 +69,8 @@ class MainWindow(qw.QMainWindow):
             [left_tab_size, central_tab_size, right_tab_size]
         )
 
+        self.app = app
+
     def add_component_to_window(self, component: ap.AppComponent, region: WindowRegion):
         if component.widget() is None:
             return
@@ -76,6 +80,28 @@ class MainWindow(qw.QMainWindow):
         tab_index = self.widget_regions[region].addTab(
             component.widget(), component.widget().windowTitle()
         )
+
+        return tab_index
+
+    def get_window_panel(self, region: WindowRegion):
+        return self.widget_regions[region]
+
+    def closeEvent(self, event):
+        confirmation = qw.QMessageBox.question(
+            self,
+            self.app.translate("Closing"),
+            self.app.translate(
+                "Are you sure you want to close? Everything will be saved automatically."
+            ),
+            qw.QMessageBox.StandardButton.Yes,
+            qw.QMessageBox.StandardButton.No,
+        )
+        if confirmation == qw.QMessageBox.StandardButton.Yes:
+            # Emits the signal, waiting for every receiver to respond to it
+            self.closing.emit()
+            event.accept()
+        else:
+            event.ignore()
 
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@ import app
 import datalake
 import datalake.datalake_component as datalake
 import mainwindow
-import validation_selection.validation_selection_component as validation_selection_component
+import validation_manager.validation_manager_component as validation_manager_component
 import widget_holder.widget_holder_component as widget_holder
 
 
@@ -11,6 +11,7 @@ class AppManager(app.AppComponent):
     def __init__(
         self, app: app.App, instance_name: str, parent_component: app.AppComponent
     ):
+        super().__init__(app, instance_name, parent_component)
         self.app = app
         self.instance_name = instance_name
         self.parent_component = parent_component
@@ -22,7 +23,7 @@ class AppManager(app.AppComponent):
         self.filters_widget_holder = None
         self.validation_widget_holder = None
 
-        self.validation_selection_widget = None
+        self.validation_component = None
 
         self.main_window = None
 
@@ -63,13 +64,13 @@ class AppManager(app.AppComponent):
             )
         )
 
-        self.validation_selection_widget: (
-            validation_selection_component.ValidationSelectionComponent
+        self.validation_component: (
+            validation_manager_component.ValidationManagerComponent
         ) = self.app.instantiate_component(
-            "validation_selection", "validation_selection", self
+            "validation_manager", "validation_manager", self
         )
 
-        self.validation_widget_holder.add_component(self.validation_selection_widget)
+        self.validation_widget_holder.add_component(self.validation_component)
 
         self.main_window = self.app.window()
 

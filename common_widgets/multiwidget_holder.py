@@ -25,7 +25,7 @@ class MultiWidgetHolder(qw.QWidget):
             self.current_widget_name = None
         widget.hide()
         self._layout.removeWidget(widget)
-        widget.deleteLater()
+        widget.close()
 
     def get_current_widget_name(self):
         return self.current_widget_name

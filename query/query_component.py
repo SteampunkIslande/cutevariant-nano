@@ -93,6 +93,7 @@ class Query(AppComponent):
     query_setup_changed = qc.Signal()
 
     def __init__(self, datalake: dl.Datalake, parent=None):
+        # super().__init__(app,instance_name,parent_component)
         super().__init__(parent)
         self.datalake = datalake
         self.init_state()

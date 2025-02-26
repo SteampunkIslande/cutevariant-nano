@@ -31,7 +31,7 @@ def new_validation(
     conn: db.DuckDBPyConnection,
     validation_name: str,
     username: str,
-    parquet_files: List[str],
+    file_names: List[str],
     sample_names: List[str],
     gene_names: List[str],
     validation_method: str,
@@ -41,19 +41,18 @@ def new_validation(
         conn.sql("SELECT ('validation_' || uuid()) as uuid").pl().to_dicts()[0]["uuid"]
     )
     try:
-        conn.sql("BEGIN TRANSACTION;")
+        conn.begin()
         conn.sql(
-            f"INSERT INTO validations VALUES ({duck_db_literal_string_list(parquet_files)}, {duck_db_literal_string_list(sample_names) if sample_names else 'NULL'}, {gene_names if gene_names else 'NULL'} , '{username}', '{validation_name}', '{table_uuid}', NOW(), FALSE, '{validation_method}')"
+            f"INSERT INTO validations VALUES ({duck_db_literal_string_list(file_names)}, {duck_db_literal_string_list(sample_names) if sample_names else 'NULL'}, {gene_names if gene_names else 'NULL'} , '{username}', '{validation_name}', '{table_uuid}', NOW(), FALSE, '{validation_method}')"
         )
         conn.sql(
             f"CREATE TABLE '{table_uuid}' (validation_hash UBIGINT,sample_name TEXT,run_name TEXT,transcript_ID TEXT,variant_hash UBIGINT, accepted BOOLEAN,comment COMMENT[], tags TEXT[], acmg_classification TEXT, clnacc TEXT, clnsig TEXT, distribution_anomalie TEXT)"
         )
-        conn.sql("COMMIT;")
+        conn.commit()
     except db.Error as e:
         print(e)
         # No matter what the exact error is, we should rollback the transaction
-        # Manual rollback
-        conn.sql("ROLLBACK;")
+        conn.rollback()
 
 
 def insert_validation_data(
@@ -169,7 +168,7 @@ class ValidationModel(qc.QAbstractTableModel):
         self,
         validation_name: str,
         username: str,
-        parquet_files: List[str],
+        file_names: List[str],
         sample_names: List[str],
         gene_names: List[str],
         validation_method: str,
@@ -180,7 +179,7 @@ class ValidationModel(qc.QAbstractTableModel):
                 new_validation,
                 validation_name,
                 username,
-                parquet_files,
+                file_names,
                 sample_names,
                 gene_names,
                 validation_method,
@@ -202,9 +201,9 @@ class ValidationModel(qc.QAbstractTableModel):
         distribution_anomalie: str,
     ):
         if self.datalake.datalake_path:
-            conn = self.datalake.get_database("validation")
-            insert_validation_data(
-                conn,
+            self.datalake.run_with_connection(
+                "validation",
+                insert_validation_data,
                 table_uuid,
                 validation_hash,
                 sample_name,
@@ -217,7 +216,6 @@ class ValidationModel(qc.QAbstractTableModel):
                 acmg_classification,
                 distribution_anomalie,
             )
-            conn.close()
 
     def update(self) -> None:
         self.beginResetModel()

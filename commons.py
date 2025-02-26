@@ -9,6 +9,19 @@ import PySide6.QtWidgets as qw
 import yaml
 
 
+def default_prefs():
+    return {
+        "last_session": str(
+            Path(
+                qc.QStandardPaths().writableLocation(
+                    qc.QStandardPaths.StandardLocation.AppDataLocation
+                )
+            )
+            / "last_session.json"
+        ),
+    }
+
+
 def add_action_to_menu(menu: qw.QMenuBar | qw.QMenu, path: str, action: qg.QAction):
     current_menu = menu
     for menu_name in path.split("/"):
@@ -83,6 +96,9 @@ def load_user_prefs():
     if user_prefs.exists():
         with open(user_prefs, "r", encoding="utf-8") as f:
             prefs = json.load(f)
+            print(user_prefs)
+    else:
+        prefs = default_prefs()
     return prefs
 
 

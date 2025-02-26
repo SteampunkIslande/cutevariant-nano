@@ -39,7 +39,7 @@ class DatabaseConnection:
 
 class Datalake(app.AppComponent):
 
-    folder_changed = qc.Signal(int, str)
+    folder_changed = qc.Signal()
 
     def __init__(
         self,
@@ -47,6 +47,7 @@ class Datalake(app.AppComponent):
         instance_name: str,
         parent_component: app.AppComponent = None,
     ):
+        super().__init__(app, instance_name, parent_component)
         self.app = app
         self.instance_name = instance_name
 
@@ -87,7 +88,7 @@ class Datalake(app.AppComponent):
         existing_dir = qw.QFileDialog.getExistingDirectory(self.app.window())
         if os.path.isdir(existing_dir):
             self.datalake_path = existing_dir
-            self.folder_changed.emit(self.instance_name, self.datalake_path)
+            self.folder_changed.emit()
 
     def relative_to_absolute(self, path: str) -> str:
         if self.datalake_path:

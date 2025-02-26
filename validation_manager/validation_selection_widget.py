@@ -2,12 +2,13 @@ from pathlib import Path
 
 import PySide6.QtCore as qc
 import PySide6.QtWidgets as qw
-from validation_model import ValidationModel
-from validation_wizard import ValidationWizard
 
+import app as ap
 import datalake.datalake_component as dl
 from common_widgets.searchable_table import SearchableTable
 from commons import get_config_folder
+from validation_manager.validation_model import ValidationModel
+from validation_manager.validation_wizard import ValidationWizard
 
 VALIDATION_TABLE_COLUMNS = {
     v: i
@@ -27,24 +28,25 @@ VALIDATION_TABLE_COLUMNS = {
 }
 
 
-class ValidationWelcomeWidget(qw.QWidget):
+class ValidationSelectionWidget(qw.QWidget):
 
     validation_start = qc.Signal()
 
-    def __init__(self, datalake: dl.Datalake, parent=None):
+    def __init__(self, app: ap.App, datalake: dl.Datalake, parent=None):
         super().__init__(parent)
+        self.app = app
         self.datalake = datalake
         self.model = ValidationModel(self.datalake, self)
 
         self._layout = qw.QVBoxLayout(self)
 
         self.new_validation_button = qw.QPushButton(
-            qc.QCoreApplication.tr("Nouvelle validation"), self
+            self.app.translate("New validation"), self
         )
         self.new_validation_button.clicked.connect(self.on_new_validation_clicked)
 
         self.start_validation_button = qw.QPushButton(
-            qc.QCoreApplication.tr("Démarrer/Continuer une validation"), self
+            self.app.translate("Start/Resume validation"), self
         )
         self.start_validation_button.clicked.connect(self.on_start_validation_clicked)
 
@@ -72,8 +74,8 @@ class ValidationWelcomeWidget(qw.QWidget):
         if not success:
             qw.QMessageBox.critical(
                 self,
-                qc.QCoreApplication.tr("Erreur"),
-                qc.QCoreApplication.tr(
+                self.app.translate("Error"),
+                self.app.translate(
                     "Pas de dossier de configuration sélectionné, abandon."
                 ),
             )
@@ -91,10 +93,8 @@ class ValidationWelcomeWidget(qw.QWidget):
         else:
             qw.QMessageBox.warning(
                 self,
-                qc.QCoreApplication.tr("Validation"),
-                qc.QCoreApplication.tr(
-                    "Veuillez sélectionner une validation à exécuter."
-                ),
+                self.app.translate("Validation"),
+                self.app.translate("Veuillez sélectionner une validation à exécuter."),
             )
 
     def init_layout(self):
@@ -104,13 +104,12 @@ class ValidationWelcomeWidget(qw.QWidget):
         self.setLayout(self._layout)
 
     def on_datalake_changed(self):
-        self.model.update()
         self.hide_unwanted_columns()
         if self.datalake and self.datalake.datalake_path:
             self.new_validation_button.setEnabled(True)
             self.start_validation_button.setEnabled(True)
 
-    def get_selected_validation(self):
+    def get_selected_validation(self) -> dict:
         selected = self.table.view.selectionModel().selectedRows()
         if selected:
             return selected[0].data(qc.Qt.ItemDataRole.UserRole)

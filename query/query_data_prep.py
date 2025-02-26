@@ -4,9 +4,10 @@ from filters.filters import FilterItem
 
 class QueryDataPrep(app.AppComponent):
 
-    def __init__(self, app, instance_id):
-        self.app = app
-        self.instance_id = instance_id
+    def __init__(
+        self, app: app.App, instance_name: str, parent_component: app.AppComponent
+    ):
+        super().__init__(app, instance_name, parent_component)
 
     def load_from_session(self, session):
         pass

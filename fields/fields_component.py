@@ -9,6 +9,7 @@ class FieldsComponent(app.AppComponent):
     def __init__(
         self, app: app.App, instance_name: str, parent_component: app.AppComponent
     ):
+        super().__init__(app, instance_name, parent_component)
         self.app = app
         self.instance_name = instance_name
         self.parent_componennt = parent_component
