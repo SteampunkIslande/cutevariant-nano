@@ -75,7 +75,6 @@ class MainWindow(qw.QMainWindow):
         if component.widget() is None:
             return
 
-        print(component.widget(), component.get_instance_name())
         # TODO: If needed, maybe we should store this into component
         tab_index = self.widget_regions[region].addTab(
             component.widget(), component.widget().windowTitle()

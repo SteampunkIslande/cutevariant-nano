@@ -96,7 +96,6 @@ def load_user_prefs():
     if user_prefs.exists():
         with open(user_prefs, "r", encoding="utf-8") as f:
             prefs = json.load(f)
-            print(user_prefs)
     else:
         prefs = default_prefs()
     return prefs

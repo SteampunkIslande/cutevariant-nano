@@ -5,8 +5,7 @@ import PySide6.QtWidgets as qw
 
 import app as ap
 import datalake.datalake_component as dl
-from common_widgets.searchable_table import SearchableTable
-from commons import get_config_folder
+from common_widgets.form_model_view import FormModelView
 from validation_manager.validation_model import ValidationModel
 from validation_manager.validation_wizard import ValidationWizard
 
@@ -36,9 +35,17 @@ class ValidationSelectionWidget(qw.QWidget):
         super().__init__(parent)
         self.app = app
         self.datalake = datalake
-        self.model = ValidationModel(self.datalake, self)
+        self.model = ValidationModel(self.app, self.datalake, self)
 
         self._layout = qw.QVBoxLayout(self)
+
+        self.show_completed_checkbox = qw.QCheckBox(
+            self.app.translate("Hide completed validations?"), self
+        )
+        self.show_completed_checkbox.toggled.connect(self.model.set_hide_completed)
+        self.table = FormModelView(self.model, parent=self)
+        self.model.model_updated.connect(self.table.update_form_layout)
+        self.table.set_model_column(VALIDATION_TABLE_COLUMNS["validation_name"])
 
         self.new_validation_button = qw.QPushButton(
             self.app.translate("New validation"), self
@@ -56,13 +63,7 @@ class ValidationSelectionWidget(qw.QWidget):
 
         self.datalake.folder_changed.connect(self.on_datalake_changed)
 
-        self.table = SearchableTable(self.model, parent=self)
-        self.hide_unwanted_columns()
-
         self.init_layout()
-
-    def hide_unwanted_columns(self):
-        self.table.view.hideColumn(VALIDATION_TABLE_COLUMNS["table_uuid"])
 
     def on_new_validation_clicked(self):
         if not self.datalake:
@@ -70,14 +71,12 @@ class ValidationSelectionWidget(qw.QWidget):
         username = Path.home().name
 
         # Make sure we have a config folder (before we start the wizard)
-        success, _ = get_config_folder()
+        success, _ = self.app.get_config_folder()
         if not success:
             qw.QMessageBox.critical(
                 self,
                 self.app.translate("Error"),
-                self.app.translate(
-                    "Pas de dossier de configuration sélectionné, abandon."
-                ),
+                self.app.translate("No configuration folder defined, aborting."),
             )
             return
 
@@ -94,23 +93,23 @@ class ValidationSelectionWidget(qw.QWidget):
             qw.QMessageBox.warning(
                 self,
                 self.app.translate("Validation"),
-                self.app.translate("Veuillez sélectionner une validation à exécuter."),
+                self.app.translate("Please select a validation."),
             )
 
     def init_layout(self):
+        self._layout.addWidget(self.show_completed_checkbox)
         self._layout.addWidget(self.table)
         self._layout.addWidget(self.new_validation_button)
         self._layout.addWidget(self.start_validation_button)
         self.setLayout(self._layout)
 
     def on_datalake_changed(self):
-        self.hide_unwanted_columns()
         if self.datalake and self.datalake.datalake_path:
             self.new_validation_button.setEnabled(True)
             self.start_validation_button.setEnabled(True)
 
     def get_selected_validation(self) -> dict:
-        selected = self.table.view.selectionModel().selectedRows()
+        selected = self.table.list_view.view.selectionModel().selectedIndexes()
         if selected:
             return selected[0].data(qc.Qt.ItemDataRole.UserRole)
         return None

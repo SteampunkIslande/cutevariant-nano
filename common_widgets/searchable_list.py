@@ -35,6 +35,9 @@ class SearchableList(qw.QWidget):
 
         self.filter_le.textChanged.connect(self.on_filter_changed)
 
+    def set_model_column(self, column: int):
+        self.view.setModelColumn(column)
+
     def set_filter_type(self, filter_type):
         if filter_type in self.filter_le_callbacks:
             self.selected_filter_callback = self.filter_le_callbacks[filter_type]

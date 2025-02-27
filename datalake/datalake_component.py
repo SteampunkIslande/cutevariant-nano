@@ -59,7 +59,9 @@ class Datalake(app.AppComponent):
         return self.instance_name
 
     def load_from_session(self, session: dict):
-        self.datalake_path = session.get("datalake_path")
+        if "datalake_path" not in session:
+            return
+        self.datalake_path = session["datalake_path"]
         if not os.path.isdir(self.datalake_path):
             self.datalake_path = None
         self.folder_changed.emit()

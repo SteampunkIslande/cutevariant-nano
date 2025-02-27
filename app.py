@@ -1,4 +1,5 @@
 import json
+import typing
 from pathlib import Path
 from typing import Union
 
@@ -7,7 +8,7 @@ import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
 
 import mainwindow as mw
-from commons import add_action_to_menu, get_config_folder, load_user_prefs
+from commons import add_action_to_menu, default_prefs
 
 
 class App:
@@ -142,21 +143,70 @@ class App:
 
     # UTILS
 
-    def get_config_folder(self):
-        succes, config_folder = get_config_folder()
-        if not succes:
-            qw.QMessageBox.critical(
-                self,
-                self.translate("Error"),
-                self.translate("No configuration file found, aborting."),
+    def get_config_folder(self) -> typing.Tuple[bool, typing.Union[Path | None]]:
+        try:
+            config_folder = Path(self.load_user_prefs()["config_folder"])
+            return True, config_folder
+        except KeyError:
+            qw.QMessageBox.warning(
+                self.window(),
+                self.translate("Validation"),
+                self.translate(
+                    "No configuration folder defined. Aborting",
+                ),
             )
-            return False, None
-        return succes, config_folder
+            config_folder = qw.QFileDialog.getExistingDirectory(
+                self.window(),
+                self.translate("No configuration folder defined. Aborting"),
+            )
+            if config_folder:
+                self.save_user_prefs({"config_folder": config_folder})
+                return True, Path(config_folder)
+            else:
+                return False, None
+
+    def load_user_prefs(self):
+        user_prefs = self.get_user_prefs_file()
+        prefs = {}
+        if user_prefs.exists():
+            with open(user_prefs, "r", encoding="utf-8") as f:
+                prefs = json.load(f)
+        else:
+            prefs = default_prefs()
+        return prefs
+
+    def get_user_prefs_file(self):
+        return (
+            Path(
+                qc.QStandardPaths().writableLocation(
+                    qc.QStandardPaths.StandardLocation.AppDataLocation
+                )
+            )
+            / "config.json"
+        ).resolve()
+
+    def save_user_prefs(self, prefs: dict):
+
+        user_prefs = self.get_user_prefs_file()
+        if not user_prefs.parent.exists():
+            user_prefs.parent.mkdir(parents=True, exist_ok=True)
+        old_prefs = {}
+        if user_prefs.exists():
+            with open(user_prefs, "r", encoding="utf-8") as f:
+                old_prefs = json.load(f)
+
+        old_prefs.update(prefs)
+
+        with open(user_prefs, "w", encoding="utf-8") as f:
+            json.dump(old_prefs, f, ensure_ascii=False)
+
+    def get_user_prefs(self):
+        pass
 
     # TRANSLATIONS
 
     def load_translations(self):
-        user_prefs: dict = load_user_prefs()
+        user_prefs: dict = self.load_user_prefs()
         lang = user_prefs.get("language", "fr_FR")
         self.translations = {}
         if lang:
@@ -178,7 +228,18 @@ class App:
         return self.translations.get(from_str, from_str)
 
     def load_session(self, path: Path):
-        pass
+        with path.open() as f:
+            session = json.load(f)
+            for comp_name in session:
+                for instance_name in session[comp_name]:
+                    if comp_name in self.components:
+                        if instance_name in self.components[comp_name]["instances"]:
+                            component: AppComponent = self.components[comp_name][
+                                "instances"
+                            ][instance_name]
+                            component.load_from_session(
+                                session[comp_name][instance_name]
+                            )
 
     def save_session(self, path: Path):
         if not path.parent.exists():
@@ -187,21 +248,15 @@ class App:
         session = {}
         for comp_name, comp_info in self.components.items():
             session[comp_name] = {}
-            if comp_info["definition"]["instantiation_policy"] == "singleton":
-                if comp_info["instances"]:
-                    instance: AppComponent = comp_info["instances"][comp_name]
-                    session[comp_name] = instance.save_to_session()
-            else:
-                session[comp_name] = {}
-                for instance_name, instance in comp_info["instances"].items():
-                    instance: AppComponent
-                    session[comp_name][instance_name] = instance.save_to_session()
+            for instance_name, instance in comp_info["instances"].items():
+                instance: AppComponent
+                session[comp_name][instance_name] = instance.save_to_session()
 
         with open(path, "w") as f:
             json.dump(session, f)
 
     def get_last_session_path(self):
-        user_prefs: dict = load_user_prefs()
+        user_prefs: dict = self.load_user_prefs()
         last_sesssion_path: str = user_prefs.get("last_session")
         if last_sesssion_path:
             last_sesssion_path = Path(last_sesssion_path)

@@ -1,4 +1,3 @@
-import json
 from html import escape
 
 import PySide6.QtCore as qc
@@ -6,7 +5,6 @@ import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
 from filters_model import FilterModel
 
-from commons import get_last_session_path
 from filters.filters import FilterItem, FilterType
 from query.query_component import Query
 
@@ -39,42 +37,33 @@ class FiltersHistoryWidget(qw.QWidget):
 
         self._layout.addWidget(self.table)
 
-        self.load_model_from_session()
-
         self.setLayout(self._layout)
 
-        qw.QApplication.instance().aboutToQuit.connect(self.save_filter_history)
+        qw.QApplication.instance().aboutToQuit.connect(self.save_history)
 
         # Add context menu to remove filters from the history, and to apply them to the current query
 
         self.setup_actions()
         self.table.setContextMenuPolicy(qc.Qt.ContextMenuPolicy.ActionsContextMenu)
 
-    def load_model_from_session(self):
-        last_session_path = get_last_session_path()
-        if last_session_path:
-            with open(last_session_path, "r") as f:
-                last_session = json.load(f)
-                if "filter_history" in last_session:
-                    for hist_item in last_session["filter_history"]:
-                        # hist_item is a dict with keys "alias" and a json representation of the filter item
-                        filter_item = FilterItem.from_json(hist_item["filter_item"])
-                        alias = hist_item["alias"]
-                        alias_item = qg.QStandardItem(alias)
-                        alias_item.setEditable(True)
+    def load_history_from_session(self, history: list):
+        for hist_item in history:
+            # hist_item is a dict with keys "alias" and a json representation of the filter item
+            filter_item = FilterItem.from_json(hist_item["filter_item"])
+            alias = hist_item["alias"]
+            alias_item = qg.QStandardItem(alias)
+            alias_item.setEditable(True)
 
-                        filter_item_item = qg.QStandardItem(str(filter_item))
-                        filter_item_item.setData(
-                            filter_item, qc.Qt.ItemDataRole.UserRole
-                        )
-                        filter_item_item.setEditable(False)
+            filter_item_item = qg.QStandardItem(str(filter_item))
+            filter_item_item.setData(filter_item, qc.Qt.ItemDataRole.UserRole)
+            filter_item_item.setEditable(False)
 
-                        self.model.appendRow(
-                            [
-                                alias_item,
-                                filter_item_item,
-                            ]
-                        )
+            self.model.appendRow(
+                [
+                    alias_item,
+                    filter_item_item,
+                ]
+            )
 
     def update_table(self):
         # Add the last filter to the table, if it is not already there
@@ -86,9 +75,9 @@ class FiltersHistoryWidget(qw.QWidget):
             if filter_repr == last_filter_str:
                 return
 
-        last_filter_item_item = qg.QStandardItem(last_filter_str)
-        last_filter_item_item.setData(last_filter_item, qc.Qt.ItemDataRole.UserRole)
-        last_filter_item_item.setEditable(False)
+        last_filter_standard_item = qg.QStandardItem(last_filter_str)
+        last_filter_standard_item.setData(last_filter_item, qc.Qt.ItemDataRole.UserRole)
+        last_filter_standard_item.setEditable(False)
 
         alias_item = qg.QStandardItem("Alias")
         alias_item.setEditable(True)
@@ -96,33 +85,23 @@ class FiltersHistoryWidget(qw.QWidget):
         self.model.appendRow(
             [
                 alias_item,
-                last_filter_item_item,
+                last_filter_standard_item,
             ]
         )
 
-        self.save_filter_history()
-
-    def save_filter_history(self):
-        last_session_path = get_last_session_path()
-        if last_session_path:
-            with open(last_session_path, "r") as f:
-                last_session = json.load(f)
-                last_session["filter_history"] = []
-
-                for row in range(self.model.rowCount()):
-                    alias = self.model.item(row, 0).text()
-                    filter_item: FilterItem = self.model.item(row, 1).data(
-                        qc.Qt.ItemDataRole.UserRole
-                    )
-                    last_session["filter_history"].append(
-                        {
-                            "alias": alias,
-                            "filter_item": filter_item.to_json(),
-                        }
-                    )
-
-            with open(last_session_path, "w") as f:
-                json.dump(last_session, f)
+    def save_history(self) -> list:
+        hist = []
+        for row in range(self.model.rowCount()):
+            alias = self.model.item(row, 0).text()
+            filter_item: FilterItem = self.model.item(row, 1).data(
+                qc.Qt.ItemDataRole.UserRole
+            )
+            hist.append(
+                {
+                    "alias": alias,
+                    "filter_item": filter_item.to_json(),
+                }
+            )
 
     def setup_actions(self):
         self.remove_filter_action = qg.QAction("Remove filter", self)
@@ -186,6 +165,7 @@ class FiltersWidgetItemDelegate(qw.QStyledItemDelegate):
         editor.setGeometry(option.rect)
 
 
+# A filters editor widget, using a QTreeView
 class FiltersWidget(qw.QWidget):
     def __init__(self, query: Query, parent=None):
         super().__init__(parent)

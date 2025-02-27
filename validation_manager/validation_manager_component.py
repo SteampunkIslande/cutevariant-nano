@@ -48,9 +48,23 @@ class ValidationManagerComponent(ap.AppComponent):
 
         self.widget_holder.setWindowTitle("Validation selection")
 
-    def on_validation_select(self):
+        # Connect transition from validation selection to validation
+        self.validation_selection_widget.validation_start.connect(
+            self.on_validation_start
+        )
+
+        # Connect transition from validation back to selection validation
+        self.validation_widget.return_to_validation.connect(
+            self.on_back_to_validation_selection
+        )
+
+    def on_validation_start(self):
         validation = self.validation_selection_widget.get_selected_validation()
+        self.widget_holder.set_current_widget("validation")
         # self.validation_widget.
+
+    def on_back_to_validation_selection(self):
+        self.widget_holder.set_current_widget("validation_selection")
 
     def get_instance_name(self) -> str:
         return self.instance_name
