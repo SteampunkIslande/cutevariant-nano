@@ -12,11 +12,9 @@ class FieldsComponent(app.AppComponent):
         super().__init__(app, instance_name, parent_component)
         self.app = app
         self.instance_name = instance_name
-        self.parent_componennt = parent_component
+        self.parent_component: q.QueryComponent = parent_component
 
-        if type(self.parent_componennt) == q.Query:
-
-            self.fields_widget = FieldsWidget()
+        self.fields_widget = FieldsWidget(self.parent_component)
 
     def get_instance_name(self):
         return self.instance_name

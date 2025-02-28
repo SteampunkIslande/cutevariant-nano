@@ -32,7 +32,7 @@ from filters.filters import FilterItem, FilterType
 class FilterVariablesModel(QAbstractTableModel):
     """A simple model to edit key value pairs"""
 
-    def __init__(self, query: "q.Query"):
+    def __init__(self, query: "q.QueryComponent"):
         super().__init__()
         self.query = query
 
@@ -42,7 +42,7 @@ class FilterModel(QAbstractItemModel):
 
     model_changed = Signal()
 
-    def __init__(self, query: "q.Query", parent: QObject = None):
+    def __init__(self, query: "q.QueryComponent", parent: QObject = None):
         super().__init__(parent)
 
         self._dragged_item = None

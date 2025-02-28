@@ -4,14 +4,21 @@
 import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
 
-from query.query_component import Query
+import app as ap
+import query.query_component as q
 
 
 class PageSelector(qw.QWidget):
 
-    def __init__(self, query: Query, parent=None):
+    def __init__(self, app: ap.App, query: q.QueryComponent, parent=None):
         super().__init__(parent)
-        self.rows_label = qw.QLabel("Rows per page")
+
+        self.app = app
+        self.query = query
+
+        # TODO: rows line edit: setValidator: range should be user defined...
+
+        self.rows_label = qw.QLabel(self.app.translate("Rows per page"))
         self.rows_lineedit = qw.QLineEdit()
         self.rows_lineedit.setText("10")
         self.rows_lineedit.setValidator(qg.QIntValidator(1, 100))
@@ -24,19 +31,17 @@ class PageSelector(qw.QWidget):
         self.first_page_button.clicked.connect(self.goto_first_page)
         self.prev_button = qw.QPushButton("<")
         self.prev_button.clicked.connect(self.goto_previous_page)
-        self.page_label = qw.QLabel("Page")
+        self.page_label = qw.QLabel(self.app.translate("Page"))
         self.page_lineedit = qw.QLineEdit()
         self.page_lineedit.setFixedWidth(50)
         self.page_lineedit.setText("1")
         self.page_lineedit.setValidator(qg.QIntValidator(1, 1))
         self.page_lineedit.textChanged.connect(self.set_page)
-        self.page_count_label = qw.QLabel("out of (unknown)")
+        self.page_count_label = qw.QLabel(self.app.translate("out of (unknown)"))
         self.next_button = qw.QPushButton(">")
         self.next_button.clicked.connect(self.goto_next_page)
         self.last_page_button = qw.QPushButton(">>")
         self.last_page_button.clicked.connect(self.goto_last_page)
-
-        self.query = query
 
         self.query.query_changed.connect(self.update_page_selector)
 
@@ -79,7 +84,9 @@ class PageSelector(qw.QWidget):
         self.page_lineedit.setValidator(
             qg.QIntValidator(1, self.query.get_page_count())
         )
-        self.page_count_label.setText(f"out of {self.query.get_page_count()}")
+        self.page_count_label.setText(
+            self.app.translate("out of {}").format(self.query.get_page_count())
+        )
 
         self.page_lineedit.blockSignals(False)
         self.rows_lineedit.blockSignals(False)

@@ -86,6 +86,8 @@ class App:
             entry_path, entry_action = menu_entry
             add_action_to_menu(self.main_window.menuBar(), entry_path, entry_action)
 
+        return new_instance
+
     def instantiate_component(
         self,
         component_name: str,
@@ -259,8 +261,8 @@ class App:
         user_prefs: dict = self.load_user_prefs()
         last_sesssion_path: str = user_prefs.get("last_session")
         if last_sesssion_path:
-            last_sesssion_path = Path(last_sesssion_path)
-        return last_sesssion_path
+            return Path(last_sesssion_path)
+        return None
 
     def on_close(self):
         # Save missing translations

@@ -8,6 +8,7 @@ import PySide6.QtWidgets as qw
 import app as ap
 from common_widgets.multiwidget_holder import MultiWidgetHolder
 from datalake.datalake_component import Datalake
+from query_manager.query_manager_component import QueryManagerComponent
 from validation_manager.validation_selection_widget import ValidationSelectionWidget
 from validation_manager.validation_widget import ValidationWidget
 
@@ -46,7 +47,7 @@ class ValidationManagerComponent(ap.AppComponent):
 
         self.widget_holder.set_current_widget("validation_selection")
 
-        self.widget_holder.setWindowTitle("Validation selection")
+        self.widget_holder.setWindowTitle(self.app.translate("Validation selection"))
 
         # Connect transition from validation selection to validation
         self.validation_selection_widget.validation_start.connect(
@@ -58,13 +59,20 @@ class ValidationManagerComponent(ap.AppComponent):
             self.on_back_to_validation_selection
         )
 
+        # Query Manager Component
+        self.query_manager_component: QueryManagerComponent = None
+
     def on_validation_start(self):
-        validation = self.validation_selection_widget.get_selected_validation()
+        validation_info = self.validation_selection_widget.get_selected_validation()
         self.widget_holder.set_current_widget("validation")
-        # self.validation_widget.
+
+        self.query_manager_component = self.app.instantiate_singleton("query_manager")
 
     def on_back_to_validation_selection(self):
         self.widget_holder.set_current_widget("validation_selection")
+        if self.query_manager_component:
+            self.query_manager_component.close()
+            self.query_manager_component = None
 
     def get_instance_name(self) -> str:
         return self.instance_name

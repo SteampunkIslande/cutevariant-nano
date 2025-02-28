@@ -150,7 +150,7 @@ class ValidationModel(qc.QAbstractTableModel):
             if isinstance(res, list):
                 res = "\n".join(res)
             return res
-        if role == qc.Qt.ItemDataRole.UserRole and index.column() == 0:
+        if role == qc.Qt.ItemDataRole.UserRole:
             return {k: v for k, v in zip(self.headers, self._data[index.row()])}
 
     def rowCount(self, parent: qc.QModelIndex = qc.QModelIndex()) -> int:

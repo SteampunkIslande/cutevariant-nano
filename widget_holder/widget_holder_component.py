@@ -85,6 +85,9 @@ class WidgetHolderComponent(app.AppComponent):
         self.place_holder.hide()
         return True
 
+    def set_placeholder_title(self, title: str):
+        self.place_holder.setWindowTitle(title)
+
     def widget(self) -> QWidget:
         if self.current_component_name is None:
             return self.place_holder

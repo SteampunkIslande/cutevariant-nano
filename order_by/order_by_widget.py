@@ -2,14 +2,14 @@ import PySide6.QtCore as qc
 import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
 
-from query.query_component import Query
+from query.query_component import QueryComponent
 
 # Class for a custom editor for the order by widget (for the first column, add a combobox with the field names, and for the second column, add a combobox with the order options (ASC, DESC))
 
 
 class OrderByWidgetItemDelegate(qw.QStyledItemDelegate):
 
-    def __init__(self, query: Query, parent=None):
+    def __init__(self, query: QueryComponent, parent=None):
         super().__init__(parent)
         self.query = query
 
@@ -40,7 +40,7 @@ class OrderByWidgetItemDelegate(qw.QStyledItemDelegate):
 
 
 class OrderByWidget(qw.QWidget):
-    def __init__(self, query: Query, parent=None):
+    def __init__(self, query: QueryComponent, parent=None):
         super().__init__(parent)
 
         self.query = query

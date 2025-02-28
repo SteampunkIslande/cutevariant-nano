@@ -139,7 +139,7 @@ class FieldsModel(qg.QStandardItemModel):
 
     model_changed = qc.Signal()
 
-    def __init__(self, query: "q.Query", parent=None):
+    def __init__(self, query: "q.QueryComponent", parent=None):
         super().__init__(parent)
         self.query = query
 

@@ -12,7 +12,7 @@ import PySide6.QtWidgets as qw
 from common_widgets.page_selector import PageSelector
 from commons import duck_db_literal_string_list
 from fields.fields_model import FieldsModel
-from query.query_component import Query
+from query.query_component import QueryComponent
 from query.query_table_model import QueryTableModel
 
 
@@ -93,7 +93,7 @@ class QueryTableWidget(qw.QWidget):
     # Add signal that updates when selected rows change
     selection_changed = qc.Signal()
 
-    def __init__(self, query: Query, parent=None):
+    def __init__(self, query: QueryComponent, parent=None):
         super().__init__(parent)
 
         self.query = query

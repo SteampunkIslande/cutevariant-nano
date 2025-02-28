@@ -40,30 +40,56 @@ class AppManager(app.AppComponent):
         self.datalake: datalake.Datalake = self.app.get_component("datalake")
 
         # Instantiate appropriate components for variant validation
+
+        # Instantiate variant info component holder
         self.variant_info_holder: widget_holder.WidgetHolderComponent = (
             self.app.instantiate_component("widget_holder", "variant_info_holder", self)
         )
+        self.variant_info_holder.set_placeholder_title(
+            self.app.translate("Variant info")
+        )
+
+        # Instantiate genotype info component holder
         self.genotype_info_holder: widget_holder.WidgetHolderComponent = (
             self.app.instantiate_component(
                 "widget_holder", "genotype_info_holder", self
             )
         )
+        self.genotype_info_holder.set_placeholder_title(
+            self.app.translate("Genotype info")
+        )
+
+        # Instantiate fields selection component holder
         self.fields_widget_holder: widget_holder.WidgetHolderComponent = (
             self.app.instantiate_component(
                 "widget_holder", "fields_widget_holder", self
             )
         )
+        self.fields_widget_holder.set_placeholder_title(
+            self.app.translate("Fields selection")
+        )
+
+        # Instantiate filters selection component holder
         self.filters_widget_holder: widget_holder.WidgetHolderComponent = (
             self.app.instantiate_component(
                 "widget_holder", "filters_widget_holder", self
             )
         )
+        self.filters_widget_holder.set_placeholder_title(
+            self.app.translate("Filters selection")
+        )
+
+        # Instantiate validation component holder
         self.validation_widget_holder: widget_holder.WidgetHolderComponent = (
             self.app.instantiate_component(
                 "widget_holder", "validation_widget_holder", self
             )
         )
+        self.validation_widget_holder.set_placeholder_title(
+            self.app.translate("Validation")
+        )
 
+        # Instantiate validation component itself
         self.validation_component: (
             validation_manager_component.ValidationManagerComponent
         ) = self.app.instantiate_component(

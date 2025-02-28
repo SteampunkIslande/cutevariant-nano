@@ -10,7 +10,7 @@ class OrderByModel(qc.QAbstractTableModel):
 
     model_changed = Signal()
 
-    def __init__(self, query: "q.Query", parent=None):
+    def __init__(self, query: "q.QueryComponent", parent=None):
         super().__init__(parent)
         self.query = query
         self._data = []

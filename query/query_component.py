@@ -6,11 +6,12 @@ from typing import List, Union
 import duckdb as db
 import PySide6.QtCore as qc
 
+import app as ap
 import datalake.datalake_component as dl
+import fields.fields_component as fld_cmp
 import fields.fields_model as fldm
 import filters.filters_model as fltm
 import order_by.order_by_model as obm
-from app import AppComponent
 from commons import duck_db_literal_string_list, duck_db_literal_string_tuple
 from filters.filters import FilterItem
 
@@ -55,13 +56,6 @@ def build_query_template(data: dict) -> str:
             group_by = ",".join(group_by)
         result += f" GROUP BY {group_by} "
 
-    # if "order_by" in select_def:
-    #     order_by = select_def["order_by"]
-
-    #     result += " ORDER BY " + ", ".join(
-    #         [f"{ob['field']} {ob['order']} " for ob in order_by]
-    #     )
-
     return result
 
 
@@ -77,7 +71,7 @@ def run_sql(query: str, conn: db.DuckDBPyConnection = None) -> Union[List[dict],
             return res.pl().to_dicts()
 
 
-class Query(AppComponent):
+class QueryComponent(ap.AppComponent):
 
     RESERVED_VARIABLES = [
         "main_table",
@@ -92,11 +86,18 @@ class Query(AppComponent):
 
     query_setup_changed = qc.Signal()
 
-    def __init__(self, datalake: dl.Datalake, parent=None):
-        # super().__init__(app,instance_name,parent_component)
-        super().__init__(parent)
-        self.datalake = datalake
+    def __init__(
+        self, app: ap.App, instance_name: str, parent_component: ap.AppComponent
+    ):
+        super().__init__(app, instance_name, parent_component)
+        self.app = app
+        self.datalake: dl.Datalake = self.app.get_component("datalake")
+
         self.init_state()
+
+        self.fields_model = fldm.FieldsModel(self)
+        self.fields_model.load()
+        self.fields_model.model_changed.connect(self.update_data)
 
         self.filter_model = fltm.FilterModel(self)
         self.filter_model.load(
@@ -111,14 +112,10 @@ class Query(AppComponent):
         self.order_by_model.load([])
         self.order_by_model.model_changed.connect(self.update_data)
 
-        self.fields_model = fldm.FieldsModel(self)
-        self.fields_model.load()
-        self.fields_model.model_changed.connect(self.update_data)
-
     def init_state(self):
         # When we create a new Query, we want to reset everything, except for the datalake path...
-        self.query_template = None
-        self.query_base_def = None
+        self.query_template = ""
+        self.query_definition: dict = None
         self.order_by = None
 
         self.readonly_table = None
@@ -141,7 +138,7 @@ class Query(AppComponent):
         return self
 
     def add_variable(self, key: str, value: str):
-        if key in Query.RESERVED_VARIABLES:
+        if key in QueryComponent.RESERVED_VARIABLES:
             raise ValueError(f"Variable name {key} is reserved")
         self.variables[key] = value
         return self
@@ -153,7 +150,7 @@ class Query(AppComponent):
         return list(self.variables.keys())
 
     def set_variable(self, key: str, value: str):
-        if key in Query.RESERVED_VARIABLES:
+        if key in QueryComponent.RESERVED_VARIABLES:
             raise ValueError(f"Variable name {key} is reserved")
         self.variables[key] = value
         return self
@@ -279,14 +276,14 @@ class Query(AppComponent):
     def get_selected_fields(self) -> List[str]:
         return self.fields_model.checked_fields()
 
-    def setup_query(self, data: dict) -> "Query":
+    def setup_query(self, data: dict) -> "QueryComponent":
         """Builds a query template from a json object.
         Provided json object must have a select key at the root level.
 
         Args:
             data (dict): The json object to build the query template from
         """
-        self.query_base_def = data
+        self.query_definition = data
         self.query_template = build_query_template(data)
         self.query_setup_changed.emit()
         return self
@@ -303,11 +300,9 @@ class Query(AppComponent):
         #     fields += ', ".validation_hash"'
 
         order_by = (
-            " ORDER BY "
-            + ", ".join([f'"{ob[0]}" {ob[1]}' for ob in order_by_data])
-            + """, ".validation_hash" ASC """
+            " ORDER BY " + ", ".join([f'"{ob[0]}" {ob[1]}' for ob in order_by_data])
             if order_by_data
-            else """ ORDER BY ".validation_hash" ASC """
+            else ""
         )
 
         pagination = f" LIMIT {self.limit} OFFSET {self.offset}" if paginated else ""
@@ -419,6 +414,12 @@ class Query(AppComponent):
     def commit(self):
         self.update_data()
 
+    def fields_component(self) -> fld_cmp.FieldsComponent:
+        return
+
+    def variant_info_component(self) -> ap.AppComponent:
+        return
+
     def to_json(self):
         return {
             "query_template": self.query_template,
@@ -434,8 +435,8 @@ class Query(AppComponent):
         }
 
     @staticmethod
-    def from_json(data: dict, datalake: "dl.DataLake") -> "Query":
-        query = Query(datalake)
+    def from_json(data: dict, datalake: "dl.DataLake") -> "QueryComponent":
+        query = QueryComponent(datalake)
         query.query_template = data["query_template"]
         query.order_by = data["order_by"]
         query.readonly_table = data["readonly_table"]
@@ -447,6 +448,14 @@ class Query(AppComponent):
         query.header = data["header"]
         query.variables = data["variables"]
         return query
+
+
+def register_component():
+    return "query", {
+        "instantiation_policy": "multi",
+        "instantiate_on": "demand",
+        "class": QueryComponent,
+    }
 
 
 if __name__ == "__main__":
