@@ -1,19 +1,19 @@
 import app
+import filters.filters_widget as fltw
 import query.query_component as q
-from fields.fields_widget import FieldsWidget
 
 
-class FieldsComponent(app.AppComponent):
+class FiltersComponent(app.AppComponent):
 
     def __init__(
-        self, app: app.App, instance_name: str, parent_component: app.AppComponent
+        self, app: app.App, instance_name: str, parent_component: "q.QueryComponent"
     ):
         super().__init__(app, instance_name, parent_component)
         self.app = app
         self.instance_name = instance_name
-        self.parent_component: q.QueryComponent = parent_component
+        self.parent_component = parent_component
 
-        self.fields_widget = FieldsWidget(self.parent_component)
+        self.filters_widget = fltw.FiltersWidget(self.parent_component)
 
     def get_instance_name(self):
         return self.instance_name
@@ -28,7 +28,7 @@ class FieldsComponent(app.AppComponent):
         return
 
     def widget(self):
-        return
+        return self.filters_widget
 
     def get_signal(self, signal_name):
         return
@@ -41,8 +41,8 @@ class FieldsComponent(app.AppComponent):
 
 
 def register_component():
-    return "fields", {
+    return "filters", {
         "instantiation_policy": "multi",
         "instantiate_on": "demand",
-        "class": FieldsComponent,
+        "class": FiltersComponent,
     }

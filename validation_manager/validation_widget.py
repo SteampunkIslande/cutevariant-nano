@@ -57,6 +57,12 @@ class ValidationWidget(qw.QWidget):
 
         self.completed = False
 
+    def load_state(
+        self,
+        table_uuid: str,
+    ):
+        pass
+
     def validate(self):
         conn = self.datalake.get_database("validation")
         try:

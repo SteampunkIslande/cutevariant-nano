@@ -41,6 +41,11 @@ class App:
         # If you'd like your own component to be included, just add it to the source folder and import it here
         from app_manager import app_manager_component
         from datalake import datalake_component
+        from fields import fields_component
+        from filters import filters_component
+        from query import query_component
+        from query_manager import query_manager_component
+        from query_view import query_view_component
         from validation_manager import validation_manager_component
         from widget_holder import widget_holder_component
 
@@ -48,6 +53,11 @@ class App:
         self.register_component(*app_manager_component.register_component())
         self.register_component(*widget_holder_component.register_component())
         self.register_component(*validation_manager_component.register_component())
+        self.register_component(*query_manager_component.register_component())
+        self.register_component(*fields_component.register_component())
+        self.register_component(*filters_component.register_component())
+        self.register_component(*query_component.register_component())
+        self.register_component(*query_view_component.register_component())
 
     def register_component(self, component_name: str, component_definition: dict):
         self.components[component_name] = {
@@ -64,13 +74,13 @@ class App:
             instantiation_policy = definition["instantiation_policy"]
             if instantiate_on == "setup":
                 if instantiation_policy == "singleton":
-                    print(f"Instantiating {component_name}...")
                     self.instantiate_singleton(component_name)
 
     def instantiate_singleton(self, component_name: str):
         if component_name not in self.components:
             return
         if len(self.components[component_name]["instances"]) != 0:
+            print("Cannot instantiate singleton!")
             return
 
         new_instance: AppComponent = self.instantiate_component(
@@ -87,6 +97,13 @@ class App:
             add_action_to_menu(self.main_window.menuBar(), entry_path, entry_action)
 
         return new_instance
+
+    def remove_instance(self, component_name: str, instance_name: str):
+        if component_name in self.components:
+            instances = self.components[component_name]["instances"]
+            if instance_name in instances:
+                # TODO: Call AppComponent.on_delete() - Not implemented yet
+                del instances[instance_name]
 
     def instantiate_component(
         self,

@@ -59,6 +59,7 @@ class Datalake(app.AppComponent):
         return self.instance_name
 
     def load_from_session(self, session: dict):
+        print(session)
         if "datalake_path" not in session:
             return
         self.datalake_path = session["datalake_path"]

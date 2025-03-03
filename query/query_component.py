@@ -10,10 +10,11 @@ import app as ap
 import datalake.datalake_component as dl
 import fields.fields_component as fld_cmp
 import fields.fields_model as fldm
+import filters.filters as flt
+import filters.filters_component as flt_cmp
 import filters.filters_model as fltm
 import order_by.order_by_model as obm
 from commons import duck_db_literal_string_list, duck_db_literal_string_tuple
-from filters.filters import FilterItem
 
 
 def build_query_template(data: dict) -> str:
@@ -41,12 +42,12 @@ def build_query_template(data: dict) -> str:
     result += f"SELECT {', '.join(fields)} FROM {tables[0][0]} "
     for table, on, how in tables[1:]:
         if isinstance(on, dict):
-            on = str(FilterItem.from_json(on))
+            on = str(flt.FilterItem.from_json(on))
         result += f" {how} JOIN {table} ON {on} "
 
     if "filter" in select_def:
         filter_def = select_def["filter"]
-        filter_str = str(FilterItem.from_json(filter_def))
+        filter_str = str(flt.FilterItem.from_json(filter_def))
         if filter_str:
             result += f" WHERE {filter_str} "
 
@@ -91,9 +92,11 @@ class QueryComponent(ap.AppComponent):
     ):
         super().__init__(app, instance_name, parent_component)
         self.app = app
+        self.instance_name = instance_name
         self.datalake: dl.Datalake = self.app.get_component("datalake")
 
         self.init_state()
+        self.init_children_components()
 
         self.fields_model = fldm.FieldsModel(self)
         self.fields_model.load()
@@ -136,6 +139,14 @@ class QueryComponent(ap.AppComponent):
         self.variables = dict()
 
         return self
+
+    def init_children_components(self):
+        self.fields_component = self.app.instantiate_component(
+            "fields_component", f"{self.instance_name}.fields_component", self
+        )
+        self.filters_component = self.app.instantiate_component(
+            "filters_component", f"{self.instance_name}.filters_component", self
+        )
 
     def add_variable(self, key: str, value: str):
         if key in QueryComponent.RESERVED_VARIABLES:
@@ -296,9 +307,6 @@ class QueryComponent(ap.AppComponent):
         fields = columns or "*"
         order_by_data = self.order_by_model.get_data()
 
-        # if ".validation_hash" not in self.query_base_def["select"]["fields"]:
-        #     fields += ', ".validation_hash"'
-
         order_by = (
             " ORDER BY " + ", ".join([f'"{ob[0]}" {ob[1]}' for ob in order_by_data])
             if order_by_data
@@ -323,20 +331,23 @@ class QueryComponent(ap.AppComponent):
         )
 
     def list_exposed_fields(self):
-        conn = self.datalake.get_database("validation")
 
         if self.query_template is None:
             return []
-        cols = conn.sql(
-            self.select_query(paginated=True, columns="COLUMNS('^[^.].+$')")
-        ).columns
-        conn.close()
+
+        cols = self.datalake.run_with_connection(
+            "validation",
+            lambda conn: conn.sql(
+                self.select_query(paginated=True, columns="COLUMNS('^[^.].+$')")
+            ).columns,
+        )
         return cols
 
-    def get_variant_info(self, validation_hash: int, columns: List[str]):
-        conn = self.datalake.get_database("validation")
-        variant_info = (
-            conn.sql(
+    def get_variant_info(self, validation_hash: int, columns: List[str] = None):
+
+        variant_info = self.datalake.run_with_connection(
+            "validation",
+            lambda conn: conn.sql(
                 self.select_query(
                     paginated=True,
                     columns=",".join([f'"{f}"' for f in columns]) if columns else "*",
@@ -344,10 +355,9 @@ class QueryComponent(ap.AppComponent):
                 )
             )
             .pl()
-            .to_dicts()
+            .to_dicts(),
         )
         variant_info = variant_info[0] if variant_info else {}
-        conn.close()
         return variant_info
 
     def count_query(self):
@@ -366,6 +376,18 @@ class QueryComponent(ap.AppComponent):
         if not self.editable_table_name:
             return "Please select a validation table"
 
+    def get_table_data(self) -> List[dict]:
+        q = self.select_query()
+        return self.datalake.run_with_connection(
+            "validation", lambda conn: run_sql(q, conn)
+        )
+
+    def get_row_count(self) -> int:
+        q = self.count_query()
+        return self.datalake.run_with_connection(
+            "validation", lambda conn: run_sql(q, conn)[0]["count_star"]
+        )
+
     def update_data(self):
         # Empty data before updating
         self.header = []
@@ -379,20 +401,7 @@ class QueryComponent(ap.AppComponent):
             self.query_changed.emit()
             return
 
-        # Running the query might throw an exception, we catch it and print it
-        conn = self.datalake.get_database("validation")
-
-        try:
-            q = self.select_query()
-            dict_data = run_sql(q, conn)
-        except db.Error as e:
-            print(e)
-            print(q)
-            conn.close()
-            self.query_changed.emit()
-            # Return early, dict_data is not set
-            return
-
+        dict_data = self.get_table_data()
         # We have data, let's save it
         if dict_data:
             self.header = list(dict_data[0].keys())
@@ -400,10 +409,9 @@ class QueryComponent(ap.AppComponent):
         # There is no data, we can return early
         else:
             self.query_changed.emit()
-            conn.close()
             return
-        self.row_count = run_sql(self.count_query(), conn)[0]["count_star"]
-        conn.close()
+
+        self.row_count = self.get_row_count()
         self.page_count = max(
             self.row_count // self.limit, ceil(self.row_count / self.limit)
         )
@@ -414,40 +422,14 @@ class QueryComponent(ap.AppComponent):
     def commit(self):
         self.update_data()
 
-    def fields_component(self) -> fld_cmp.FieldsComponent:
+    def get_fields_component(self) -> fld_cmp.FieldsComponent:
+        return self.fields_component
+
+    def get_filters_component(self) -> flt_cmp.FiltersComponent:
+        return self.filters_component
+
+    def get_variant_info_component(self) -> ap.AppComponent:
         return
-
-    def variant_info_component(self) -> ap.AppComponent:
-        return
-
-    def to_json(self):
-        return {
-            "query_template": self.query_template,
-            "order_by": self.order_by,
-            "readonly_table": self.readonly_table,
-            "editable_table_name": self.editable_table_name,
-            "limit": self.limit,
-            "offset": self.offset,
-            "current_page": self.current_page,
-            "page_count": self.page_count,
-            "header": self.header,
-            "variables": self.variables,
-        }
-
-    @staticmethod
-    def from_json(data: dict, datalake: "dl.DataLake") -> "QueryComponent":
-        query = QueryComponent(datalake)
-        query.query_template = data["query_template"]
-        query.order_by = data["order_by"]
-        query.readonly_table = data["readonly_table"]
-        query.editable_table_name = data["editable_table_name"]
-        query.limit = data["limit"]
-        query.offset = data["offset"]
-        query.current_page = data["current_page"]
-        query.page_count = data["page_count"]
-        query.header = data["header"]
-        query.variables = data["variables"]
-        return query
 
 
 def register_component():

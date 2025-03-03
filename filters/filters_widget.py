@@ -3,10 +3,10 @@ from html import escape
 import PySide6.QtCore as qc
 import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
-from filters_model import FilterModel
 
+import query.query_component as q
 from filters.filters import FilterItem, FilterType
-from query.query_component import QueryComponent
+from filters.filters_model import FilterModel
 
 
 # A simple table view with each row being a filter shown to the user as a string.
@@ -167,7 +167,7 @@ class FiltersWidgetItemDelegate(qw.QStyledItemDelegate):
 
 # A filters editor widget, using a QTreeView
 class FiltersWidget(qw.QWidget):
-    def __init__(self, query: QueryComponent, parent=None):
+    def __init__(self, query: "q.QueryComponent", parent=None):
         super().__init__(parent)
         self.query = query
 

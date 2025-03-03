@@ -51,16 +51,6 @@ genes_list:
 variant_info_url_templates:
   - name: "VarSome"
     url: "https://varsome.com/variant/hg19/{rsid}"
-info_fields:
-  Run name: "Nom du run"
-  Sample name: "Échantillon"
-  Chromosome: "Chromosome"
-  Position: "Position"
-  Ref: "Allèle de référence"
-  Alt: "Allèle alternatif"
-  Accepted: ".accepted"
-  Comment: ".comment"
-  Tags: ".tags"
 steps:
   - title: Presets d'Alix
     description:
