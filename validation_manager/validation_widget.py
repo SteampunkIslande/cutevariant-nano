@@ -91,7 +91,7 @@ class ValidationWidget(qw.QWidget):
                 ),
             )
             genno_export_folder = qw.QFileDialog.getExistingDirectory(
-                self, self.app.translate("Choisir le dossier d'export Genno")
+                self, self.app.translate("Choose Genno export folder")
             )
             if genno_export_folder:
                 save_user_prefs({"genno_export_folder": genno_export_folder})

@@ -112,6 +112,12 @@ class App:
         parent_component: "AppComponent" = None,
     ):
         if component_name not in self.components:
+            print(
+                "Cannot instantiate component <",
+                component_name,
+                ">, component is not registered!",
+                sep="",
+            )
             # TODO: Maybe this should raise?
             return
         definition = self.components[component_name]["definition"]
@@ -171,12 +177,12 @@ class App:
                 self.window(),
                 self.translate("Validation"),
                 self.translate(
-                    "No configuration folder defined. Aborting",
+                    "No configuration folder defined. Please choose one",
                 ),
             )
             config_folder = qw.QFileDialog.getExistingDirectory(
                 self.window(),
-                self.translate("No configuration folder defined. Aborting"),
+                self.translate("Please choose a configuration folder"),
             )
             if config_folder:
                 self.save_user_prefs({"config_folder": config_folder})

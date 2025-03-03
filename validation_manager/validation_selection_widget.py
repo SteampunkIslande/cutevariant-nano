@@ -5,7 +5,7 @@ import PySide6.QtWidgets as qw
 
 import app as ap
 import datalake.datalake_component as dl
-from common_widgets.form_model_view import FormModelView
+from common_widgets.smart_view import SmartView
 from validation_manager.validation_model import ValidationModel
 from validation_manager.validation_wizard import ValidationWizard
 
@@ -43,9 +43,12 @@ class ValidationSelectionWidget(qw.QWidget):
             self.app.translate("Hide completed validations?"), self
         )
         self.show_completed_checkbox.toggled.connect(self.model.set_hide_completed)
-        self.table = FormModelView(self.model, parent=self)
-        self.model.model_updated.connect(self.table.update_form_layout)
-        self.table.set_model_column(VALIDATION_TABLE_COLUMNS["validation_name"])
+        self.view = SmartView(self.model, parent=self)
+        self.model.model_updated.connect(
+            lambda: self.view.set_list_view_column(
+                VALIDATION_TABLE_COLUMNS["validation_name"]
+            )
+        )
 
         self.new_validation_button = qw.QPushButton(
             self.app.translate("New validation"), self
@@ -92,13 +95,13 @@ class ValidationSelectionWidget(qw.QWidget):
         else:
             qw.QMessageBox.warning(
                 self,
-                self.app.translate("Validation"),
+                self.app.translate("No validation selected"),
                 self.app.translate("Please select a validation."),
             )
 
     def init_layout(self):
         self._layout.addWidget(self.show_completed_checkbox)
-        self._layout.addWidget(self.table)
+        self._layout.addWidget(self.view)
         self._layout.addWidget(self.new_validation_button)
         self._layout.addWidget(self.start_validation_button)
         self.setLayout(self._layout)
@@ -109,7 +112,7 @@ class ValidationSelectionWidget(qw.QWidget):
             self.start_validation_button.setEnabled(True)
 
     def get_selected_validation(self) -> dict:
-        selected = self.table.list_view.view.selectionModel().selectedIndexes()
+        selected = self.view.list_view.selectionModel().selectedIndexes()
         if selected:
             return selected[0].data(qc.Qt.ItemDataRole.UserRole)
         return None
