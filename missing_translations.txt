@@ -1,1 +1,7 @@
+"Validation selection":"",
+"Variant info":"",
+"Genotype info":"",
+"Fields selection":"",
+"Filters selection":"",
 "Hide completed validations?":"",
+"Validation":"",

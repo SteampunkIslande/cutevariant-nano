@@ -1,4 +1,4 @@
-from fields_widget import FieldsWidget
+from fields.fields_widget import FieldsWidget
 
 import app
 import query.query_component as q

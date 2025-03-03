@@ -7,7 +7,7 @@ import PySide6.QtWidgets as qw
 import app as ap
 import mainwindow as mw
 import query.query_component as q
-from app_manager.app_manager_component import AppManager
+import app_manager.app_manager_component as am
 
 
 class QueryManagerComponent(ap.AppComponent):
@@ -24,7 +24,7 @@ class QueryManagerComponent(ap.AppComponent):
 
         self.current_query = None
 
-        app_manager: AppManager = self.app.get_component("app_manager")
+        app_manager: am.AppManager = self.app.get_component("app_manager")
 
         self.variant_info_holder = app_manager.variant_info_holder
         self.genotype_info_holder = app_manager.genotype_info_holder
