@@ -1,4 +1,3 @@
-import os
 from typing import Union
 
 import PySide6.QtCore as qc
@@ -9,7 +8,6 @@ import app as ap
 import app_manager.app_manager_component as am
 import mainwindow as mw
 import query.query_component as q
-from commons import yaml_load
 
 
 class QueryManagerComponent(ap.AppComponent):
@@ -40,31 +38,7 @@ class QueryManagerComponent(ap.AppComponent):
 
         self.queries_tab_widget = app.window().get_window_panel(mw.WindowRegion.UPPER)
 
-    def set_validation(self, validation_info: dict):
-
-        # Completely new validation, forget all the queries we may have
-        self.clear()
-
-        sample_names = validation_info.get("sample_names")
-        if not sample_names:
-            return
-        validation_method = validation_info.get("validation_method")
-        if not validation_method:
-            return
-        success, config_folder = self.app.get_config_folder()
-        if not success:
-            return
-
-        self.validations_method = yaml_load(
-            os.path.join(
-                config_folder, "validation_methods", validation_method + ".yaml"
-            )
-        )
-
-        for sample_name in sample_names:
-            pass
-
-    def new_query(self, query_name: str, query_definition: dict):
+    def new_query(self, query_name: str):
 
         if query_name in self.queries:
             return False
@@ -85,6 +59,9 @@ class QueryManagerComponent(ap.AppComponent):
         # Remove all the components that the specified query has installed
         self.queries_tab_widget.removeTab(tab_index)
         query = self.queries[tab_index]
+
+        # TODO: Remove query fields component from the component holders
+
         print("Closing query", query.get_instance_name())
 
     def on_query_tab_changed(self, tab_index: int):

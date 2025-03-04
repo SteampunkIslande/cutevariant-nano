@@ -1,0 +1,1 @@
+ast-grep scan --json --rule extract-translations.yaml | jq '(.[].metaVariables.single.TO_TRANSLATE.text)'

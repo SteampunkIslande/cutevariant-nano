@@ -1,20 +1,6 @@
-from PySide6.QtCore import (
-    QAbstractItemModel,
-    QModelIndex,
-    QObject,
-    QSortFilterProxyModel,
-    Qt,
-    QTransposeProxyModel,
-)
-from PySide6.QtGui import QStandardItem, QStandardItemModel
-from PySide6.QtWidgets import (
-    QApplication,
-    QLineEdit,
-    QListView,
-    QTableView,
-    QVBoxLayout,
-    QWidget,
-)
+from PySide6.QtCore import *
+from PySide6.QtGui import *
+from PySide6.QtWidgets import *
 
 
 def swapOrientation(orientation: Qt.Orientation):
@@ -29,11 +15,19 @@ class ColumnSelectionProxy(QSortFilterProxyModel):
 
     def __init__(self, parent: QObject = None):
         super().__init__(parent)
-        self.column = 0
+        self.column = -1
+        self.hidden_rows = []
 
     def set_column(self, column: int):
         self.column = column
         self.invalidateColumnsFilter()
+
+    def hide_row_indexes(self, row_indexes: list[int]):
+        self.hidden_rows = row_indexes
+        self.invalidateRowsFilter()
+
+    def filterAcceptsRow(self, source_row, source_parent):
+        return source_row not in self.hidden_rows
 
     def filterAcceptsColumn(self, source_column, source_parent):
         if source_parent.isValid():
@@ -67,6 +61,11 @@ class SmartView(QWidget):
         self._layout.addWidget(self.list_view)
         self._layout.addWidget(self.table_view)
 
+        self.list_view.setSelectionBehavior(
+            QAbstractItemView.SelectionBehavior.SelectRows
+        )
+        self.list_view.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+
         self.list_view_col = 0
 
         self.setLayout(self._layout)
@@ -79,12 +78,7 @@ class SmartView(QWidget):
     def set_model(self, model: QAbstractItemModel):
         if model is None:
             return
-        if (
-            self.model
-            and self.transposition_model
-            and self.column_selection_model
-            and self.list_filter_model
-        ):
+        if self.model:
             self.list_view.selectionModel().currentRowChanged.disconnect(
                 self.update_selected_col
             )

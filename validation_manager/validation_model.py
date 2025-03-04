@@ -28,6 +28,12 @@ VALIDATION_TABLE_COLUMNS = {
 }
 
 
+def finish_validation(conn: db.DuckDBPyConnection, table_uuid: str):
+    conn.sql(
+        f"UPDATE validations SET completed = TRUE WHERE table_uuid = '{table_uuid}'"
+    )
+
+
 def new_validation(
     conn: db.DuckDBPyConnection,
     validation_name: str,
@@ -238,7 +244,6 @@ class ValidationModel(qc.QAbstractTableModel):
             )
 
     def update(self) -> None:
-        print("Updating validation model")
         self.beginResetModel()
         self.headers = []
         self._data = []

@@ -334,6 +334,7 @@ class QueryComponent(ap.AppComponent):
 
         if self.query_template is None:
             return []
+        print(self.query_template)
 
         cols = self.datalake.run_with_connection(
             "validation",

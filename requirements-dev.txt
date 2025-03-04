@@ -1,0 +1,17 @@
+ast-grep-cli==0.35.0
+cachetools==5.3.3
+duckdb==1.0.0
+nuitka==2.2.1
+numpy==2.0.0
+ordered-set==4.1.0
+polars==1.1.0
+pyarrow==17.0.0
+pyside6==6.7.0
+pyside6-addons==6.7.0
+pyside6-essentials==6.7.0
+pyyaml==6.0.1
+shiboken6==6.7.0
+typeguard==4.2.1
+typing-extensions==4.12.2
+xlsxwriter==3.2.0
+zstandard==0.22.0

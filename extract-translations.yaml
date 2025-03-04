@@ -1,0 +1,18 @@
+id: extract-translations
+language: Python
+
+utils:
+  is-chained-call:
+    kind: call
+    pattern: $CHAIN
+    has:
+      pattern: $CALLER
+      stopBy:
+        not:
+          any:
+            - kind: call
+            - kind: attribute
+
+rule:
+  any:
+    - pattern: $CALLER.translate("$TO_TRANSLATE")

@@ -1,6 +1,6 @@
+import os
 from typing import Union
 
-import duckdb as db
 import PySide6.QtCore as qc
 import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
@@ -9,14 +9,10 @@ import app as ap
 import datalake.datalake_component as dl
 import query_manager.query_manager_component as qm
 from common_widgets.multiwidget_holder import MultiWidgetHolder
+from commons import yaml_load
+from validation_manager.validation_model import ValidationModel
 from validation_manager.validation_selection_widget import ValidationSelectionWidget
 from validation_manager.validation_widget import ValidationWidget
-
-
-def finish_validation(conn: db.DuckDBPyConnection, table_uuid: str):
-    conn.sql(
-        f"UPDATE validations SET completed = TRUE WHERE table_uuid = '{table_uuid}'"
-    )
 
 
 class ValidationManagerComponent(ap.AppComponent):
@@ -31,12 +27,18 @@ class ValidationManagerComponent(ap.AppComponent):
 
         self.datalake: dl.Datalake = app.get_component("datalake")
 
+        # Query Manager Component
+        self.query_manager_component: qm.QueryManagerComponent = (
+            self.app.instantiate_singleton("query_manager")
+        )
+
         self.datalake.folder_changed.connect(self.on_datalake_changed)
 
         self.widget_holder = MultiWidgetHolder()
+        self.validation_model = ValidationModel(self.app, self.datalake, self)
 
         self.validation_selection_widget = ValidationSelectionWidget(
-            self.app, self.datalake
+            self.app, self.datalake, self.validation_model
         )
         self.validation_widget = ValidationWidget(self.app, self.datalake)
 
@@ -59,23 +61,48 @@ class ValidationManagerComponent(ap.AppComponent):
             self.on_back_to_validation_selection
         )
 
-        # Query Manager Component
-        self.query_manager_component: qm.QueryManagerComponent = (
-            self.app.instantiate_singleton("query_manager")
-        )
-
     def on_validation_start(self):
         validation_info = self.validation_selection_widget.get_selected_validation()
-        print(validation_info)
         self.widget_holder.set_current_widget("validation")
 
-        # self.query_manager_component.
+        self.set_validation(validation_info)
+
+    def set_validation(self, validation_info: dict):
+
+        # Completely new validation, forget all the queries we may have
+        self.query_manager_component.clear()
+
+        sample_names = validation_info.get("sample_names")
+        if not sample_names:
+            return
+        validation_method = validation_info.get("validation_method")
+        if not validation_method:
+            return
+        config_folder_present, config_folder = self.app.get_config_folder()
+        if not config_folder_present:
+            return
+
+        self.validation_table_uuid = validation_info.get("table_uuid")
+        self.validations_method = validation_info.get("validation_method")
+
+        self.validations_method = yaml_load(
+            os.path.join(
+                config_folder, "validation_methods", validation_method + ".yaml"
+            )
+        )
+
+        for sample_name in sample_names:
+            self.query_manager_component.new_query(sample_name)
 
     def on_back_to_validation_selection(self):
         self.widget_holder.set_current_widget("validation_selection")
 
         # Close all queries from the validation we're leaving
         self.query_manager_component.clear()
+
+    def validate(self):
+        # self.validation_model
+        pass
 
     def get_instance_name(self) -> str:
         return self.instance_name

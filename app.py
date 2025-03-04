@@ -39,13 +39,13 @@ class App:
     def register_components(self):
         # To be able to compile with nuitka, manually import all the components in the project.
         # If you'd like your own component to be included, just add it to the source folder and import it here
+
         from app_manager import app_manager_component
         from datalake import datalake_component
         from fields import fields_component
         from filters import filters_component
         from query import query_component
         from query_manager import query_manager_component
-        from query_view import query_view_component
         from validation_manager import validation_manager_component
         from widget_holder import widget_holder_component
 
@@ -57,7 +57,6 @@ class App:
         self.register_component(*fields_component.register_component())
         self.register_component(*filters_component.register_component())
         self.register_component(*query_component.register_component())
-        self.register_component(*query_view_component.register_component())
 
     def register_component(self, component_name: str, component_definition: dict):
         self.components[component_name] = {

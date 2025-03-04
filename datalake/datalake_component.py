@@ -116,8 +116,7 @@ class Datalake(app.AppComponent):
             **kwargs: Arbitrary keyword arguments to pass to the function.
         """
         with DatabaseConnection(self, database_name) as conn:
-            res = func(conn, *args, **kwargs)
-        return res
+            return func(conn, *args, **kwargs)
 
 
 def register_component():

@@ -4,15 +4,17 @@ import PySide6.QtCore as qc
 import PySide6.QtWidgets as qw
 
 import app as ap
-from commons import load_user_prefs, save_user_prefs, yaml_load
-from datalake.datalake_component import Datalake
+import datalake.datalake_component as dl_cmp
+from commons import yaml_load
 
 
 class ValidationWidget(qw.QWidget):
 
     return_to_validation = qc.Signal()
 
-    def __init__(self, app: ap.App, datalake: Datalake, parent: qw.QWidget = None):
+    def __init__(
+        self, app: ap.App, datalake: dl_cmp.Datalake, parent: qw.QWidget = None
+    ):
         super().__init__(parent)
 
         self._layout = qw.QVBoxLayout(self)
@@ -64,24 +66,16 @@ class ValidationWidget(qw.QWidget):
         pass
 
     def validate(self):
-        conn = self.datalake.get_database("validation")
-        try:
-            self.export_csv()
-            finish_validation(conn, self.validation_table_uuid)
-            self.completed = True
-            step_definition = self.method["final"]["query"]
-            self.setup_step(step_definition)
-        except Exception as e:
-            print(e)
-        finally:
-            conn.close()
+
+        self.export_csv()
+        self.completed = True
 
     def on_return_to_validation(self):
         self.init_state()
         self.return_to_validation.emit()
 
     def export_csv(self):
-        user_prefs = load_user_prefs()
+        user_prefs = self.app.load_user_prefs()
         if "genno_export_folder" not in user_prefs:
             qw.QMessageBox.warning(
                 self,
@@ -94,14 +88,12 @@ class ValidationWidget(qw.QWidget):
                 self, self.app.translate("Choose Genno export folder")
             )
             if genno_export_folder:
-                save_user_prefs({"genno_export_folder": genno_export_folder})
+                self.app.save_user_prefs({"genno_export_folder": genno_export_folder})
             else:
                 qw.QMessageBox.warning(
                     self,
                     self.app.translate("Export"),
-                    self.app.translate(
-                        "No Genno export folder selected, please choose one."
-                    ),
+                    self.app.translate("No Genno export folder selected, aborting."),
                 )
                 return
         else:

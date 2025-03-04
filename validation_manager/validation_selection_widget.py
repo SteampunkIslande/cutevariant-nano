@@ -31,11 +31,17 @@ class ValidationSelectionWidget(qw.QWidget):
 
     validation_start = qc.Signal()
 
-    def __init__(self, app: ap.App, datalake: dl.Datalake, parent=None):
+    def __init__(
+        self,
+        app: ap.App,
+        datalake: dl.Datalake,
+        validation_model: ValidationModel,
+        parent=None,
+    ):
         super().__init__(parent)
         self.app = app
         self.datalake = datalake
-        self.model = ValidationModel(self.app, self.datalake, self)
+        self.model = validation_model
 
         self._layout = qw.QVBoxLayout(self)
 
@@ -44,6 +50,9 @@ class ValidationSelectionWidget(qw.QWidget):
         )
         self.show_completed_checkbox.toggled.connect(self.model.set_hide_completed)
         self.view = SmartView(self.model, parent=self)
+        self.view.filter_le.setPlaceholderText(
+            self.app.translate("Filter on validation name...")
+        )
         self.model.model_updated.connect(
             lambda: self.view.set_list_view_column(
                 VALIDATION_TABLE_COLUMNS["validation_name"]
