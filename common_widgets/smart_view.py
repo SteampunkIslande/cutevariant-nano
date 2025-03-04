@@ -72,11 +72,9 @@ class SmartView(QWidget):
         self.setLayout(self._layout)
 
     def set_list_view_column(self, col: int):
-        print(col)
         self.list_view.setModelColumn(col)
         self.list_view_col = self.list_view.modelColumn()
         self.list_filter_model.setFilterKeyColumn(self.list_view.modelColumn())
-        print(self.list_view.modelColumn())
 
     def set_model(self, model: QAbstractItemModel):
         if model is None:
