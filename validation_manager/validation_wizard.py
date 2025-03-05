@@ -5,6 +5,7 @@ import PySide6.QtCore as qc
 import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
 
+import app as ap
 from common_widgets.any_widget_dialog import AnyWidgetDialog
 from common_widgets.multiline_display import MultiLineDisplay
 from common_widgets.searchable_table import SearchableTable
@@ -20,22 +21,23 @@ from datalake.datalake_component import Datalake
 
 class IntroPage(qw.QWizardPage):
 
-    def __init__(self, data: dict, parent=None):
+    def __init__(self, app: ap.App, data: dict, parent=None):
         super().__init__(parent)
-        self.setTitle(qc.QCoreApplication.tr("Introduction"))
+        self.app = app
+        self.setTitle(self.app.translate("Introduction"))
         self.setSubTitle(
-            qc.QCoreApplication.tr(
+            self.app.translate(
                 "Ce wizard vous permet de créer une nouvelle validation."
             )
         )
 
         # Add a label with a lineedit to get the validation name
         self.validation_name_label = qw.QLabel(
-            qc.QCoreApplication.tr("Nom de la validation:")
+            self.app.translate("Nom de la validation:")
         )
         self.validation_name_lineedit = qw.QLineEdit()
         self.validation_name_lineedit.setPlaceholderText(
-            qc.QCoreApplication.tr("Nom de la validation")
+            self.app.translate("Nom de la validation")
         )
         self.validation_name_lineedit.textChanged.connect(
             self.on_validation_name_changed
@@ -103,15 +105,16 @@ class IntroPage(qw.QWizardPage):
 
 class ParquetSelectPage(qw.QWizardPage):
 
-    def __init__(self, datalake: Datalake, data: dict, parent=None):
+    def __init__(self, datalake: Datalake, app: ap.App, data: dict, parent=None):
         super().__init__(parent)
-        self.setTitle(qc.QCoreApplication.tr("Sélection du run"))
+        self.app = app
+        self.setTitle(self.app.translate("Sélection du run"))
         self.setSubTitle(
-            qc.QCoreApplication.tr("Choisissez le(s) fichier(s) des runs à valider.")
+            self.app.translate("Choisissez le(s) fichier(s) des runs à valider.")
         )
 
         self.select_parquet_button = qw.QPushButton(
-            qc.QCoreApplication.tr("Choisir le(s) run(s)...")
+            self.app.translate("Choisir le(s) run(s)...")
         )
         self.select_parquet_button.clicked.connect(self.on_select_parquet_clicked)
 
@@ -143,9 +146,7 @@ class ParquetSelectPage(qw.QWizardPage):
         table.view.horizontalHeader().hide()
         dlg = AnyWidgetDialog(
             table,
-            qc.QCoreApplication.tr(
-                "Veuillez sélectionner un ou plusieurs runs à valider"
-            ),
+            self.app.translate("Veuillez sélectionner un ou plusieurs runs à valider"),
             self,
         )
         if (
@@ -173,7 +174,7 @@ class ParquetSelectPage(qw.QWizardPage):
             if filenames:
                 self.data["file_names"] = filenames_full_path
                 self.selected_files_label.setText(
-                    qc.QCoreApplication.tr("Fichiers sélectionnés:\n")
+                    self.app.translate("Fichiers sélectionnés:\n")
                     + "\n".join(filenames)
                 )
 
@@ -197,15 +198,16 @@ class ParquetSelectPage(qw.QWizardPage):
 
 class SamplesSelectPage(qw.QWizardPage):
 
-    def __init__(self, datalake: Datalake, data: dict, parent=None):
+    def __init__(self, datalake: Datalake, app: ap.App, data: dict, parent=None):
         super().__init__(parent)
-        self.setTitle(qc.QCoreApplication.tr("Sélection des échantillons"))
+        self.app = app
+        self.setTitle(self.app.translate("Sélection des échantillons"))
         self.setSubTitle(
-            qc.QCoreApplication.tr("Choisissez le(s) échantillon(s) à valider.")
+            self.app.translate("Choisissez le(s) échantillon(s) à valider.")
         )
 
         self.select_samples_button = qw.QPushButton(
-            qc.QCoreApplication.tr("Sélectionner les échantillons")
+            self.app.translate("Sélectionner les échantillons")
         )
         self.select_samples_button.clicked.connect(self.on_select_samples_clicked)
 
@@ -233,7 +235,7 @@ class SamplesSelectPage(qw.QWizardPage):
         if sample_selector.exec() == qw.QDialog.DialogCode.Accepted:
             self.data["sample_names"] = sample_selector.get_selected()
             self.selected_samples_label.setText(
-                qc.QCoreApplication.tr("Echantillons sélectionnés:\n")
+                self.app.translate("Echantillons sélectionnés:\n")
                 + "\n".join(self.data["sample_names"])
             )
 
@@ -252,15 +254,14 @@ class SamplesSelectPage(qw.QWizardPage):
 
 
 class GeneListSelectPage(qw.QWizardPage):
-    def __init__(self, datalake: Datalake, data: dict, parent=None):
+    def __init__(self, datalake: Datalake, app: ap.App, data: dict, parent=None):
         super().__init__(parent)
-        self.setTitle(qc.QCoreApplication.tr("Sélection de la liste de gènes"))
-        self.setSubTitle(
-            qc.QCoreApplication.tr("Choisissez la liste de gènes à valider.")
-        )
+        self.app = app
+        self.setTitle(self.app.translate("Sélection de la liste de gènes"))
+        self.setSubTitle(self.app.translate("Choisissez la liste de gènes à valider."))
 
         self.select_genes_button = qw.QPushButton(
-            qc.QCoreApplication.tr("Sélectionner les gènes")
+            self.app.translate("Sélectionner les gènes")
         )
         self.select_genes_button.clicked.connect(self.on_select_genes_clicked)
 
@@ -325,8 +326,10 @@ class GeneListSelectPage(qw.QWizardPage):
 
 class ValidationWizard(qw.QWizard):
 
-    def __init__(self, datalake: Datalake, parent=None):
+    def __init__(self, app: ap.App, datalake: Datalake, parent=None):
         super().__init__(parent)
+
+        self.app = app
 
         self.data = {
             "file_names": [],
@@ -346,17 +349,17 @@ class ValidationWizard(qw.QWizard):
         self.setOption(qw.QWizard.WizardOption.IndependentPages, False)
 
     def createIntroPage(self):
-        page = IntroPage(self.data, self)
+        page = IntroPage(self.app, self.data, self)
         return page
 
     def createGeneListSelectPage(self):
-        page = GeneListSelectPage(self.datalake, self.data, self)
+        page = GeneListSelectPage(self.datalake, self.app, self.data, self)
         return page
 
     def createParquetSelectPage(self):
-        page = ParquetSelectPage(self.datalake, self.data, self)
+        page = ParquetSelectPage(self.datalake, self.app, self.data, self)
         return page
 
     def createSamplesSelectPage(self):
-        page = SamplesSelectPage(self.datalake, self.data, self)
+        page = SamplesSelectPage(self.datalake, self.app, self.data, self)
         return page

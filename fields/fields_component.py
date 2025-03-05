@@ -28,7 +28,7 @@ class FieldsComponent(app.AppComponent):
         return
 
     def widget(self):
-        return
+        return self.fields_widget
 
     def get_signal(self, signal_name):
         return

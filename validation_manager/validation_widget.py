@@ -26,8 +26,9 @@ class ValidationWidget(qw.QWidget):
         self.validate_button.clicked.connect(self.validate)
 
         self.return_to_validation_button = qw.QPushButton("", self)
-
         self.return_to_validation_button.clicked.connect(self.on_return_to_validation)
+
+        # Add a list view of queries
 
         # Will be overwritten by load_state, but set to default values here in case load_state does nothing
         self.init_state()
@@ -66,7 +67,6 @@ class ValidationWidget(qw.QWidget):
         pass
 
     def validate(self):
-
         self.export_csv()
         self.completed = True
 
@@ -155,7 +155,7 @@ class ValidationWidget(qw.QWidget):
             )
             if self.completed:
                 self.validate_button.setText(
-                    qc.QCoreApplication.tr("Exporter vers Genno")
+                    self.app.translate("Exporter vers Genno")
                 )
                 step_definition = self.method["final"]["query"]
                 # Hint: Emit a signal to tell to show the final query

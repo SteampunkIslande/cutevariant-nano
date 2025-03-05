@@ -10,7 +10,7 @@ import query.query_component as q
 
 class PageSelector(qw.QWidget):
 
-    def __init__(self, app: ap.App, query: q.QueryComponent, parent=None):
+    def __init__(self, app: ap.App, query: "q.QueryComponent", parent=None):
         super().__init__(parent)
 
         self.app = app

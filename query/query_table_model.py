@@ -6,8 +6,8 @@ import json
 import PySide6.QtCore as qc
 import PySide6.QtGui as qg
 
+import query.query_component as q_cmp
 from commons import get_config_folder, load_user_prefs
-from query.query_component import QueryComponent
 
 
 def load_style():
@@ -55,7 +55,7 @@ def style_from_index(style: dict, index: qc.QModelIndex):
 
 class QueryTableModel(qc.QAbstractTableModel):
 
-    def __init__(self, query: QueryComponent, parent=None):
+    def __init__(self, query: "q_cmp.QueryComponent", parent=None):
         super().__init__(parent)
         self.query = query
 

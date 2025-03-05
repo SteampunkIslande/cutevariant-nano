@@ -14,6 +14,8 @@ import filters.filters as flt
 import filters.filters_component as flt_cmp
 import filters.filters_model as fltm
 import order_by.order_by_model as obm
+import query
+import query.query_table_widget
 from commons import duck_db_literal_string_list, duck_db_literal_string_tuple
 
 
@@ -96,7 +98,6 @@ class QueryComponent(ap.AppComponent):
         self.datalake: dl.Datalake = self.app.get_component("datalake")
 
         self.init_state()
-        self.init_children_components()
 
         self.fields_model = fldm.FieldsModel(self)
         self.fields_model.load()
@@ -114,6 +115,8 @@ class QueryComponent(ap.AppComponent):
         self.order_by_model = obm.OrderByModel(self)
         self.order_by_model.load([])
         self.order_by_model.model_changed.connect(self.update_data)
+
+        self.init_children_components()
 
     def init_state(self):
         # When we create a new Query, we want to reset everything, except for the datalake path...
@@ -142,11 +145,13 @@ class QueryComponent(ap.AppComponent):
 
     def init_children_components(self):
         self.fields_component = self.app.instantiate_component(
-            "fields_component", f"{self.instance_name}.fields_component", self
+            "fields", f"{self.instance_name}.fields", self
         )
         self.filters_component = self.app.instantiate_component(
-            "filters_component", f"{self.instance_name}.filters_component", self
+            "filters", f"{self.instance_name}.filters", self
         )
+
+        self.view = query.query_table_widget.QueryTableWidget(self.app, self)
 
     def add_variable(self, key: str, value: str):
         if key in QueryComponent.RESERVED_VARIABLES:
@@ -231,14 +236,14 @@ class QueryComponent(ap.AppComponent):
 
     def get_editable_table_human_readable_name(self) -> str:
         if not self.datalake.datalake_path:
-            return qc.QCoreApplication.tr("Pas de datalake sélectionné")
+            return self.app.translate("Pas de datalake sélectionné")
         conn = self.datalake.get_database("validation")
         try:
             name = conn.sql(
                 f"SELECT validation_name FROM validations WHERE table_uuid = '{self.editable_table_name}'"
             ).fetchall()[0][0]
         except IndexError:
-            name = qc.QCoreApplication.tr("Table de validation introuvable")
+            name = self.app.translate("Table de validation introuvable")
         finally:
             conn.close()
         return name
@@ -332,7 +337,7 @@ class QueryComponent(ap.AppComponent):
 
     def list_exposed_fields(self):
 
-        if self.query_template is None:
+        if not self.query_template:
             return []
         print(self.query_template)
 
@@ -431,6 +436,9 @@ class QueryComponent(ap.AppComponent):
 
     def get_variant_info_component(self) -> ap.AppComponent:
         return
+
+    def widget(self):
+        return self.view
 
 
 def register_component():

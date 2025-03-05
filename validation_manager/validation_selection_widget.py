@@ -92,7 +92,7 @@ class ValidationSelectionWidget(qw.QWidget):
             )
             return
 
-        wizard = ValidationWizard(self.datalake, self)
+        wizard = ValidationWizard(self.app, self.datalake, self)
         if wizard.exec() == qw.QDialog.DialogCode.Accepted:
 
             self.model.new_validation(username=username, **wizard.data)

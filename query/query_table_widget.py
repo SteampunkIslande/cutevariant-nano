@@ -9,18 +9,19 @@ import PySide6.QtCore as qc
 import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
 
+import app as ap
+import fields.fields_model as fields_model
+import query.query_component as q_cmpt
+import query.query_table_model as q_tm
 from common_widgets.page_selector import PageSelector
 from commons import duck_db_literal_string_list
-from fields.fields_model import FieldsModel
-from query.query_component import QueryComponent
-from query.query_table_model import QueryTableModel
 
 
 class QueryTableProxyModel(qc.QSortFilterProxyModel):
 
     def __init__(
         self,
-        columns_model: FieldsModel,
+        columns_model: "fields_model.FieldsModel",
         columns_model_col: int = 0,
         parent: qc.QObject = None,
     ):
@@ -93,11 +94,13 @@ class QueryTableWidget(qw.QWidget):
     # Add signal that updates when selected rows change
     selection_changed = qc.Signal()
 
-    def __init__(self, query: QueryComponent, parent=None):
+    def __init__(self, app: ap.App, query: "q_cmpt.QueryComponent", parent=None):
         super().__init__(parent)
 
+        self.app = app
+
         self.query = query
-        self.model = QueryTableModel(query)
+        self.model = q_tm.QueryTableModel(query)
         self.proxy_model = QueryTableProxyModel(self.query.fields_model, 0)
         self.proxy_model.setSourceModel(self.model)
 
@@ -122,7 +125,7 @@ class QueryTableWidget(qw.QWidget):
             self.selection_changed
         )
 
-        self.page_selector = PageSelector(query)
+        self.page_selector = PageSelector(self.app, self.query)
 
         layout = qw.QVBoxLayout()
         layout.addWidget(self.table_view)
@@ -145,12 +148,12 @@ class QueryTableWidget(qw.QWidget):
         index = self.table_view.indexAt(pos)
 
         filter_action = menu.addAction(
-            qc.QCoreApplication.tr("Filtrer cette colonne (simple expression)")
+            self.app.translate("Filtrer cette colonne (simple expression aiifsefself)")
         )
         filter_action.triggered.connect(partial(self.filter_column, index))
 
         order_action: qg.QAction = menu.addAction(
-            qc.QCoreApplication.tr("Trier cette colonne")
+            self.app.translate("Trier cette colonne")
         )
         order_action.triggered.connect(partial(self.add_order_by, index))
 
@@ -168,19 +171,17 @@ class QueryTableWidget(qw.QWidget):
         index = self.table_view.indexAt(pos)
 
         filter_action: qg.QAction = menu.addAction(
-            qc.QCoreApplication.tr(
-                "(DEBUG): Voir les données sous-jacentes de cette ligne"
-            )
+            self.app.translate("(DEBUG): Voir les données sous-jacentes de cette ligne")
         )
         filter_action.triggered.connect(partial(self.show_row_userdata, index))
 
         add_variant_action: qg.QAction = menu.addAction(
-            qc.QCoreApplication.tr("Ajouter le variant à la validation")
+            self.app.translate("Ajouter le variant à la validation")
         )
         add_variant_action.triggered.connect(self.add_variant_to_validation)
 
         goto_mobidetails_action: qg.QAction = menu.addAction(
-            qc.QCoreApplication.tr("Voir le variant sur Mobidetails")
+            self.app.translate("Voir le variant sur Mobidetails")
         )
         goto_mobidetails_action.triggered.connect(partial(self.goto_mobidetails, index))
 
@@ -220,15 +221,15 @@ class QueryTableWidget(qw.QWidget):
         dialog.setText(
             "".join(f"<br><b>{k}</b>: {v}</br>" for k, v in row_data.items())
         )
-        dialog.setWindowTitle(qc.QCoreApplication.tr("Données sous-jacentes"))
+        dialog.setWindowTitle(self.app.translate("Données sous-jacentes"))
         dialog.exec()
 
     def export_to_excel(self):
         file_name, _ = qw.QFileDialog.getSaveFileName(
             self,
-            qc.QCoreApplication.tr("Exporter la table de validation vers Excel"),
+            self.app.translate("Exporter la table de validation vers Excel"),
             "",
-            qc.QCoreApplication.tr("Fichiers Excel (*.xlsx)"),
+            self.app.translate("Fichiers Excel (*.xlsx)"),
         )
         if file_name:
             self.model.export_to_excel(file_name)
@@ -273,8 +274,8 @@ class QueryTableWidget(qw.QWidget):
                 print(res)
                 qw.QMessageBox.warning(
                     self,
-                    qc.QCoreApplication.tr("Mobidetails"),
-                    qc.QCoreApplication.tr("Variant non trouvé dans Mobidetails"),
+                    self.app.translate("Mobidetails"),
+                    self.app.translate("Variant non trouvé dans Mobidetails"),
                 )
 
     def filter_column(self, index: qc.QModelIndex):
@@ -298,7 +299,7 @@ class SimpleFilterDialog(qw.QDialog):
 
         self.col_info = col_info
 
-        self.setWindowTitle(qc.QCoreApplication.tr("Filtrer une colonne"))
+        self.setWindowTitle(self.app.translate("Filtrer une colonne"))
 
         # Create widgets
         # Create a label for the column name

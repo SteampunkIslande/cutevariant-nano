@@ -97,7 +97,7 @@ class OrderByWidget(qw.QWidget):
         menu = qw.QMenu()
 
         remove_action: qg.QAction = menu.addAction(
-            qc.QCoreApplication.tr("Remove order by")
+            self.app.translate("Remove order by")
         )
         remove_action.triggered.connect(self.remove_order_by)
 

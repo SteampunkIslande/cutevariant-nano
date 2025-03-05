@@ -51,14 +51,28 @@ class QueryManagerComponent(ap.AppComponent):
             query, mw.WindowRegion.UPPER
         )
         self.queries[tab_index] = query
+        self.query_model.appendRow(qg.QStandardItem(query_name))
 
         self.fields_holder.add_component(query.get_fields_component())
         self.filters_holder.add_component(query.get_filters_component())
+
+    def get_query_model(self):
+        return self.query_model
+
+    def set_current_query(self, query_name: str):
+        for tab_index, query in self.queries.items():
+            if query.get_instance_name() == query_name:
+                self.queries_tab_widget.setCurrentIndex(tab_index)
+                return
 
     def close_query(self, tab_index: int):
         # Remove all the components that the specified query has installed
         self.queries_tab_widget.removeTab(tab_index)
         query = self.queries[tab_index]
+
+        self.query_model.removeRow(
+            self.query_model.findItems(query.get_instance_name())[0].row()
+        )
 
         # TODO: Remove query fields component from the component holders
 
