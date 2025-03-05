@@ -117,10 +117,8 @@ class ValidationWidget(qw.QWidget):
             qw.QMessageBox.critical(
                 self,
                 self.app.translate("Error"),
-                self.app.translate(
-                    "Method file {method_path} doesn't exist.".format(
-                        method_path=method_path
-                    )
+                self.app.translate("Method file {method_path} doesn't exist.").format(
+                    method_path=method_path
                 ),
             )
             return

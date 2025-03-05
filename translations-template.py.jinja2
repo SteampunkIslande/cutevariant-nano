@@ -1,0 +1,14 @@
+
+{% for lang in languages %}
+{{lang}} = {
+    {% for key, value in translations[lang].items() %}
+        "{{ key }}": "{{ value }}",
+    {% endfor %}
+}
+{% endfor %}
+
+TRANSLATIONS = {
+    {% for lang in languages %}
+    "{{ lang }}": {{ lang }},
+    {% endfor %}
+}
