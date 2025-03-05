@@ -99,6 +99,7 @@ class TranslationWindow(QMainWindow):
         self.file_menu.addAction(self.write_python_translations_action)
 
         self.model = QStandardItemModel()
+        self.model.dataChanged.connect(self.on_data_changed)
 
         self.setup_ui()
 
@@ -110,6 +111,7 @@ class TranslationWindow(QMainWindow):
         self.table_view.setModel(self.model)
 
         self.table_view.horizontalHeader().setStretchLastSection(True)
+        self.table_view.horizontalHeader().hide()
 
         self.combo_box.currentIndexChanged.connect(self.on_language_changed)
 
@@ -132,16 +134,29 @@ class TranslationWindow(QMainWindow):
 
         # Display using a QTableView, as well as a combobox to select the language.
 
-        self.model.dataChanged.connect(self.on_data_changed)
-
+        self.model.clear()
+        self.model.blockSignals(True)
         for lang, translations in self.translations.items():
             parent = QStandardItem(lang)
             self.model.appendRow(parent)
             for key, value in translations.items():
                 key_item = QStandardItem(key)
                 value_item = QStandardItem(value)
+
+                if not value:
+                    bold_font = key_item.font()
+                    bold_font.setBold(True)
+                    key_item.setFont(bold_font)
+                    key_item.setForeground(QColor("#FFCCCC"))
+                else:
+                    normal_font = key_item.font()
+                    normal_font.setBold(False)
+                    key_item.setFont(normal_font)
+                    key_item.setForeground(QColor("#000000"))
+
                 value_item.setEditable(True)
                 parent.appendRow([key_item, value_item])
+        self.model.blockSignals(False)
 
     def extract_translations(self):
         file_path, _ = QFileDialog.getSaveFileName(
@@ -181,8 +196,21 @@ class TranslationWindow(QMainWindow):
     def on_data_changed(self, top_left: QModelIndex, bottom_right: QModelIndex):
         # Just save the data to the translations dictionary.
         lang = self.combo_box.currentText()
-        key = self.model.itemFromIndex(top_left.siblingAtColumn(0)).text()
-        value = self.model.itemFromIndex(top_left.siblingAtColumn(1)).text()
+        key_item = self.model.itemFromIndex(top_left.siblingAtColumn(0))
+        key = key_item.text()
+        value_item = self.model.itemFromIndex(top_left.siblingAtColumn(1))
+        value = value_item.text()
+
+        if not value:
+            bold_font = key_item.font()
+            bold_font.setBold(True)
+            key_item.setFont(bold_font)
+            key_item.setForeground(QColor("#FFCCCC"))
+        else:
+            normal_font = key_item.font()
+            normal_font.setBold(False)
+            key_item.setFont(normal_font)
+            key_item.setForeground(QColor("#000000"))
 
         self.translations[lang][key] = value
 
