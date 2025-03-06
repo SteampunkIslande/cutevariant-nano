@@ -59,7 +59,7 @@ def extract_translations(
 
 class TranslationWindow(qw.QMainWindow):
 
-    def __init__(self):
+    def __init__(self, simple_mode: bool = False):
         super().__init__()
 
         self.setWindowTitle("Translation editor")
@@ -104,7 +104,14 @@ class TranslationWindow(qw.QMainWindow):
         self.model.setHorizontalHeaderLabels(["Program literal", "Translation"])
         self.model.dataChanged.connect(self.on_data_changed)
 
+        self.simple_mode = simple_mode
+
         self.translation_file = None
+
+        if self.simple_mode:
+            self.translation_file = os.path.join(
+                os.path.dirname(__file__), "translations.json"
+            )
 
         self.setup_ui()
 
@@ -136,16 +143,18 @@ class TranslationWindow(qw.QMainWindow):
 
     def open_translations_file(self):
 
-        file_path, _ = qw.QFileDialog.getOpenFileName(
-            self, "Open translations file", "", "JSON files (*.json)"
-        )
+        if not self.simple_mode:
 
-        if not os.path.isfile(file_path):
-            return
+            file_path, _ = qw.QFileDialog.getOpenFileName(
+                self, "Open translations file", "", "JSON files (*.json)"
+            )
 
-        self.translation_file = file_path
+            if not os.path.isfile(file_path):
+                return
 
-        with open(file_path, "r", encoding="utf-8") as f:
+            self.translation_file = file_path
+
+        with open(self.translation_file, "r", encoding="utf-8") as f:
             self.translations: dict[str, dict[str, str]] = json.load(f)
 
         # A tree model, with each node representing a language and the children representing the translations.
@@ -174,38 +183,53 @@ class TranslationWindow(qw.QMainWindow):
         self.model.blockSignals(False)
 
     def extract_translations(self):
-        source_code_dir = qw.QFileDialog.getExistingDirectory(
-            self, "Select source code directory"
-        )
-        if not source_code_dir:
-            return
 
-        file_path, _ = qw.QFileDialog.getSaveFileName(
-            self, "Save translations file", "", "JSON files (*.json)"
-        )
+        if self.simple_mode:
+            source_code_dir = os.path.dirname(__file__)
+            file_path = os.path.join(os.path.dirname(__file__), "translations.json")
+        else:
+
+            source_code_dir = qw.QFileDialog.getExistingDirectory(
+                self, "Select source code directory"
+            )
+            if not source_code_dir:
+                return
+
+            file_path, _ = qw.QFileDialog.getSaveFileName(
+                self, "Save translations file", "", "JSON files (*.json)"
+            )
         if file_path:
             extract_translations(source_code_dir, file_path)
 
+        if self.simple_mode:
+            self.open_translations_file()
+
     def save_raw_translations(self):
-        file_path, _ = qw.QFileDialog.getSaveFileName(
-            self,
-            "Save translations file (can override existing translations)",
-            "",
-            "JSON files (*.json)",
-            dir=(
-                os.path.basename(self.translation_file)
-                if self.translation_file
-                else qc.QDir.homePath()
-            ),
-        )
+        if self.simple_mode:
+            file_path = os.path.join(os.path.dirname(__file__), "translations.json")
+        else:
+            file_path, _ = qw.QFileDialog.getSaveFileName(
+                self,
+                "Save translations file (can override existing translations)",
+                dir=(
+                    os.path.basename(self.translation_file)
+                    if self.translation_file
+                    else qc.QDir.homePath()
+                ),
+                filter="JSON files (*.json)",
+            )
 
         with open(file_path, "w", encoding="utf-8") as f:
             json.dump(self.translations, f, indent=4, ensure_ascii=False)
 
     def write_python_translations(self):
-        file_path, _ = qw.QFileDialog.getSaveFileName(
-            self, "Save translations file", "", "Python files (*.py)"
-        )
+        if not self.simple_mode:
+            file_path, _ = qw.QFileDialog.getSaveFileName(
+                self, "Save translations file", "", "Python files (*.py)"
+            )
+        else:
+            file_path = os.path.join(os.path.dirname(__file__), "translations.py")
+
         # Using jinja, and the current translations dictionary, write a python file that can be imported to use the translations.
         if file_path:
             with open(file_path, "w", encoding="utf-8") as f:
@@ -242,6 +266,8 @@ class TranslationWindow(qw.QMainWindow):
 
 if __name__ == "__main__":
     app = qw.QApplication([])
-    window = TranslationWindow()
+    import sys
+
+    window = TranslationWindow(simple_mode=len(sys.argv) > 1)
     window.show()
     app.exec()
