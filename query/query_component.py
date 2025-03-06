@@ -87,6 +87,7 @@ class QueryComponent(ap.AppComponent):
     # Signal for external use (tell the UI to update)
     query_changed = qc.Signal()
 
+    # Signal for internal use only
     query_setup_changed = qc.Signal()
 
     def __init__(
@@ -115,6 +116,10 @@ class QueryComponent(ap.AppComponent):
         self.order_by_model = obm.OrderByModel(self)
         self.order_by_model.load([])
         self.order_by_model.model_changed.connect(self.update_data)
+
+        self.signals = {
+            "query_changed": self.query_changed,
+        }
 
         self.init_children_components()
 
@@ -152,6 +157,7 @@ class QueryComponent(ap.AppComponent):
         )
 
         self.view = query.query_table_widget.QueryTableWidget(self.app, self)
+        self.view.setWindowTitle(self.instance_name.split(".")[-1])
 
     def add_variable(self, key: str, value: str):
         if key in QueryComponent.RESERVED_VARIABLES:
@@ -439,6 +445,27 @@ class QueryComponent(ap.AppComponent):
 
     def widget(self):
         return self.view
+
+    def save_to_session(self):
+        return {}
+
+    def load_from_session(self, session: dict):
+        return
+
+    def get_signal(self, signal_name: str):
+        return self.signals.get(signal_name)
+
+    def get_menubar_entries(self):
+        return []
+
+    def get_contextmenu_entries(self, local_info: dict):
+        return []
+
+    def on_start(self):
+        return
+
+    def get_instance_name(self) -> str:
+        return self.instance_name
 
 
 def register_component():

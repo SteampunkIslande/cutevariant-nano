@@ -8,7 +8,7 @@ import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
 
 import mainwindow as mw
-from commons import add_action_to_menu, default_prefs
+from commons import add_action_to_menubar, default_prefs
 
 
 class App:
@@ -67,6 +67,15 @@ class App:
     # COMPONENTS INSTANTIATION
 
     def setup_app(self):
+
+        self.set_config_folder_action = qg.QAction(self.translate("Set config folder"))
+        self.set_config_folder_action.triggered.connect(self.set_config_folder)
+        add_action_to_menubar(
+            self.main_window.menuBar(),
+            self.translate("File"),
+            self.set_config_folder_action,
+        )
+
         for component_name, component in self.components.items():
             definition = component["definition"]
             instantiate_on = definition["instantiate_on"]
@@ -93,7 +102,7 @@ class App:
         # Populate the mainwindow's menubar. If there are no menu entries for this component, this does nothing
         for menu_entry in new_instance_menu_entries:
             entry_path, entry_action = menu_entry
-            add_action_to_menu(self.main_window.menuBar(), entry_path, entry_action)
+            add_action_to_menubar(self.main_window.menuBar(), entry_path, entry_action)
 
         return new_instance
 
@@ -167,11 +176,23 @@ class App:
 
     # UTILS
 
+    def set_config_folder(self) -> typing.Tuple[bool, typing.Union[Path | None]]:
+        config_folder = qw.QFileDialog.getExistingDirectory(
+            self.window(),
+            self.translate("Please choose a configuration folder"),
+        )
+        if config_folder:
+            self.save_user_prefs({"config_folder": config_folder})
+            return True, Path(config_folder)
+        else:
+            return False, None
+
     def get_config_folder(self) -> typing.Tuple[bool, typing.Union[Path | None]]:
-        try:
-            config_folder = Path(self.load_user_prefs()["config_folder"])
+        user_prefs = self.load_user_prefs()
+        if "config_folder" in user_prefs:
+            config_folder = Path(user_prefs["config_folder"])
             return True, config_folder
-        except KeyError:
+        else:
             qw.QMessageBox.warning(
                 self.window(),
                 self.translate("Validation"),
@@ -179,15 +200,7 @@ class App:
                     "No configuration folder defined. Please choose one",
                 ),
             )
-            config_folder = qw.QFileDialog.getExistingDirectory(
-                self.window(),
-                self.translate("Please choose a configuration folder"),
-            )
-            if config_folder:
-                self.save_user_prefs({"config_folder": config_folder})
-                return True, Path(config_folder)
-            else:
-                return False, None
+            return self.set_config_folder()
 
     def load_user_prefs(self):
         user_prefs = self.get_user_prefs_file()
@@ -197,6 +210,7 @@ class App:
                 prefs = json.load(f)
         else:
             prefs = default_prefs()
+            self.save_user_prefs(prefs)
         return prefs
 
     def get_user_prefs_file(self):
@@ -210,6 +224,9 @@ class App:
         ).resolve()
 
     def save_user_prefs(self, prefs: dict):
+        """Saves `prefs` to the user's preferences file. This file is located in the user's writable location, in a folder named `config.json`
+        It's OK to call this method with a partial dictionary, it will only update the keys that are present in the passed dictionary.
+        """
 
         user_prefs = self.get_user_prefs_file()
         if not user_prefs.parent.exists():
@@ -287,11 +304,6 @@ class App:
         return None
 
     def on_close(self):
-        # Save missing translations
-        if self.missing_translations:
-            with open("missing_translations.txt", "w") as f:
-                for k in self.missing_translations:
-                    f.write(f'"{k}":"",\n')
 
         last_sesssion_path = self.get_last_session_path()
         if last_sesssion_path:
@@ -304,6 +316,7 @@ class AppComponent(qc.QObject):
         super().__init__()
 
     def get_instance_name(self) -> str:
+        print(self.__class__.__name__, "did not implement get_instance_name")
         raise NotImplementedError()
 
     def load_from_session(self, session: dict):
@@ -312,6 +325,7 @@ class AppComponent(qc.QObject):
         Args:
             session (dict): The serialized representation of this `AppComponent` from saved session.
         """
+        print(self.__class__.__name__, "did not implement load_from_session")
         raise NotImplementedError()
 
     def save_to_session(self) -> dict:
@@ -320,17 +334,22 @@ class AppComponent(qc.QObject):
         Returns:
             dict: The serialized representation of this `AppComponent`
         """
+        print(self.__class__.__name__, "did not implement save_to_session")
         raise NotImplementedError()
 
     def on_start(self):
         """Here is the place to connect to required components. If they were instantiated on setup, they should all exist at this point"""
+        print(self.__class__.__name__, "did not implement on_start")
         raise NotImplementedError()
 
     def widget(self) -> Union[None, qw.QWidget]:
         """Return this component's associated widget, if applicable (i.e. WIDGET is in component_type)"""
+        print(self.__class__.__name__, "did not implement widget")
         raise NotImplementedError()
 
     def get_signal(self, signal_name: str) -> Union[qc.SignalInstance, None]:
+        """Return the signal instance associated with `signal_name` if applicable"""
+        print(self.__class__.__name__, "did not implement get_signal")
         raise NotImplementedError()
 
     def get_menubar_entries(self) -> list[tuple[str, qg.QAction]]:
@@ -339,6 +358,7 @@ class AppComponent(qc.QObject):
         Returns:
             list[tuple[str, qg.QAction]]: Each tuple of the list should be of the form `("Path/to/last/parent/menu",QAction("My action"))`. It is the responsibility of the implementer to connect the returned actions' `triggered` signals.
         """
+        print(self.__class__.__name__, "did not implement get_menubar_entries")
         raise NotImplementedError()
 
     def get_contextmenu_entries(self, local_info: dict) -> list[tuple[str, qg.QAction]]:
@@ -351,6 +371,7 @@ class AppComponent(qc.QObject):
         Returns:
             list[tuple[str, qg.QAction]]: Each tuple of the list should be of the form `("Path/to/last/parent/menu",QAction("My action"))`. It is the responsibility of the implementer to connect the returned actions' signals.
         """
+        print(self.__class__.__name__, "did not implement get_contextmenu_entries")
         raise NotImplementedError()
 
 

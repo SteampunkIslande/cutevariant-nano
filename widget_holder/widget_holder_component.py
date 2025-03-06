@@ -1,3 +1,4 @@
+import PySide6.QtCore as qc
 from PySide6.QtCore import SignalInstance
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
@@ -7,6 +8,8 @@ import app
 
 class WidgetHolderComponent(app.AppComponent):
     """Allows one widget to hold several AppComponents at the same time, only displaying one at a time. This component is not responsible for choosing, but rather the component that's using it."""
+
+    current_component_changed = qc.Signal(str)
 
     def __init__(
         self,
@@ -22,14 +25,12 @@ class WidgetHolderComponent(app.AppComponent):
         self.held_components: dict[str, "app.AppComponent"] = {}
         self.current_component_name = None
 
-        self._layout_widget = QWidget()
         self._layout = QVBoxLayout()
-
+        self._layout_widget = QWidget()
         self._layout_widget.setLayout(self._layout)
 
-        self.place_holder = QLabel(f"Instance::{instance_name}")
+        self.place_holder = QLabel(f"Instance::{instance_name}. No component shown.")
         self.place_holder.setWindowTitle(instance_name)
-        self._layout.addWidget(self.place_holder)
 
     def get_instance_name(self):
         return self.instance_name
@@ -55,47 +56,63 @@ class WidgetHolderComponent(app.AppComponent):
             return False
         self.held_components[component_name] = component
 
-        success = self.set_current_component(component_name)
+        return self.set_current_component(component_name)
 
-        if not success:
-            self._layout.addWidget(self.place_holder)
-            self.place_holder.show()
+    def remove_component(self, component_name: str):
+        if component_name not in self.held_components:
+            return False
+        if self.current_component_name == component_name:
+            self.current_component_name = None
+        del self.held_components[component_name]
 
-        return success
+        return self.update_widget()
 
     def set_current_component(self, component_name: str):
-        print(f"I'm {self.instance_name} and I'm setting {component_name}")
         if component_name not in self.held_components:
             return False
         if self.current_component_name == component_name:
             return False
         self.current_component_name = component_name
+        return self.update_widget()
 
-        for name, comp in self.held_components.items():
-            if name != component_name:
-                if comp.widget():
-                    comp.widget().hide()
-                    self._layout.removeWidget(comp.widget())
-            else:
-                if comp.widget():
-                    self._layout.addWidget(comp.widget())
-                    comp.widget().show()
+    def set_title(self, title: str):
+        self._layout_widget.setWindowTitle(title)
 
-        # Make sure we don't keep the placeholder
-        self._layout.removeWidget(self.place_holder)
-        self.place_holder.hide()
-        return True
+    def widget(self):
+        return self._layout_widget
 
-    def set_placeholder_title(self, title: str):
-        self.place_holder.setWindowTitle(title)
+    def update_widget(self) -> QWidget:
 
-    def widget(self) -> QWidget:
+        # Empty the layout
+        while self._layout.count():
+            item = self._layout.takeAt(0)
+            item.widget().hide()
+            self._layout.removeItem(item)
+
+        # Current component name is not set: show placeholder
         if self.current_component_name is None:
-            return self.place_holder
+            self._layout_widget.setWindowTitle(self.place_holder.windowTitle())
+            self._layout.addWidget(self.place_holder)
+            return False
+
         current_component = self.held_components.get(self.current_component_name)
+        # Component is not found: show placeholder
         if current_component is None:
-            return self.place_holder
-        return self.held_components.get(self.current_component_name).widget()
+            self._layout_widget.setWindowTitle(self.place_holder.windowTitle())
+            self._layout.addWidget(self.place_holder)
+            return False
+
+        current_widget = current_component.widget()
+        # Component has no widget: show placeholder
+        if current_widget is None:
+            self._layout_widget.setWindowTitle(self.place_holder.windowTitle())
+            self._layout.addWidget(self.place_holder)
+            return False
+
+        self._layout.addWidget(current_widget)
+        self._layout_widget.setWindowTitle(current_component.get_instance_name())
+
+        current_widget.show()
 
     def get_signal(self, signal_name: str) -> SignalInstance:
         # Implement signal retrieval logic here

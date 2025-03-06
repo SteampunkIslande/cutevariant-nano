@@ -22,13 +22,15 @@ def default_prefs():
     }
 
 
-def add_action_to_menu(menu: qw.QMenuBar | qw.QMenu, path: str, action: qg.QAction):
-    current_menu = menu
+def add_action_to_menubar(menubar: qw.QMenuBar, path: str, action: qg.QAction):
+    current_menu = menubar
     for menu_name in path.split("/"):
         menu = current_menu.findChild(qw.QMenu, menu_name)
         if not menu:
             menu = current_menu.addMenu(menu_name)
             menu.setObjectName(menu_name)
+            current_menu = menu
+        else:
             current_menu = menu
 
     current_menu.addAction(action)

@@ -37,24 +37,28 @@ class QueryManagerComponent(ap.AppComponent):
         self.query_model = qg.QStandardItemModel(self)
 
         self.queries_tab_widget = app.window().get_window_panel(mw.WindowRegion.UPPER)
+        if self.queries_tab_widget:
+            self.queries_tab_widget.currentChanged.connect(self.on_query_tab_changed)
 
     def new_query(self, query_name: str):
-
-        if query_name in self.queries:
-            return False
 
         query: q.QueryComponent = self.app.instantiate_component(
             "query", f"query.{query_name}", self
         )
 
-        tab_index = self.app.window().add_component_to_window(
-            query, mw.WindowRegion.UPPER
-        )
-        self.queries[tab_index] = query
         self.query_model.appendRow(qg.QStandardItem(query_name))
 
         self.fields_holder.add_component(query.get_fields_component())
         self.filters_holder.add_component(query.get_filters_component())
+
+        self.queries_tab_widget.blockSignals(True)
+        tab_index = self.app.window().add_component_to_window(
+            query, mw.WindowRegion.UPPER
+        )
+        self.queries[tab_index] = query
+        self.queries_tab_widget.blockSignals(False)
+
+        self.set_current_query(f"query.{query_name}")
 
     def get_query_model(self):
         return self.query_model
@@ -79,8 +83,14 @@ class QueryManagerComponent(ap.AppComponent):
         print("Closing query", query.get_instance_name())
 
     def on_query_tab_changed(self, tab_index: int):
+        if tab_index < 0:
+            return
         if tab_index not in self.queries:
+            import traceback
+
+            traceback.print_stack(limit=3)
             print("Shouldn't be possible...")
+            print(self.queries)
             return
 
         self.current_query = self.queries[tab_index]
@@ -91,6 +101,7 @@ class QueryManagerComponent(ap.AppComponent):
         self.fields_holder.set_current_component(
             self.current_query.get_fields_component().get_instance_name()
         )
+
         self.filters_holder.set_current_component(
             self.current_query.get_filters_component().get_instance_name()
         )
