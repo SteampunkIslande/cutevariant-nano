@@ -21,8 +21,6 @@ class AppManager(app.AppComponent):
         self.genotype_info_holder = None
         self.fields_widget_holder = None
         self.filters_widget_holder = None
-        self.validation_widget_holder = None
-
         self.validation_component = None
 
         self.main_window = None
@@ -71,22 +69,12 @@ class AppManager(app.AppComponent):
         )
         self.filters_widget_holder.set_title(self.app.translate("Filters selection"))
 
-        # Instantiate validation component holder
-        self.validation_widget_holder: widget_holder.WidgetHolderComponent = (
-            self.app.instantiate_component(
-                "widget_holder", "validation_widget_holder", self
-            )
-        )
-        self.validation_widget_holder.set_title(self.app.translate("Validation"))
-
         # Instantiate validation component itself
         self.validation_component: (
             validation_manager_component.ValidationManagerComponent
         ) = self.app.instantiate_component(
             "validation_manager", "validation_manager", self
         )
-
-        self.validation_widget_holder.add_component(self.validation_component)
 
         self.main_window = self.app.window()
 
@@ -103,7 +91,7 @@ class AppManager(app.AppComponent):
             self.filters_widget_holder, mainwindow.WindowRegion.LOWER
         )
         self.main_window.add_component_to_window(
-            self.validation_widget_holder, mainwindow.WindowRegion.RIGHT
+            self.validation_component, mainwindow.WindowRegion.RIGHT
         )
 
     def widget(self):

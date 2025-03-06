@@ -63,6 +63,7 @@ class ValidationManagerComponent(ap.AppComponent):
 
     def on_validation_start(self):
         validation_info = self.validation_selection_widget.get_selected_validation()
+        print(validation_info)
         self.widget_holder.set_current_widget("validation")
 
         self.set_validation(validation_info)

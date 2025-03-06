@@ -10,6 +10,8 @@ from commons import yaml_load
 
 class ValidationWidget(qw.QWidget):
 
+    validate = qc.Signal()
+
     return_to_validation = qc.Signal()
 
     def __init__(
@@ -23,7 +25,7 @@ class ValidationWidget(qw.QWidget):
         self.datalake = datalake
 
         self.validate_button = qw.QPushButton("", self)
-        self.validate_button.clicked.connect(self.validate)
+        self.validate_button.clicked.connect(self.on_validate)
 
         self.return_to_validation_button = qw.QPushButton("", self)
         self.return_to_validation_button.clicked.connect(self.on_return_to_validation)
@@ -60,15 +62,11 @@ class ValidationWidget(qw.QWidget):
 
         self.completed = False
 
-    def load_state(
-        self,
-        table_uuid: str,
-    ):
-        pass
-
-    def validate(self):
+    def on_validate(self):
         self.export_csv()
         self.completed = True
+
+        self.validate.emit()
 
     def on_return_to_validation(self):
         self.init_state()
@@ -154,9 +152,7 @@ class ValidationWidget(qw.QWidget):
                 .to_dicts()[0]["completed"],
             )
             if self.completed:
-                self.validate_button.setText(
-                    self.app.translate("Exporter vers Genno")
-                )
+                self.validate_button.setText(self.app.translate("Exporter vers Genno"))
                 step_definition = self.method["final"]["query"]
                 # Hint: Emit a signal to tell to show the final query
 
