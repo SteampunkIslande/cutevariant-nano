@@ -27,17 +27,17 @@ class IntroPage(qw.QWizardPage):
         self.setTitle(self.app.translate("Introduction"))
         self.setSubTitle(
             self.app.translate(
-                "Ce wizard vous permet de créer une nouvelle validation."
+                "This wizard allows you to create a new validation"
             )
         )
 
         # Add a label with a lineedit to get the validation name
         self.validation_name_label = qw.QLabel(
-            self.app.translate("Nom de la validation:")
+            self.app.translate("Validation name")
         )
         self.validation_name_lineedit = qw.QLineEdit()
         self.validation_name_lineedit.setPlaceholderText(
-            self.app.translate("Nom de la validation")
+            self.app.translate("Validation name")
         )
         self.validation_name_lineedit.textChanged.connect(
             self.on_validation_name_changed
@@ -108,13 +108,13 @@ class ParquetSelectPage(qw.QWizardPage):
     def __init__(self, datalake: Datalake, app: ap.App, data: dict, parent=None):
         super().__init__(parent)
         self.app = app
-        self.setTitle(self.app.translate("Sélection du run"))
+        self.setTitle(self.app.translate("Run selection"))
         self.setSubTitle(
-            self.app.translate("Choisissez le(s) fichier(s) des runs à valider.")
+            self.app.translate("Choose the run file(s) to validate")
         )
 
         self.select_parquet_button = qw.QPushButton(
-            self.app.translate("Choisir le(s) run(s)...")
+            self.app.translate("Choose run(s)")
         )
         self.select_parquet_button.clicked.connect(self.on_select_parquet_clicked)
 
@@ -146,7 +146,7 @@ class ParquetSelectPage(qw.QWizardPage):
         table.view.horizontalHeader().hide()
         dlg = AnyWidgetDialog(
             table,
-            self.app.translate("Veuillez sélectionner un ou plusieurs runs à valider"),
+            self.app.translate("Please select one or more runs to validate"),
             self,
         )
         if (
@@ -174,7 +174,7 @@ class ParquetSelectPage(qw.QWizardPage):
             if filenames:
                 self.data["file_names"] = filenames_full_path
                 self.selected_files_label.setText(
-                    self.app.translate("Fichiers sélectionnés:\n")
+                    self.app.translate("Selected files:\n")
                     + "\n".join(filenames)
                 )
 
@@ -201,13 +201,13 @@ class SamplesSelectPage(qw.QWizardPage):
     def __init__(self, datalake: Datalake, app: ap.App, data: dict, parent=None):
         super().__init__(parent)
         self.app = app
-        self.setTitle(self.app.translate("Sélection des échantillons"))
+        self.setTitle(self.app.translate("Select samples"))
         self.setSubTitle(
-            self.app.translate("Choisissez le(s) échantillon(s) à valider.")
+            self.app.translate("Choose sample(s) to validate")
         )
 
         self.select_samples_button = qw.QPushButton(
-            self.app.translate("Sélectionner les échantillons")
+            self.app.translate("Select samples")
         )
         self.select_samples_button.clicked.connect(self.on_select_samples_clicked)
 
@@ -235,7 +235,7 @@ class SamplesSelectPage(qw.QWizardPage):
         if sample_selector.exec() == qw.QDialog.DialogCode.Accepted:
             self.data["sample_names"] = sample_selector.get_selected()
             self.selected_samples_label.setText(
-                self.app.translate("Echantillons sélectionnés:\n")
+                self.app.translate("Selected samples:\n")
                 + "\n".join(self.data["sample_names"])
             )
 
@@ -257,11 +257,11 @@ class GeneListSelectPage(qw.QWizardPage):
     def __init__(self, datalake: Datalake, app: ap.App, data: dict, parent=None):
         super().__init__(parent)
         self.app = app
-        self.setTitle(self.app.translate("Sélection de la liste de gènes"))
-        self.setSubTitle(self.app.translate("Choisissez la liste de gènes à valider."))
+        self.setTitle(self.app.translate("Gene list selection"))
+        self.setSubTitle(self.app.translate("Choose list of genes to validate"))
 
         self.select_genes_button = qw.QPushButton(
-            self.app.translate("Sélectionner les gènes")
+            self.app.translate("Select genes")
         )
         self.select_genes_button.clicked.connect(self.on_select_genes_clicked)
 

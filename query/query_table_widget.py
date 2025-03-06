@@ -148,12 +148,12 @@ class QueryTableWidget(qw.QWidget):
         index = self.table_view.indexAt(pos)
 
         filter_action = menu.addAction(
-            self.app.translate("Filtrer cette colonne (simple expression aiifsefself)")
+            self.app.translate("Filter this column (simple expression)")
         )
         filter_action.triggered.connect(partial(self.filter_column, index))
 
         order_action: qg.QAction = menu.addAction(
-            self.app.translate("Trier cette colonne")
+            self.app.translate("Sort this column")
         )
         order_action.triggered.connect(partial(self.add_order_by, index))
 
@@ -171,17 +171,17 @@ class QueryTableWidget(qw.QWidget):
         index = self.table_view.indexAt(pos)
 
         filter_action: qg.QAction = menu.addAction(
-            self.app.translate("(DEBUG): Voir les données sous-jacentes de cette ligne")
+            self.app.translate("(DEBUG) Show underlying data for this line")
         )
         filter_action.triggered.connect(partial(self.show_row_userdata, index))
 
         add_variant_action: qg.QAction = menu.addAction(
-            self.app.translate("Ajouter le variant à la validation")
+            self.app.translate("Add variant to validation")
         )
         add_variant_action.triggered.connect(self.add_variant_to_validation)
 
         goto_mobidetails_action: qg.QAction = menu.addAction(
-            self.app.translate("Voir le variant sur Mobidetails")
+            self.app.translate("Browse variant in Mobidetails")
         )
         goto_mobidetails_action.triggered.connect(partial(self.goto_mobidetails, index))
 
@@ -221,15 +221,15 @@ class QueryTableWidget(qw.QWidget):
         dialog.setText(
             "".join(f"<br><b>{k}</b>: {v}</br>" for k, v in row_data.items())
         )
-        dialog.setWindowTitle(self.app.translate("Données sous-jacentes"))
+        dialog.setWindowTitle(self.app.translate("Underlying data"))
         dialog.exec()
 
     def export_to_excel(self):
         file_name, _ = qw.QFileDialog.getSaveFileName(
             self,
-            self.app.translate("Exporter la table de validation vers Excel"),
+            self.app.translate("Export validation table to Excel"),
             "",
-            self.app.translate("Fichiers Excel (*.xlsx)"),
+            self.app.translate("Excel files (*.xlsx)"),
         )
         if file_name:
             self.model.export_to_excel(file_name)
@@ -275,7 +275,7 @@ class QueryTableWidget(qw.QWidget):
                 qw.QMessageBox.warning(
                     self,
                     self.app.translate("Mobidetails"),
-                    self.app.translate("Variant non trouvé dans Mobidetails"),
+                    self.app.translate("Cannot find variant on Mobidetails"),
                 )
 
     def filter_column(self, index: qc.QModelIndex):
@@ -299,7 +299,7 @@ class SimpleFilterDialog(qw.QDialog):
 
         self.col_info = col_info
 
-        self.setWindowTitle(self.app.translate("Filtrer une colonne"))
+        self.setWindowTitle(self.app.translate("Filter a column"))
 
         # Create widgets
         # Create a label for the column name

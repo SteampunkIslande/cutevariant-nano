@@ -242,14 +242,14 @@ class QueryComponent(ap.AppComponent):
 
     def get_editable_table_human_readable_name(self) -> str:
         if not self.datalake.datalake_path:
-            return self.app.translate("Pas de datalake sélectionné")
+            return self.app.translate("No datalake selected")
         conn = self.datalake.get_database("validation")
         try:
             name = conn.sql(
                 f"SELECT validation_name FROM validations WHERE table_uuid = '{self.editable_table_name}'"
             ).fetchall()[0][0]
         except IndexError:
-            name = self.app.translate("Table de validation introuvable")
+            name = self.app.translate("Cannot find validation table")
         finally:
             conn.close()
         return name

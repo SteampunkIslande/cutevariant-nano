@@ -152,7 +152,7 @@ class ValidationWidget(qw.QWidget):
                 .to_dicts()[0]["completed"],
             )
             if self.completed:
-                self.validate_button.setText(self.app.translate("Exporter vers Genno"))
+                self.validate_button.setText(self.app.translate("Export to Genno"))
                 step_definition = self.method["final"]["query"]
                 # Hint: Emit a signal to tell to show the final query
 
