@@ -72,9 +72,7 @@ class AppManager(app.AppComponent):
         # Instantiate validation component itself
         self.validation_component: (
             validation_manager_component.ValidationManagerComponent
-        ) = self.app.instantiate_component(
-            "validation_manager", "validation_manager", self
-        )
+        ) = self.app.instantiate_singleton("validation_manager")
 
         self.main_window = self.app.window()
 

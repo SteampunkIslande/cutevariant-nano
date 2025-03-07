@@ -142,7 +142,7 @@ class ValidationModel(qc.QAbstractTableModel):
             if isinstance(res, bool):
                 res = self.app.translate("Yes") if res else self.app.translate("No")
             if isinstance(res, datetime.datetime):
-                res = res.strftime(self.app.translate("%d/%m/%Y %H:%M:%S"))
+                res = res.strftime(self.app.translate("%m/%d/%Y %H:%M:%S"))
             if (
                 self.headerData(
                     index.column(),

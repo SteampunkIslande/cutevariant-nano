@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from typing import Union
 
 import PySide6.QtCore as qc
@@ -25,7 +26,7 @@ class ValidationManagerComponent(ap.AppComponent):
         self.instance_name = instance_name
         self.parent_component = parent_component
 
-        self.datalake: dl.Datalake = app.get_component("datalake")
+        self.datalake: dl.Datalake = self.app.get_component("datalake")
 
         # Query Manager Component
         self.query_manager_component: qm.QueryManagerComponent = (
@@ -40,7 +41,9 @@ class ValidationManagerComponent(ap.AppComponent):
         self.validation_selection_widget = ValidationSelectionWidget(
             self.app, self.datalake, self.validation_model
         )
-        self.validation_widget = ValidationWidget(self.app, self.datalake)
+        self.validation_widget = ValidationWidget(
+            self.app, self.query_manager_component, self.datalake
+        )
 
         self.widget_holder.add_widget(
             self.validation_selection_widget, "validation_selection"
@@ -94,6 +97,33 @@ class ValidationManagerComponent(ap.AppComponent):
 
         for sample_name in sample_names:
             self.query_manager_component.new_query(sample_name)
+
+    def export_csv(self):
+        user_prefs = self.app.load_user_prefs()
+        if "genno_export_folder" not in user_prefs:
+            qw.QMessageBox.warning(
+                self,
+                self.app.translate("Export"),
+                self.app.translate(
+                    "No Genno export folder selected, please choose one."
+                ),
+            )
+            genno_export_folder = qw.QFileDialog.getExistingDirectory(
+                self, self.app.translate("Choose Genno export folder")
+            )
+            if genno_export_folder:
+                self.app.save_user_prefs({"genno_export_folder": genno_export_folder})
+            else:
+                qw.QMessageBox.warning(
+                    self,
+                    self.app.translate("Export"),
+                    self.app.translate("No Genno export folder selected, aborting."),
+                )
+                return
+        else:
+            genno_export_folder = user_prefs["genno_export_folder"]
+
+        genno_export_folder = Path(genno_export_folder)
 
     def on_back_to_validation_selection(self):
         self.widget_holder.set_current_widget("validation_selection")

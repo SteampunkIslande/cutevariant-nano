@@ -10,6 +10,38 @@ import mainwindow as mw
 import query.query_component as q
 
 
+class QueryManagerWidget(qw.QWidget):
+
+    current_query_changed = qc.Signal(str)
+
+    def __init__(self, parent: qw.QWidget = None):
+        super().__init__(parent)
+
+        self._layout = qw.QVBoxLayout(self)
+        self.query_list_view = qw.QListView(self)
+
+        self._layout.addWidget(self.query_list_view)
+        self.setLayout(self._layout)
+
+    def set_model(self, model: qc.QAbstractItemModel):
+        if self.query_list_view.model():
+            self.query_list_view.selectionModel().currentChanged.disconnect()
+        self.query_list_view.setModel(model)
+        self.query_list_view.selectionModel().currentChanged.connect(
+            self.on_current_query_changed
+        )
+
+    def on_current_query_changed(
+        self, current: qc.QModelIndex, previous: qc.QModelIndex
+    ):
+        if not current.isValid():
+            return
+        # Either None or empty string
+        if not current.data(qc.Qt.ItemDataRole.DisplayRole):
+            return
+        self.current_query_changed.emit(current.data(qc.Qt.ItemDataRole.DisplayRole))
+
+
 class QueryManagerComponent(ap.AppComponent):
 
     def __init__(
@@ -20,7 +52,7 @@ class QueryManagerComponent(ap.AppComponent):
         self.instance_name = instance_name
         self.parent_component = parent_component
 
-        self.queries: dict[int, q.QueryComponent] = {}
+        self.queries: dict[str, q.QueryComponent] = {}
 
         self.current_query = None
 
@@ -32,9 +64,10 @@ class QueryManagerComponent(ap.AppComponent):
         self.fields_holder = app_manager.fields_widget_holder
         self.filters_holder = app_manager.filters_widget_holder
 
-        self.validations_method = None
-
         self.query_model = qg.QStandardItemModel(self)
+        self.query_manager_widget = QueryManagerWidget()
+        self.query_manager_widget.set_model(self.query_model)
+        self.query_manager_widget.current_query_changed.connect(self.set_current_query)
 
         self.queries_tab_widget = app.window().get_window_panel(mw.WindowRegion.UPPER)
         if self.queries_tab_widget:
@@ -43,57 +76,60 @@ class QueryManagerComponent(ap.AppComponent):
     def new_query(self, query_name: str):
 
         query: q.QueryComponent = self.app.instantiate_component(
-            "query", f"query.{query_name}", self
+            "query", query_name, self
         )
 
         self.query_model.appendRow(qg.QStandardItem(query_name))
 
+        # COMPONENT HOLDERS INSTALLATION
         self.fields_holder.add_component(query.get_fields_component())
         self.filters_holder.add_component(query.get_filters_component())
 
         self.queries_tab_widget.blockSignals(True)
-        tab_index = self.app.window().add_component_to_window(
-            query, mw.WindowRegion.UPPER
-        )
-        self.queries[tab_index] = query
+        self.app.window().add_component_to_window(query, mw.WindowRegion.UPPER)
+        self.queries[query_name] = query
         self.queries_tab_widget.blockSignals(False)
 
-        self.set_current_query(f"query.{query_name}")
+        self.set_current_query(query_name)
 
     def get_query_model(self):
         return self.query_model
 
     def set_current_query(self, query_name: str):
-        for tab_index, query in self.queries.items():
-            if query.get_instance_name() == query_name:
-                self.queries_tab_widget.setCurrentIndex(tab_index)
-                return
 
-    def close_query(self, tab_index: int):
-        # Remove all the components that the specified query has installed
-        self.queries_tab_widget.removeTab(tab_index)
-        query = self.queries[tab_index]
-
-        self.query_model.removeRow(
-            self.query_model.findItems(query.get_instance_name())[0].row()
+        self.queries_tab_widget.setCurrentIndex(
+            self.queries_tab_widget.indexOf(self.queries[query_name].widget())
         )
 
-        # TODO: Remove query fields component from the component holders
+    def close_query(self, query: q.QueryComponent):
+        tab_index = self.queries_tab_widget.indexOf(query.widget())
 
-        print("Closing query", query.get_instance_name())
+        if tab_index >= 0:
+            # Remove all the components that the specified query has installed
+            self.queries_tab_widget.removeTab(tab_index)
+
+        # COMPONENT HOLDERS UNINSTALLATION
+        self.fields_holder.remove_component(
+            query.get_fields_component().get_instance_name()
+        )
+        self.filters_holder.remove_component(
+            query.get_filters_component().get_instance_name()
+        )
 
     def on_query_tab_changed(self, tab_index: int):
         if tab_index < 0:
             return
-        if tab_index not in self.queries:
-            import traceback
 
-            traceback.print_stack(limit=3)
-            print("Shouldn't be possible...")
-            print(self.queries)
+        current_query_name = self.queries_tab_widget.tabText(tab_index)
+
+        # Tab index changed, but not its content
+        if (
+            self.current_query
+            and current_query_name == self.current_query.get_instance_name()
+        ):
             return
 
-        self.current_query = self.queries[tab_index]
+        self.current_query = self.queries[current_query_name]
 
         # self.variant_info_holder.set_current_component(
         #     self.current_query.get_variant_info().get_instance_name()
@@ -121,8 +157,8 @@ class QueryManagerComponent(ap.AppComponent):
         # Implement startup logic here
         pass
 
-    def widget(self) -> Union[None, qw.QWidget]:
-        return None
+    def widget(self) -> qw.QWidget:
+        return self.query_manager_widget
 
     def get_signal(self, signal_name: str) -> Union[qc.SignalInstance, None]:
         return None
@@ -140,8 +176,8 @@ class QueryManagerComponent(ap.AppComponent):
 
     def clear(self):
         # Close all
-        for tab_index in self.queries:
-            self.close_query(tab_index)
+        for _, query in self.queries.items():
+            self.close_query(query)
         self.query_model.clear()
 
 

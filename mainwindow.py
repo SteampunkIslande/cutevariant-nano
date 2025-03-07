@@ -46,6 +46,8 @@ class MainWindow(qw.QMainWindow):
             WindowRegion.LOWER: self.lower_tab_widget,
             WindowRegion.RIGHT: self.right_tab_widget,
         }
+        for _, widget in self.widget_regions.items():
+            widget.setMovable(True)
 
         self.setCentralWidget(self.horizontal_splitter)
         screen_size = qw.QApplication.screens()[0].geometry()
@@ -75,12 +77,9 @@ class MainWindow(qw.QMainWindow):
         if component.widget() is None:
             return
 
-        # TODO: If needed, maybe we should store this into component
-        tab_index = self.widget_regions[region].addTab(
+        self.widget_regions[region].addTab(
             component.widget(), component.widget().windowTitle()
         )
-
-        return tab_index
 
     def get_window_panel(self, region: WindowRegion):
         return self.widget_regions[region]

@@ -1,5 +1,5 @@
 fr_FR = {
-    "%d/%m/%Y %H:%M:%S": "%d/%m/%Y %H:%M:%S",
+    "%m/%d/%Y %H:%M:%S": "%d/%m/%Y %H:%M:%S",
     "(DEBUG) Show underlying data for this line": "(DEBUG) Afficher les données sous-jacentes pour cette ligne",
     "Add variant to validation": "Ajouter un variant à la validation",
     "Are you sure you want to close? Everything will be saved automatically.": "Voulez-vous vraiment fermer ? Tout le travail sera automatiquement sauvegardé.",
@@ -66,7 +66,7 @@ fr_FR = {
 }
 
 en_US = {
-    "%d/%m/%Y %H:%M:%S": "",
+    "%m/%d/%Y %H:%M:%S": "",
     "(DEBUG) Show underlying data for this line": "",
     "Add variant to validation": "",
     "Are you sure you want to close? Everything will be saved automatically.": "",
@@ -133,7 +133,7 @@ en_US = {
 }
 
 es_ES = {
-    "%d/%m/%Y %H:%M:%S": "",
+    "%m/%d/%Y %H:%M:%S": "",
     "(DEBUG) Show underlying data for this line": "",
     "Add variant to validation": "",
     "Are you sure you want to close? Everything will be saved automatically.": "",

@@ -5,6 +5,7 @@ import PySide6.QtWidgets as qw
 
 import app as ap
 import datalake.datalake_component as dl_cmp
+import query_manager.query_manager_component as qm
 from commons import yaml_load
 
 
@@ -15,7 +16,11 @@ class ValidationWidget(qw.QWidget):
     return_to_validation = qc.Signal()
 
     def __init__(
-        self, app: ap.App, datalake: dl_cmp.Datalake, parent: qw.QWidget = None
+        self,
+        app: ap.App,
+        query_manager: qm.QueryManagerComponent,
+        datalake: dl_cmp.Datalake,
+        parent: qw.QWidget = None,
     ):
         super().__init__(parent)
 
@@ -24,21 +29,22 @@ class ValidationWidget(qw.QWidget):
         self.app = app
         self.datalake = datalake
 
-        self.validate_button = qw.QPushButton("", self)
+        self.validate_button = qw.QPushButton(self.app.translate("Validate cart"), self)
         self.validate_button.clicked.connect(self.on_validate)
 
-        self.return_to_validation_button = qw.QPushButton("", self)
+        self.return_to_validation_button = qw.QPushButton(
+            self.app.translate("Back to validation selection"), self
+        )
+
         self.return_to_validation_button.clicked.connect(self.on_return_to_validation)
 
-        # Add a list view of queries
-
-        # Will be overwritten by load_state, but set to default values here in case load_state does nothing
-        self.init_state()
+        self.query_manager_widget = query_manager.widget()
 
         self.setup_layout()
 
     def setup_layout(self):
 
+        self._layout.addWidget(self.query_manager_widget)
         # Add vertical spacer
         self._layout.addStretch()
 
@@ -46,30 +52,12 @@ class ValidationWidget(qw.QWidget):
         self._layout.addWidget(self.return_to_validation_button)
         self.setLayout(self._layout)
 
-    def init_state(self):
-
-        # The table uuid of the selected validation
-        self.validation_table_uuid = None
-        self.validation_name = None
-        self.validation_parquet_files = None
-        self.validation_sample_names = None
-        self.validation_gene_names = None
-
-        self.validate_button.setText(self.app.translate("Validate cart"))
-        self.return_to_validation_button.setText(
-            self.app.translate("Back to validation selection")
-        )
-
-        self.completed = False
-
     def on_validate(self):
-        self.export_csv()
         self.completed = True
 
         self.validate.emit()
 
     def on_return_to_validation(self):
-        self.init_state()
         self.return_to_validation.emit()
 
     def export_csv(self):
