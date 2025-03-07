@@ -31,9 +31,7 @@ class QueryManagerWidget(qw.QWidget):
             self.on_current_query_changed
         )
 
-    def on_current_query_changed(
-        self, current: qc.QModelIndex, previous: qc.QModelIndex
-    ):
+    def on_current_query_changed(self, current: qc.QModelIndex, _: qc.QModelIndex):
         if not current.isValid():
             return
         # Either None or empty string
@@ -73,11 +71,17 @@ class QueryManagerComponent(ap.AppComponent):
         if self.queries_tab_widget:
             self.queries_tab_widget.currentChanged.connect(self.on_query_tab_changed)
 
-    def new_query(self, query_name: str):
+    def new_query(self, query_name: str, data_prep: dict, query_options: dict):
 
         query: q.QueryComponent = self.app.instantiate_component(
             "query", query_name, self
         )
+
+        query.setup_query(data_prep)
+        query.set_editable_table_name(query_options["table_uuid"])
+        query.set_readonly_table(query_options["parquet_files"])
+        query.set_selected_genes(query_options["gene_names"])
+        query.set_selected_samples(query_options["sample_names"])
 
         self.query_model.appendRow(qg.QStandardItem(query_name))
 
@@ -134,6 +138,8 @@ class QueryManagerComponent(ap.AppComponent):
         # self.variant_info_holder.set_current_component(
         #     self.current_query.get_variant_info().get_instance_name()
         # )
+
+        # COMPONENT HOLDERS UPDATE
         self.fields_holder.set_current_component(
             self.current_query.get_fields_component().get_instance_name()
         )

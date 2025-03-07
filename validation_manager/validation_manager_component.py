@@ -71,32 +71,59 @@ class ValidationManagerComponent(ap.AppComponent):
 
         self.set_validation(validation_info)
 
-    def set_validation(self, validation_info: dict):
-
-        # Completely new validation, forget all the queries we may have
-        self.query_manager_component.clear()
-
-        sample_names = validation_info.get("sample_names")
-        if not sample_names:
+    def init_validation(self, validation_info: dict):
+        self.sample_names = validation_info.get("sample_names")
+        if not self.sample_names:
             return
-        validation_method = validation_info.get("validation_method")
-        if not validation_method:
+        self.validation_method = validation_info.get("validation_method")
+        if not self.validation_method:
             return
         config_folder_present, config_folder = self.app.get_config_folder()
         if not config_folder_present:
             return
 
-        self.validation_table_uuid = validation_info.get("table_uuid")
-        self.validations_method = validation_info.get("validation_method")
+        validation_method = validation_info.get("validation_method")
 
-        self.validations_method = yaml_load(
+        self.validation_method = yaml_load(
             os.path.join(
                 config_folder, "validation_methods", validation_method + ".yaml"
             )
         )
 
-        for sample_name in sample_names:
-            self.query_manager_component.new_query(sample_name)
+        self.table_uuid = validation_info.get("table_uuid")
+        self.gene_names = validation_info.get("gene_names")
+        self.parquet_files = validation_info.get("parquet_files")
+
+    def set_validation(self, validation_info: dict):
+        # Completely new validation, forget all the queries we may have
+        self.query_manager_component.clear()
+
+        self.init_validation(validation_info)
+
+        if validation_info.get("completed"):
+            self.query_manager_component.new_query(
+                self.app.translate("Final validation"),
+                self.validation_method["final"],
+                {
+                    "sample_names": self.sample_names,
+                    "table_uuid": self.table_uuid,
+                    "gene_names": self.gene_names,
+                    "parquet_files": self.parquet_files,
+                },
+            )
+            return
+
+        for sample_name in self.sample_names:
+            self.query_manager_component.new_query(
+                sample_name,
+                self.validation_method["default"],
+                {
+                    "sample_names": [sample_name],
+                    "table_uuid": self.table_uuid,
+                    "gene_names": self.gene_names,
+                    "parquet_files": self.parquet_files,
+                },
+            )
 
     def export_csv(self):
         user_prefs = self.app.load_user_prefs()

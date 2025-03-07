@@ -467,6 +467,9 @@ class QueryComponent(ap.AppComponent):
     def get_instance_name(self) -> str:
         return self.instance_name
 
+    def __delete__(self):
+        print("Safely deleted", self.instance_name)
+
 
 def register_component():
     return "query", {
