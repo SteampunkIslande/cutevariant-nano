@@ -1,5 +1,4 @@
 import app
-import query.query_component as q
 from fields.fields_widget import FieldsWidget
 
 
@@ -9,9 +8,6 @@ class FieldsComponent(app.AppComponent):
         self, app: app.App, instance_name: str, parent_component: app.AppComponent
     ):
         super().__init__(app, instance_name, parent_component)
-        self.app = app
-        self.instance_name = instance_name
-        self.parent_component: q.QueryComponent = parent_component
 
         self.fields_widget = FieldsWidget(self.parent_component)
 

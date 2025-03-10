@@ -94,8 +94,6 @@ class QueryComponent(ap.AppComponent):
         self, app: ap.App, instance_name: str, parent_component: ap.AppComponent
     ):
         super().__init__(app, instance_name, parent_component)
-        self.app = app
-        self.instance_name = instance_name
         self.datalake: dl.Datalake = self.app.get_component("datalake")
 
         self.init_state()

@@ -18,9 +18,6 @@ class WidgetHolderComponent(app.AppComponent):
         parent_component: app.AppComponent = None,
     ):
         super().__init__(app, instance_name, parent_component)
-        self.app = app
-        self.instance_name = instance_name
-        self.parent_component = parent_component
 
         self.held_components: dict[str, "app.AppComponent"] = {}
         self.current_component_name = None

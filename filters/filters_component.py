@@ -9,9 +9,6 @@ class FiltersComponent(app.AppComponent):
         self, app: app.App, instance_name: str, parent_component: "q.QueryComponent"
     ):
         super().__init__(app, instance_name, parent_component)
-        self.app = app
-        self.instance_name = instance_name
-        self.parent_component = parent_component
 
         self.filters_widget = fltw.FiltersWidget(self.parent_component)
 

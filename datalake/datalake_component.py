@@ -48,8 +48,6 @@ class Datalake(app.AppComponent):
         parent_component: app.AppComponent = None,
     ):
         super().__init__(app, instance_name, parent_component)
-        self.app = app
-        self.instance_name = instance_name
 
         self.signals_dict = {"folder_changed": self.folder_changed}
 

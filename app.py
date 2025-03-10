@@ -314,6 +314,9 @@ class AppComponent(qc.QObject):
 
     def __init__(self, app: App, instance_name: str, parent_component: "AppComponent"):
         super().__init__()
+        self.app = app
+        self.instance_name = instance_name
+        self.parent_component = parent_component
 
     def get_instance_name(self) -> str:
         print(self.__class__.__name__, "did not implement get_instance_name")
