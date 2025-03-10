@@ -12,7 +12,6 @@ from common_widgets.searchable_table import SearchableTable
 from common_widgets.string_list_chooser import StringListChooser
 from commons import (
     duck_db_literal_string_list,
-    get_config_folder,
     load_user_prefs,
     yaml_load,
 )
@@ -26,15 +25,11 @@ class IntroPage(qw.QWizardPage):
         self.app = app
         self.setTitle(self.app.translate("Introduction"))
         self.setSubTitle(
-            self.app.translate(
-                "This wizard allows you to create a new validation"
-            )
+            self.app.translate("This wizard allows you to create a new validation")
         )
 
         # Add a label with a lineedit to get the validation name
-        self.validation_name_label = qw.QLabel(
-            self.app.translate("Validation name")
-        )
+        self.validation_name_label = qw.QLabel(self.app.translate("Validation name"))
         self.validation_name_lineedit = qw.QLineEdit()
         self.validation_name_lineedit.setPlaceholderText(
             self.app.translate("Validation name")
@@ -48,7 +43,7 @@ class IntroPage(qw.QWizardPage):
 
         self.validation_method_combo = qw.QComboBox()
         validation_methods = []
-        _, config_folder = get_config_folder()
+        _, config_folder = self.app.get_config_folder()
         if config_folder.resolve().is_dir():
             validation_methods = [
                 f.stem
@@ -109,13 +104,9 @@ class ParquetSelectPage(qw.QWizardPage):
         super().__init__(parent)
         self.app = app
         self.setTitle(self.app.translate("Run selection"))
-        self.setSubTitle(
-            self.app.translate("Choose the run file(s) to validate")
-        )
+        self.setSubTitle(self.app.translate("Choose the run file(s) to validate"))
 
-        self.select_parquet_button = qw.QPushButton(
-            self.app.translate("Choose run(s)")
-        )
+        self.select_parquet_button = qw.QPushButton(self.app.translate("Choose run(s)"))
         self.select_parquet_button.clicked.connect(self.on_select_parquet_clicked)
 
         self.selected_files_label = MultiLineDisplay(self)
@@ -174,8 +165,7 @@ class ParquetSelectPage(qw.QWizardPage):
             if filenames:
                 self.data["file_names"] = filenames_full_path
                 self.selected_files_label.setText(
-                    self.app.translate("Selected files:\n")
-                    + "\n".join(filenames)
+                    self.app.translate("Selected files:\n") + "\n".join(filenames)
                 )
 
             if is_complete_before != self.isComplete():
@@ -202,9 +192,7 @@ class SamplesSelectPage(qw.QWizardPage):
         super().__init__(parent)
         self.app = app
         self.setTitle(self.app.translate("Select samples"))
-        self.setSubTitle(
-            self.app.translate("Choose sample(s) to validate")
-        )
+        self.setSubTitle(self.app.translate("Choose sample(s) to validate"))
 
         self.select_samples_button = qw.QPushButton(
             self.app.translate("Select samples")
@@ -260,9 +248,7 @@ class GeneListSelectPage(qw.QWizardPage):
         self.setTitle(self.app.translate("Gene list selection"))
         self.setSubTitle(self.app.translate("Choose list of genes to validate"))
 
-        self.select_genes_button = qw.QPushButton(
-            self.app.translate("Select genes")
-        )
+        self.select_genes_button = qw.QPushButton(self.app.translate("Select genes"))
         self.select_genes_button.clicked.connect(self.on_select_genes_clicked)
 
         self.selected_genes_label = MultiLineDisplay(self)

@@ -66,7 +66,6 @@ class ValidationManagerComponent(ap.AppComponent):
 
     def on_validation_start(self):
         validation_info = self.validation_selection_widget.get_selected_validation()
-        print(validation_info)
         self.widget_holder.set_current_widget("validation")
 
         self.set_validation(validation_info)
@@ -103,7 +102,7 @@ class ValidationManagerComponent(ap.AppComponent):
         if validation_info.get("completed"):
             self.query_manager_component.new_query(
                 self.app.translate("Final validation"),
-                self.validation_method["final"],
+                self.validation_method["final"]["query"],
                 {
                     "sample_names": self.sample_names,
                     "table_uuid": self.table_uuid,
@@ -116,7 +115,7 @@ class ValidationManagerComponent(ap.AppComponent):
         for sample_name in self.sample_names:
             self.query_manager_component.new_query(
                 sample_name,
-                self.validation_method["default"],
+                self.validation_method["default"]["query"],
                 {
                     "sample_names": [sample_name],
                     "table_uuid": self.table_uuid,

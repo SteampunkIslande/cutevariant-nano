@@ -77,11 +77,15 @@ class QueryManagerComponent(ap.AppComponent):
             "query", query_name, self
         )
 
-        query.setup_query(data_prep)
-        query.set_editable_table_name(query_options["table_uuid"])
-        query.set_readonly_table(query_options["parquet_files"])
-        query.set_selected_genes(query_options["gene_names"])
-        query.set_selected_samples(query_options["sample_names"])
+        print(query_options)
+
+        query.setup_query(data_prep).set_editable_table_name(
+            query_options["table_uuid"]
+        ).set_readonly_table(query_options["parquet_files"]).set_selected_genes(
+            query_options["gene_names"]
+        ).set_selected_samples(
+            query_options["sample_names"]
+        ).commit()
 
         self.query_model.appendRow(qg.QStandardItem(query_name))
 

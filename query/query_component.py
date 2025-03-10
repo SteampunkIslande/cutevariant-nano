@@ -157,7 +157,7 @@ class QueryComponent(ap.AppComponent):
         )
 
         self.view = query.query_table_widget.QueryTableWidget(self.app, self)
-        self.view.setWindowTitle(self.instance_name.split(".")[-1])
+        self.view.setWindowTitle(self.instance_name)
 
     def add_variable(self, key: str, value: str):
         if key in QueryComponent.RESERVED_VARIABLES:
@@ -343,9 +343,9 @@ class QueryComponent(ap.AppComponent):
 
     def list_exposed_fields(self):
 
-        if not self.query_template:
+        q = self.select_query(paginated=True, columns="COLUMNS('^[^.].+$')")
+        if not q:
             return []
-        print(self.query_template)
 
         cols = self.datalake.run_with_connection(
             "validation",
@@ -401,6 +401,7 @@ class QueryComponent(ap.AppComponent):
         )
 
     def update_data(self):
+        print("Updating data")
         # Empty data before updating
         self.header = []
         self.data = []
@@ -466,9 +467,6 @@ class QueryComponent(ap.AppComponent):
 
     def get_instance_name(self) -> str:
         return self.instance_name
-
-    def __delete__(self):
-        print("Safely deleted", self.instance_name)
 
 
 def register_component():
