@@ -167,7 +167,6 @@ class QueryTableModel(qc.QAbstractTableModel):
 
     def update(self):
         self.beginResetModel()
-        print("Updating query model")
         self.header = self.query.get_header()
         self._data = self.query.get_data()
         self.endResetModel()

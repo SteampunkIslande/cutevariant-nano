@@ -237,7 +237,6 @@ class QueryComponent(ap.AppComponent):
         if not files:
             return self
         self.readonly_table = f"read_parquet({duck_db_literal_string_list(self.datalake.relative_to_absolute(f) for f in files)})"
-        self.query_changed.emit()
         return self
 
     def get_editable_table_human_readable_name(self) -> str:
@@ -295,9 +294,6 @@ class QueryComponent(ap.AppComponent):
     def get_selected_genes(self) -> List[str]:
         return self.selected_genes
 
-    def get_selected_fields(self) -> List[str]:
-        return self.fields_model.checked_fields()
-
     def setup_query(self, data: dict) -> "QueryComponent":
         """Builds a query template from a json object.
         Provided json object must have a select key at the root level.
@@ -342,16 +338,13 @@ class QueryComponent(ap.AppComponent):
         )
 
     def list_exposed_fields(self):
-
         q = self.select_query(paginated=True, columns="COLUMNS('^[^.].+$')")
         if not q:
             return []
 
         cols = self.datalake.run_with_connection(
             "validation",
-            lambda conn: conn.sql(
-                self.select_query(paginated=True, columns="COLUMNS('^[^.].+$')")
-            ).columns,
+            lambda conn: conn.sql(q).columns,
         )
         return cols
 
@@ -401,7 +394,6 @@ class QueryComponent(ap.AppComponent):
         )
 
     def update_data(self):
-        print("Updating data")
         # Empty data before updating
         self.header = []
         self.data = []
@@ -433,6 +425,7 @@ class QueryComponent(ap.AppComponent):
         self.query_changed.emit()
 
     def commit(self):
+        self.query_setup_changed.emit()
         self.update_data()
 
     def get_fields_component(self) -> fld_cmp.FieldsComponent:
