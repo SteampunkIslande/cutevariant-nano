@@ -314,8 +314,8 @@ class QueryComponent(ap.AppComponent):
         fields = columns or "*"
         order_by_data = self.order_by_model.get_data()
 
-        order_by = (
-            " ORDER BY " + ", ".join([f'"{ob[0]}" {ob[1]}' for ob in order_by_data])
+        order_by = ' ORDER BY ".validation_hash" ASC ' + (
+            ", " + ", ".join([f'"{ob[0]}" {ob[1]}' for ob in order_by_data])
             if order_by_data
             else ""
         )
