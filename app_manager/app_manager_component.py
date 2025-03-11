@@ -36,13 +36,13 @@ class AppManager(app.AppComponent):
 
         # Instantiate appropriate components for variant validation
 
-        # Instantiate variant info component holder
+        # Instantiate variant info component holder -> TODO: Should be a singleton
         self.variant_info_holder: widget_holder.WidgetHolderComponent = (
             self.app.instantiate_component("widget_holder", "variant_info_holder", self)
         )
         self.variant_info_holder.set_title(self.app.translate("Variant info"))
 
-        # Instantiate genotype info component holder
+        # Instantiate genotype info component holder -> TODO: Should be a singleton
         self.genotype_info_holder: widget_holder.WidgetHolderComponent = (
             self.app.instantiate_component(
                 "widget_holder", "genotype_info_holder", self
