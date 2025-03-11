@@ -11,8 +11,12 @@ import mainwindow as mw
 from commons import add_action_to_menubar, default_prefs
 
 
-class App:
+class App(qc.QObject):
+
+    broadcast_dispatcher = qc.Signal(str, str, str, dict)
+
     def __init__(self):
+        super().__init__()
         self.main_window = mw.MainWindow(self)
         self.main_window.closing.connect(self.on_close)
 
@@ -111,7 +115,7 @@ class App:
             instances = self.components[component_name]["instances"]
             if instance_name in instances:
                 # TODO: Call AppComponent.on_delete() - Not implemented yet
-                del instances[instance_name]
+                pass
 
     def instantiate_component(
         self,
@@ -141,6 +145,8 @@ class App:
         new_instance: AppComponent = definition["class"](
             self, instance_name, parent_component
         )
+        new_instance.broadcast.connect(self.broadcast_dispatcher)
+        self.broadcast_dispatcher.connect(new_instance.generic_receiver)
         instances[instance_name] = new_instance
 
         return new_instance
@@ -312,6 +318,8 @@ class App:
 
 class AppComponent(qc.QObject):
 
+    broadcast = qc.Signal(str, str, str, dict)
+
     def __init__(self, app: App, instance_name: str, parent_component: "AppComponent"):
         super().__init__()
         self.app = app
@@ -319,8 +327,7 @@ class AppComponent(qc.QObject):
         self.parent_component = parent_component
 
     def get_instance_name(self) -> str:
-        print(self.__class__.__name__, "did not implement get_instance_name")
-        raise NotImplementedError()
+        return self.instance_name
 
     def load_from_session(self, session: dict):
         """Load this AppComponent from `session` dict.
@@ -376,6 +383,15 @@ class AppComponent(qc.QObject):
         """
         print(self.__class__.__name__, "did not implement get_contextmenu_entries")
         raise NotImplementedError()
+
+    def generic_receiver(
+        self,
+        action: str,
+        sender_component_name: str,
+        sender_instance_name: str,
+        payload: dict,
+    ):
+        pass
 
 
 if __name__ == "__main__":

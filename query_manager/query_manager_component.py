@@ -120,6 +120,7 @@ class QueryManagerComponent(ap.AppComponent):
         self.filters_holder.remove_component(
             query.get_filters_component().get_instance_name()
         )
+        self.app.remove_instance("query", query.get_instance_name())
 
     def on_query_tab_changed(self, tab_index: int):
         if tab_index < 0:
