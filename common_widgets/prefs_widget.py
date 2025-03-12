@@ -200,10 +200,19 @@ class PrefsWidget(qw.QDialog):
                 self.prefs[key] = editor.currentText()
             else:
                 raise ValueError(f"Unknown editor type: {type(editor)}")
-        self.prefs = {
-            k if not k.startswith("General.") else k[8:]: v
-            for k, v in self.prefs.items()
-        }
+        new_prefs = {}
+        for k, v in self.prefs.items():
+            if "." in k:
+                category_key, sub_key = k.split(".", 1)
+                if category_key == "General":
+                    new_prefs[sub_key] = v
+                    continue
+                if category_key not in new_prefs:
+                    new_prefs[category_key] = {}
+                new_prefs[category_key][sub_key] = v
+            else:
+                new_prefs[k] = v
+        self.prefs = new_prefs
         self.accept()
 
     @staticmethod
@@ -231,7 +240,7 @@ if __name__ == "__main__":
 
     app = qw.QApplication(sys.argv)
     prefs = {
-        "my_string": "hello",
+        "my_string:combo_box:RED:GREEN:BLUE": "BLUE",
         "my_number": 42,
         "my_bool": True,
         "my_file:existing_file": "/path/to/file",
@@ -243,5 +252,5 @@ if __name__ == "__main__":
         },
     }
     widget = PrefsWidget(prefs)
-    if widget.exec() == qw.QDialog.DialogCode.Accepted:
-        sys.exit(app.exec())
+    widget.exec()
+    print(widget.prefs)

@@ -3,16 +3,13 @@
 import PySide6.QtCore as qc
 from PySide6.QtCore import Signal
 
-import query.query_component as q
-
 
 class OrderByModel(qc.QAbstractTableModel):
 
     model_changed = Signal()
 
-    def __init__(self, query: "q.QueryComponent", parent=None):
+    def __init__(self, parent=None):
         super().__init__(parent)
-        self.query = query
         self._data = []
 
     def rowCount(self, parent):
@@ -115,13 +112,16 @@ class OrderByModel(qc.QAbstractTableModel):
         self.endInsertRows()
         self.model_changed.emit()
 
+    def clear(self):
+        self.load([])
+
     def load(self, data):
         self.beginResetModel()
         self._data = data
         self.endResetModel()
         self.model_changed.emit()
 
-    def get_data(self):
+    def get_data(self) -> list[tuple[str, str]]:
         return self._data
 
     def flags(self, index: qc.QModelIndex):

@@ -3,7 +3,8 @@ import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
 
 import app as ap
-from order_by.order_by_widget import OrderByWidget
+import order_by.order_by_model as obm
+import order_by.order_by_widget as obw
 
 
 class OrderByComponent(ap.AppComponent):
@@ -12,8 +13,8 @@ class OrderByComponent(ap.AppComponent):
         self, app: ap.App, instance_name: str, parent_component: "ap.AppComponent"
     ):
         super().__init__(app, instance_name, parent_component)
-
-        self.order_by_widget = OrderByWidget(self.app, self.parent_component)
+        self.model = obm.OrderByModel(self)
+        self.order_by_widget = obw.OrderByWidget(self.app, self)
 
     def get_instance_name(self) -> str:
         return self.instance_name
@@ -38,6 +39,27 @@ class OrderByComponent(ap.AppComponent):
 
     def get_contextmenu_entries(self, local_info: dict) -> list[tuple[str, qg.QAction]]:
         return []
+
+    def emit_order_by_changed(self):
+        self.broadcast.emit(
+            "order_by_changed",
+            "order_by",
+            self.instance_name,
+            {"order_by_expression": self.model.get_data()},
+        )
+
+    def generic_receiver(
+        self,
+        action: str,
+        sender_component_name: str,
+        sender_instance_name: str,
+        payload: dict,
+    ):
+        if action == "query_order_by_changed":
+            # We are concerned
+            if sender_component_name == self.parent_component.get_instance_name():
+                self.model.load(payload["order_by_expression"])
+        return
 
 
 def register_component():

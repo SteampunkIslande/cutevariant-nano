@@ -1,6 +1,4 @@
 import app
-import datalake
-import datalake.datalake_component as datalake
 import mainwindow
 import validation_manager.validation_manager_component as validation_manager_component
 import widget_holder.widget_holder_component as widget_holder
@@ -13,15 +11,6 @@ class AppManager(app.AppComponent):
     ):
         super().__init__(app, instance_name, parent_component)
 
-        self.datalake = None
-        self.variant_info_holder = None
-        self.genotype_info_holder = None
-        self.fields_widget_holder = None
-        self.filters_widget_holder = None
-        self.validation_component = None
-
-        self.main_window = None
-
     def get_instance_name(self):
         return self.instance_name
 
@@ -32,68 +21,77 @@ class AppManager(app.AppComponent):
         pass
 
     def on_start(self):
-        self.datalake: datalake.Datalake = self.app.get_component("datalake")
-
-        # Instantiate appropriate components for variant validation
-
-        # Instantiate variant info component holder -> TODO: Should be a singleton
-        self.variant_info_holder: widget_holder.WidgetHolderComponent = (
-            self.app.instantiate_component("widget_holder", "variant_info_holder", self)
-        )
-        self.variant_info_holder.set_title(self.app.translate("Variant info"))
-
-        # Instantiate genotype info component holder -> TODO: Should be a singleton
-        self.genotype_info_holder: widget_holder.WidgetHolderComponent = (
-            self.app.instantiate_component(
-                "widget_holder", "genotype_info_holder", self
-            )
-        )
-        self.genotype_info_holder.set_title(self.app.translate("Genotype info"))
+        window = self.app.window()
 
         # Instantiate fields selection component holder
-        self.fields_widget_holder: widget_holder.WidgetHolderComponent = (
+        fields_widget_holder: widget_holder.WidgetHolderComponent = (
             self.app.instantiate_component(
                 "widget_holder", "fields_widget_holder", self
             )
         )
-        self.fields_widget_holder.set_title(self.app.translate("Fields selection"))
+        fields_widget_holder.set_title(self.app.translate("Fields selection"))
 
         # Instantiate filters selection component holder
-        self.filters_widget_holder: widget_holder.WidgetHolderComponent = (
+        filters_widget_holder: widget_holder.WidgetHolderComponent = (
             self.app.instantiate_component(
                 "widget_holder", "filters_widget_holder", self
             )
         )
-        self.filters_widget_holder.set_title(self.app.translate("Filters selection"))
+        filters_widget_holder.set_title(self.app.translate("Filters selection"))
 
         # Instantiate validation component itself
-        self.validation_component: (
+        validation_component: (
             validation_manager_component.ValidationManagerComponent
         ) = self.app.instantiate_singleton("validation_manager")
 
-        self.main_window = self.app.window()
-
-        self.main_window.add_component_to_window(
-            self.variant_info_holder, mainwindow.WindowRegion.LEFT
+        window.add_component_to_window(
+            fields_widget_holder, mainwindow.WindowRegion.LOWER
         )
-        self.main_window.add_component_to_window(
-            self.genotype_info_holder, mainwindow.WindowRegion.LEFT
+        window.add_component_to_window(
+            filters_widget_holder, mainwindow.WindowRegion.LOWER
         )
-        self.main_window.add_component_to_window(
-            self.fields_widget_holder, mainwindow.WindowRegion.LOWER
-        )
-        self.main_window.add_component_to_window(
-            self.filters_widget_holder, mainwindow.WindowRegion.LOWER
-        )
-        self.main_window.add_component_to_window(
-            self.validation_component, mainwindow.WindowRegion.RIGHT
+        window.add_component_to_window(
+            validation_component, mainwindow.WindowRegion.RIGHT
         )
 
     def widget(self):
         return None
 
-    def get_signal(self, signal_name):
-        return
+    def generic_receiver(
+        self,
+        action: str,
+        sender_component_name: str,
+        sender_instance_name: str,
+        payload: dict,
+    ):
+        if action == "current_query_changed":
+            fields_widget_holder: widget_holder.WidgetHolderComponent = (
+                self.app.get_component("widget_holder", "fields_widget_holder")
+            )
+            filters_widget_holder: widget_holder.WidgetHolderComponent = (
+                self.app.get_component("widget_holder", "filters_widget_holder")
+            )
+            current_query_fields_component = self.app.get_component(
+                "fields", f"{payload['current_query']}/fields"
+            )
+            current_query_filters_component = self.app.get_component(
+                "filters", f"{payload['current_query']}/filters"
+            )
+            if not all(
+                [
+                    fields_widget_holder,
+                    filters_widget_holder,
+                    current_query_fields_component,
+                    current_query_filters_component,
+                ]
+            ):
+                return
+            fields_widget_holder.set_current_component(
+                current_query_fields_component.get_instance_name()
+            )
+            filters_widget_holder.set_current_component(
+                current_query_filters_component.get_instance_name()
+            )
 
     def get_menubar_entries(self):
         return []

@@ -9,11 +9,8 @@ import PySide6.QtCore as qc
 import app as ap
 import datalake.datalake_component as dl
 import fields.fields_component as fld_cmp
-import fields.fields_model as fldm
 import filters.filters as flt
 import filters.filters_component as flt_cmp
-import filters.filters_model as fltm
-import order_by.order_by_model as obm
 import query
 import query.query_table_widget
 from commons import duck_db_literal_string_list, duck_db_literal_string_tuple
@@ -98,27 +95,6 @@ class QueryComponent(ap.AppComponent):
 
         self.init_state()
 
-        self.fields_model = fldm.FieldsModel(self)
-        self.fields_model.load()
-        self.fields_model.model_changed.connect(self.update_data)
-
-        self.filter_model = fltm.FilterModel(self)
-        self.filter_model.load(
-            {
-                "filter_type": "ROOT",
-                "children": [{"filter_type": "AND", "children": []}],
-            }
-        )
-        self.filter_model.model_changed.connect(self.update_data)
-
-        self.order_by_model = obm.OrderByModel(self)
-        self.order_by_model.load([])
-        self.order_by_model.model_changed.connect(self.update_data)
-
-        self.signals = {
-            "query_changed": self.query_changed,
-        }
-
         self.init_children_components()
 
     def init_state(self):
@@ -147,12 +123,8 @@ class QueryComponent(ap.AppComponent):
         return self
 
     def init_children_components(self):
-        self.fields_component = self.app.instantiate_component(
-            "fields", f"{self.instance_name}.fields", self
-        )
-        self.filters_component = self.app.instantiate_component(
-            "filters", f"{self.instance_name}.filters", self
-        )
+        self.app.instantiate_component("fields", f"{self.instance_name}.fields", self)
+        self.app.instantiate_component("filters", f"{self.instance_name}.filters", self)
 
         self.view = query.query_table_widget.QueryTableWidget(self.app, self)
         self.view.setWindowTitle(self.instance_name)
@@ -180,10 +152,6 @@ class QueryComponent(ap.AppComponent):
 
     def set_limit(self, limit: int):
         self.limit = limit
-        return self
-
-    def set_order_by(self, order_by: list[tuple[str, str]]):
-        self.order_by_model.load(order_by)
         return self
 
     def get_offset(self) -> int:

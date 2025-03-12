@@ -3,7 +3,6 @@ import typing
 from pathlib import Path
 
 import duckdb as db
-import PySide6.QtCore as qc
 import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
 
@@ -39,8 +38,6 @@ class DatabaseConnection:
 
 class Datalake(app.AppComponent):
 
-    folder_changed = qc.Signal()
-
     def __init__(
         self,
         app: app.App,
@@ -48,8 +45,6 @@ class Datalake(app.AppComponent):
         parent_component: app.AppComponent = None,
     ):
         super().__init__(app, instance_name, parent_component)
-
-        self.signals_dict = {"folder_changed": self.folder_changed}
 
         self.datalake_path = None
 
@@ -62,7 +57,16 @@ class Datalake(app.AppComponent):
         self.datalake_path = session["datalake_path"]
         if not os.path.isdir(self.datalake_path):
             self.datalake_path = None
-        self.folder_changed.emit()
+
+        self.emit_datalake_path_changed()
+
+    def emit_datalake_path_changed(self):
+        self.broadcast.emit(
+            "datalake_path_changed",
+            "datalake",
+            self.instance_name,
+            {"datalake_path": self.datalake_path},
+        )
 
     def save_to_session(self):
         return {"datalake_path": self.datalake_path}
@@ -72,9 +76,6 @@ class Datalake(app.AppComponent):
 
     def widget(self):
         return None
-
-    def get_signal(self, signal_name: str):
-        return self.signals_dict.get(signal_name)
 
     def get_menubar_entries(self):
         self.set_datalake_path_action = qg.QAction(self.app.translate("Open datalake"))
@@ -88,7 +89,7 @@ class Datalake(app.AppComponent):
         existing_dir = qw.QFileDialog.getExistingDirectory(self.app.window())
         if os.path.isdir(existing_dir):
             self.datalake_path = existing_dir
-            self.folder_changed.emit()
+            self.emit_datalake_path_changed()
 
     def relative_to_absolute(self, path: str) -> str:
         if self.datalake_path:

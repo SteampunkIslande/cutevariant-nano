@@ -23,23 +23,21 @@ class ValidationManagerComponent(ap.AppComponent):
     ):
         super().__init__(app, instance_name, parent_component)
 
-        self.datalake: dl.Datalake = self.app.get_component("datalake")
+        datalake: dl.Datalake = self.app.get_component("datalake")
 
         # Query Manager Component
-        self.query_manager_component: qm.QueryManagerComponent = (
+        query_manager_component: qm.QueryManagerComponent = (
             self.app.instantiate_singleton("query_manager")
         )
 
-        self.datalake.folder_changed.connect(self.on_datalake_changed)
-
         self.widget_holder = MultiWidgetHolder()
-        self.validation_model = ValidationModel(self.app, self.datalake, self)
+        self.validation_model = ValidationModel(self.app, datalake, self)
 
         self.validation_selection_widget = ValidationSelectionWidget(
-            self.app, self.datalake, self.validation_model
+            self.app, datalake, self.validation_model
         )
         self.validation_widget = ValidationWidget(
-            self.app, self.query_manager_component, self.datalake
+            self.app, query_manager_component, datalake
         )
 
         self.widget_holder.add_widget(
@@ -92,12 +90,15 @@ class ValidationManagerComponent(ap.AppComponent):
 
     def set_validation(self, validation_info: dict):
         # Completely new validation, forget all the queries we may have
-        self.query_manager_component.clear()
+        query_manager_component: qm.QueryManagerComponent = self.app.get_component(
+            "query_manager"
+        )
+        query_manager_component.clear()
 
         self.init_validation(validation_info)
 
         if validation_info.get("completed"):
-            self.query_manager_component.new_query(
+            query_manager_component.new_query(
                 self.app.translate("Final validation"),
                 self.validation_method["final"]["query"],
                 {
@@ -110,7 +111,7 @@ class ValidationManagerComponent(ap.AppComponent):
             return
 
         for sample_name in self.sample_names:
-            self.query_manager_component.new_query(
+            query_manager_component.new_query(
                 sample_name,
                 self.validation_method["default"]["query"],
                 {
@@ -151,8 +152,13 @@ class ValidationManagerComponent(ap.AppComponent):
     def on_back_to_validation_selection(self):
         self.widget_holder.set_current_widget("validation_selection")
 
-        # Close all queries from the validation we're leaving
-        self.query_manager_component.clear()
+        # Broadcast that we are back to validation selection
+        self.broadcast.emit(
+            "back_to_validation_selection",
+            "validation_manager",
+            self.instance_name,
+            {},
+        )
 
     def validate(self):
         # self.validation_model

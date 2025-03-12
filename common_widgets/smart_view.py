@@ -3,14 +3,6 @@ from PySide6.QtGui import *
 from PySide6.QtWidgets import *
 
 
-def swapOrientation(orientation: Qt.Orientation):
-    return (
-        Qt.Orientation.Horizontal
-        if orientation == Qt.Orientation.Vertical
-        else Qt.Orientation.Vertical
-    )
-
-
 class ColumnSelectionProxy(QSortFilterProxyModel):
 
     def __init__(self, parent: QObject = None):

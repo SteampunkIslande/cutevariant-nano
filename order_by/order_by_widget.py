@@ -3,21 +3,21 @@ import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
 
 import app as ap
-import query.query_component as q_cmp
+import order_by.order_by_component as obcmp
 
 # Class for a custom editor for the order by widget (for the first column, add a combobox with the field names, and for the second column, add a combobox with the order options (ASC, DESC))
 
 
 class OrderByWidgetItemDelegate(qw.QStyledItemDelegate):
 
-    def __init__(self, query: q_cmp.QueryComponent, parent=None):
+    def __init__(self, component: obcmp.OrderByComponent, parent=None):
         super().__init__(parent)
-        self.query = query
+        self.component = component
 
     def createEditor(self, parent, option, index):
         if index.column() == 0:
             editor = qw.QComboBox(parent)
-            editor.addItems(self.query.list_exposed_fields())
+            editor.addItems(self.component.get_field_names())
         if index.column() == 1:
             editor = qw.QComboBox(parent)
             editor.addItems(["ASC", "DESC"])
@@ -43,10 +43,10 @@ class OrderByWidgetItemDelegate(qw.QStyledItemDelegate):
 
 
 class OrderByWidget(qw.QWidget):
-    def __init__(self, app: ap.App, query: q_cmp.QueryComponent, parent=None):
+    def __init__(self, app: ap.App, component: obcmp.OrderByComponent, parent=None):
         super().__init__(parent)
 
-        self.query = query
+        self.component = component
         self.app = app
 
         self._layout = qw.QVBoxLayout()
@@ -60,9 +60,9 @@ class OrderByWidget(qw.QWidget):
 
     def setup_model_view(self):
         self.order_by_view = qw.QTableView(self)
-        self.order_by_model = self.query.order_by_model
+        self.order_by_model = self.component.model
 
-        self.order_by_delegate = OrderByWidgetItemDelegate(self.query, self)
+        self.order_by_delegate = OrderByWidgetItemDelegate(self.component, self)
 
         self.order_by_view.setModel(self.order_by_model)
         self.order_by_view.setItemDelegate(self.order_by_delegate)

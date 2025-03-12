@@ -1,4 +1,5 @@
 import app
+from fields import fields_model as fldm
 from fields.fields_widget import FieldsWidget
 
 
@@ -9,7 +10,10 @@ class FieldsComponent(app.AppComponent):
     ):
         super().__init__(app, instance_name, parent_component)
 
-        self.fields_widget = FieldsWidget(self.parent_component)
+        self.model = fldm.FieldsModel(self)
+        self.model.dataChanged.connect(self.emit_fields_changed)
+
+        self.fields_widget = FieldsWidget(self.app, self)
 
     def get_instance_name(self):
         return self.instance_name
@@ -34,6 +38,30 @@ class FieldsComponent(app.AppComponent):
 
     def get_contextmenu_entries(self, local_info):
         return
+
+    def emit_fields_changed(self):
+        self.broadcast.emit(
+            "selected_fields_changed",
+            "fields",
+            self.instance_name,
+            {"fields": self.model.checked_fields()},
+        )
+
+    def generic_receiver(
+        self,
+        action: str,
+        sender_component_name: str,
+        sender_instance_name: str,
+        payload: dict,
+    ):
+        if action == "query_fields_changed":
+            # We are concerned
+            if payload["current_query"] == self.parent_component.get_instance_name():
+                self.update_fields(payload["fields"])
+        return
+
+    def update_fields(self, fields: list[str]):
+        self.model.update_fields(fields)
 
 
 def register_component():

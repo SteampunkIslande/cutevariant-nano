@@ -4,9 +4,8 @@ import PySide6.QtCore as qc
 import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
 
-import query.query_component as q
+import filters.filters_model as fltm
 from filters.filters import FilterItem, FilterType
-from filters.filters_model import FilterModel
 
 
 # A simple table view with each row being a filter shown to the user as a string.
@@ -14,7 +13,7 @@ from filters.filters_model import FilterModel
 # Everytime the filters model is changed, we add a row to the table view.
 class FiltersHistoryWidget(qw.QWidget):
 
-    def __init__(self, filters_model: FilterModel, parent=None):
+    def __init__(self, filters_model: fltm.FilterModel, parent=None):
         super().__init__(parent)
 
         self._layout = qw.QVBoxLayout()
@@ -22,7 +21,7 @@ class FiltersHistoryWidget(qw.QWidget):
         self.filters_model = filters_model
         self.filters_model.model_changed.connect(self.update_table)
 
-        self.model = qg.QStandardItemModel(0, 2, self)
+        self.history_model = qg.QStandardItemModel(0, 2, self)
 
         self.table = qw.QTableView(self)
 
@@ -33,7 +32,7 @@ class FiltersHistoryWidget(qw.QWidget):
             qw.QAbstractItemView.SelectionBehavior.SelectRows
         )
         self.table.setSelectionMode(qw.QAbstractItemView.SelectionMode.SingleSelection)
-        self.table.setModel(self.model)
+        self.table.setModel(self.history_model)
 
         self._layout.addWidget(self.table)
 
@@ -58,7 +57,7 @@ class FiltersHistoryWidget(qw.QWidget):
             filter_item_item.setData(filter_item, qc.Qt.ItemDataRole.UserRole)
             filter_item_item.setEditable(False)
 
-            self.model.appendRow(
+            self.history_model.appendRow(
                 [
                     alias_item,
                     filter_item_item,
@@ -70,8 +69,8 @@ class FiltersHistoryWidget(qw.QWidget):
         last_filter_item = self.filters_model._rootItem
         last_filter_str = str(last_filter_item)
 
-        for row in range(self.model.rowCount()):
-            filter_repr = self.model.item(row, 1).text()
+        for row in range(self.history_model.rowCount()):
+            filter_repr = self.history_model.item(row, 1).text()
             if filter_repr == last_filter_str:
                 return
 
@@ -82,7 +81,7 @@ class FiltersHistoryWidget(qw.QWidget):
         alias_item = qg.QStandardItem("Alias")
         alias_item.setEditable(True)
 
-        self.model.appendRow(
+        self.history_model.appendRow(
             [
                 alias_item,
                 last_filter_standard_item,
@@ -91,9 +90,9 @@ class FiltersHistoryWidget(qw.QWidget):
 
     def save_history(self) -> list:
         hist = []
-        for row in range(self.model.rowCount()):
-            alias = self.model.item(row, 0).text()
-            filter_item: FilterItem = self.model.item(row, 1).data(
+        for row in range(self.history_model.rowCount()):
+            alias = self.history_model.item(row, 0).text()
+            filter_item: FilterItem = self.history_model.item(row, 1).data(
                 qc.Qt.ItemDataRole.UserRole
             )
             hist.append(
@@ -118,7 +117,7 @@ class FiltersHistoryWidget(qw.QWidget):
         index = self.table.currentIndex()
         if not index.isValid():
             return
-        self.model.removeRow(index.row())
+        self.history_model.removeRow(index.row())
 
     def apply_filter(self):
         index = self.table.currentIndex()
@@ -167,9 +166,10 @@ class FiltersWidgetItemDelegate(qw.QStyledItemDelegate):
 
 # A filters editor widget, using a QTreeView
 class FiltersWidget(qw.QWidget):
-    def __init__(self, query: "q.QueryComponent", parent=None):
+    def __init__(self, model: fltm.FilterModel, parent=None):
         super().__init__(parent)
-        self.query = query
+
+        self.model = model
 
         self._layout = qw.QVBoxLayout()
         self.setLayout(self._layout)
@@ -200,7 +200,6 @@ class FiltersWidget(qw.QWidget):
             qw.QAbstractItemView.DragDropMode.InternalMove
         )
         self.filters_view.setDragEnabled(True)
-        self.model = self.query.filter_model
         self.filters_view.setModel(self.model)
 
         self._layout.addWidget(self.filters_view)

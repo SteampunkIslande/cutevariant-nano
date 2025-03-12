@@ -22,7 +22,6 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-import query.query_component as q
 from filters.filters import FilterItem, FilterType
 
 # Copyright (C) 2022 The Qt Company Ltd.
@@ -32,9 +31,8 @@ from filters.filters import FilterItem, FilterType
 class FilterVariablesModel(QAbstractTableModel):
     """A simple model to edit key value pairs"""
 
-    def __init__(self, query: "q.QueryComponent"):
+    def __init__(self):
         super().__init__()
-        self.query = query
 
 
 class FilterModel(QAbstractItemModel):
@@ -42,12 +40,10 @@ class FilterModel(QAbstractItemModel):
 
     model_changed = Signal()
 
-    def __init__(self, query: "q.QueryComponent", parent: QObject = None):
+    def __init__(self, parent: QObject = None):
         super().__init__(parent)
 
         self._dragged_item = None
-        self.query = query
-
         self._rootItem = FilterItem(FilterType.ROOT)
 
     def clear(self):

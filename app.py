@@ -80,6 +80,18 @@ class App(qc.QObject):
             self.set_config_folder_action,
         )
 
+        self.show_loaded_components_action = qg.QAction(
+            self.translate("Show loaded components")
+        )
+        self.show_loaded_components_action.triggered.connect(
+            self.show_loaded_components
+        )
+        add_action_to_menubar(
+            self.main_window.menuBar(),
+            self.translate("File/Debug"),
+            self.show_loaded_components_action,
+        )
+
         for component_name, component in self.components.items():
             definition = component["definition"]
             instantiate_on = definition["instantiate_on"]
@@ -87,6 +99,13 @@ class App(qc.QObject):
             if instantiate_on == "setup":
                 if instantiation_policy == "singleton":
                     self.instantiate_singleton(component_name)
+
+    def show_loaded_components(self):
+        print("Loaded components:")
+        for component_name in self.components:
+            print(component_name)
+            for instance_name in self.components[component_name]["instances"]:
+                print(f"  - {instance_name}")
 
     def instantiate_singleton(self, component_name: str):
         if component_name not in self.components:

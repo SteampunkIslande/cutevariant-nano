@@ -1,13 +1,11 @@
-from typing import Union
-
 import PySide6.QtCore as qc
 import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
 
 import app as ap
-import app_manager.app_manager_component as am
 import mainwindow as mw
 import query.query_component as q
+from widget_holder.widget_holder_component import WidgetHolderComponent
 
 
 class QueryManagerWidget(qw.QWidget):
@@ -51,14 +49,6 @@ class QueryManagerComponent(ap.AppComponent):
 
         self.current_query = None
 
-        app_manager: am.AppManager = self.app.get_component("app-manager")
-
-        self.variant_info_holder = app_manager.variant_info_holder
-        self.genotype_info_holder = app_manager.genotype_info_holder
-
-        self.fields_holder = app_manager.fields_widget_holder
-        self.filters_holder = app_manager.filters_widget_holder
-
         self.query_model = qg.QStandardItemModel(self)
         self.query_manager_widget = QueryManagerWidget()
         self.query_manager_widget.set_model(self.query_model)
@@ -71,7 +61,7 @@ class QueryManagerComponent(ap.AppComponent):
     def new_query(self, query_name: str, data_prep: dict, query_options: dict):
 
         query: q.QueryComponent = self.app.instantiate_component(
-            "query", query_name, self
+            "query", f"{self.instance_name}/{query_name}", self
         )
 
         print(query_options)
@@ -83,12 +73,25 @@ class QueryManagerComponent(ap.AppComponent):
         ).set_selected_samples(
             query_options["sample_names"]
         ).commit()
-
         self.query_model.appendRow(qg.QStandardItem(query_name))
 
+        fields_component = self.app.instantiate_component(
+            "fields", f"{self.instance_name}/{query_name}/fields", query
+        )
+        filters_component = self.app.instantiate_component(
+            "filters", f"{self.instance_name}/{query_name}/filters", query
+        )
+
         # COMPONENT HOLDERS INSTALLATION
-        self.fields_holder.add_component(query.get_fields_component())
-        self.filters_holder.add_component(query.get_filters_component())
+        fields_holder: WidgetHolderComponent = self.app.get_component(
+            "widget_holder", "fields_widget_holder"
+        )
+        filters_holder: WidgetHolderComponent = self.app.get_component(
+            "widget_holder", "filters_widget_holder"
+        )
+
+        fields_holder.add_component(fields_component)
+        filters_holder.add_component(filters_component)
 
         self.queries_tab_widget.blockSignals(True)
         self.app.window().add_component_to_window(query, mw.WindowRegion.UPPER)
@@ -114,12 +117,14 @@ class QueryManagerComponent(ap.AppComponent):
             self.queries_tab_widget.removeTab(tab_index)
 
         # COMPONENT HOLDERS UNINSTALLATION
-        self.fields_holder.remove_component(
-            query.get_fields_component().get_instance_name()
+        fields_holder: WidgetHolderComponent = self.app.get_component(
+            "widget_holder", "fields_widget_holder"
         )
-        self.filters_holder.remove_component(
-            query.get_filters_component().get_instance_name()
+        filters_holder: WidgetHolderComponent = self.app.get_component(
+            "widget_holder", "filters_widget_holder"
         )
+        fields_holder.remove_component(f"{query.get_instance_name()}/fields")
+        filters_holder.remove_component(f"{query.get_instance_name()}/filters")
         self.app.remove_instance("query", query.get_instance_name())
 
     def on_query_tab_changed(self, tab_index: int):
@@ -128,7 +133,7 @@ class QueryManagerComponent(ap.AppComponent):
 
         current_query_name = self.queries_tab_widget.tabText(tab_index)
 
-        # Tab index changed, but not its content
+        # Tab index changed but not its content (for example, the tab was moved)
         if (
             self.current_query
             and current_query_name == self.current_query.get_instance_name()
@@ -137,21 +142,19 @@ class QueryManagerComponent(ap.AppComponent):
 
         self.current_query = self.queries[current_query_name]
 
-        # self.variant_info_holder.set_current_component(
-        #     self.current_query.get_variant_info().get_instance_name()
-        # )
-
         # COMPONENT HOLDERS UPDATE
-        self.fields_holder.set_current_component(
-            self.current_query.get_fields_component().get_instance_name()
+        fields_holder: WidgetHolderComponent = self.app.get_component(
+            "widget_holder", "fields_widget_holder"
         )
-
-        self.filters_holder.set_current_component(
-            self.current_query.get_filters_component().get_instance_name()
+        filters_holder: WidgetHolderComponent = self.app.get_component(
+            "widget_holder", "filters_widget_holder"
         )
-
-    def get_instance_name(self) -> str:
-        return self.instance_name
+        fields_holder.set_current_component(
+            f"{self.current_query.get_instance_name()}/fields"
+        )
+        filters_holder.set_current_component(
+            f"{self.current_query.get_instance_name()}/filters"
+        )
 
     def load_from_session(self, session: dict):
         # Implement loading logic here
@@ -167,9 +170,6 @@ class QueryManagerComponent(ap.AppComponent):
 
     def widget(self) -> qw.QWidget:
         return self.query_manager_widget
-
-    def get_signal(self, signal_name: str) -> Union[qc.SignalInstance, None]:
-        return None
 
     def get_menubar_entries(self) -> list[tuple[str, qg.QAction]]:
         # Implement menu bar entries here

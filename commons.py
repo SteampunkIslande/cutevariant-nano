@@ -2,7 +2,6 @@ import json
 import typing
 from pathlib import Path
 
-import duckdb as db
 import PySide6.QtCore as qc
 import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
@@ -101,18 +100,6 @@ def load_user_prefs():
     else:
         prefs = default_prefs()
     return prefs
-
-
-def table_exists(conn: db.DuckDBPyConnection, table_name: str) -> bool:
-    try:
-        conn.table(table_name)
-        return True
-    except db.CatalogException:
-        return False
-
-
-def get_last_session_path():
-    return load_user_prefs().get("last_session", None)
 
 
 def get_config_folder() -> typing.Tuple[bool, typing.Union[Path | None]]:

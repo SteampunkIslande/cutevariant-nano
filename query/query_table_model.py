@@ -62,7 +62,8 @@ class QueryTableModel(qc.QAbstractTableModel):
         self.header = self.query.get_header()
         self._data = self.query.get_data()
 
-        self.query.query_changed.connect(self.update)
+        # TODO: Create a
+        # self.query.query_changed.connect(self.update)
 
         self.style = load_style()
 

@@ -66,7 +66,7 @@ class WidgetHolderComponent(app.AppComponent):
 
     def set_current_component(self, component_name: str):
         if component_name not in self.held_components:
-            return False
+            self.current_component_name = None
         if self.current_component_name == component_name:
             return False
         self.current_component_name = component_name

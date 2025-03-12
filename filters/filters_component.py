@@ -1,4 +1,5 @@
 import app
+import filters.filters_model as fltm
 import filters.filters_widget as fltw
 import query.query_component as q
 
@@ -9,6 +10,15 @@ class FiltersComponent(app.AppComponent):
         self, app: app.App, instance_name: str, parent_component: "q.QueryComponent"
     ):
         super().__init__(app, instance_name, parent_component)
+
+        self.model = fltm.FilterModel(self)
+        self.model.load(
+            {
+                "filter_type": "ROOT",
+                "children": [{"filter_type": "AND", "children": []}],
+            }
+        )
+        self.model.model_changed.connect(self.emit_filters_changed)
 
         self.filters_widget = fltw.FiltersWidget(self.parent_component)
 
@@ -35,6 +45,14 @@ class FiltersComponent(app.AppComponent):
 
     def get_contextmenu_entries(self, local_info):
         return
+
+    def emit_filters_changed(self):
+        self.broadcast.emit(
+            "filters_changed",
+            "filters",
+            self.instance_name,
+            {"filter_expression": str(self.model)},
+        )
 
 
 def register_component():
