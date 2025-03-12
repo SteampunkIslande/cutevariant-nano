@@ -11,9 +11,6 @@ class AppManager(app.AppComponent):
     ):
         super().__init__(app, instance_name, parent_component)
 
-    def get_instance_name(self):
-        return self.instance_name
-
     def load_from_session(self, session):
         pass
 

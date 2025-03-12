@@ -51,7 +51,7 @@ class FiltersComponent(app.AppComponent):
             "filters_changed",
             "filters",
             self.instance_name,
-            {"filter_expression": str(self.model)},
+            {"filter_tree": self.model.to_dict()},
         )
 
 

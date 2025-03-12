@@ -52,6 +52,7 @@ class App(qc.QObject):
         from query_manager import query_manager_component
         from validation_manager import validation_manager_component
         from widget_holder import widget_holder_component
+        from order_by import order_by_component
 
         self.register_component(*datalake_component.register_component())
         self.register_component(*app_manager_component.register_component())
@@ -61,6 +62,7 @@ class App(qc.QObject):
         self.register_component(*fields_component.register_component())
         self.register_component(*filters_component.register_component())
         self.register_component(*query_component.register_component())
+        self.register_component(*order_by_component.register_component())
 
     def register_component(self, component_name: str, component_definition: dict):
         self.components[component_name] = {

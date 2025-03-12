@@ -5,6 +5,7 @@ import PySide6.QtWidgets as qw
 import app as ap
 import order_by.order_by_model as obm
 import order_by.order_by_widget as obw
+import query.query_component as q
 
 
 class OrderByComponent(ap.AppComponent):
@@ -60,6 +61,12 @@ class OrderByComponent(ap.AppComponent):
             if sender_component_name == self.parent_component.get_instance_name():
                 self.model.load(payload["order_by_expression"])
         return
+
+    def get_field_names(self):
+        query_component: q.QueryComponent = self.app.get_component(
+            "query", self.parent_component.get_instance_name()
+        )
+        pass
 
 
 def register_component():
