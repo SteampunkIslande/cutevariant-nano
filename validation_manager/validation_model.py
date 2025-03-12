@@ -130,7 +130,7 @@ class ValidationModel(qc.QAbstractTableModel):
 
         self.update_query = "SELECT * FROM validations"
 
-        self.datalake.folder_changed.connect(self.update)
+        # self.datalake.folder_changed.connect(self.update)
         if self.datalake.datalake_path:
             self.update()
 

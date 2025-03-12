@@ -73,7 +73,7 @@ class ValidationSelectionWidget(qw.QWidget):
             self.new_validation_button.setEnabled(False)
             self.start_validation_button.setEnabled(False)
 
-        self.datalake.folder_changed.connect(self.on_datalake_changed)
+        # self.datalake.folder_changed.connect(self.on_datalake_changed)
 
         self.init_layout()
 

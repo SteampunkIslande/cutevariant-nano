@@ -18,7 +18,7 @@ from commons import duck_db_literal_string_list
 
 class PageSelector(qw.QWidget):
 
-    def __init__(self, app: ap.App, query: q_cmpt.QueryComponent, parent=None):
+    def __init__(self, app: ap.App, query: "q_cmpt.QueryComponent", parent=None):
         super().__init__(parent)
 
         self.app = app
