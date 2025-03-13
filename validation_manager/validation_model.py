@@ -1,4 +1,5 @@
 import datetime
+import os
 from pathlib import Path
 from typing import List
 
@@ -7,7 +8,7 @@ import polars as pl
 import PySide6.QtCore as qc
 
 import app as ap
-import datalake.datalake_component as dl
+import validation_manager.validation_manager_component as vmc
 from commons import duck_db_literal_string_list
 
 VALIDATION_TABLE_COLUMNS = {
@@ -119,20 +120,14 @@ class ValidationModel(qc.QAbstractTableModel):
 
     model_updated = qc.Signal()
 
-    def __init__(
-        self, app: ap.App, datalake: dl.Datalake, parent: qc.QObject | None = ...
-    ) -> None:
-        super().__init__(parent)
+    def __init__(self, app: ap.App, parent_component: ap.AppComponent) -> None:
+        super().__init__(parent_component)
         self.app = app
-        self.datalake = datalake
+        self.parent_component: vmc.ValidationManagerComponent = parent_component
         self.headers = []
         self._data = []
 
         self.update_query = "SELECT * FROM validations"
-
-        # self.datalake.folder_changed.connect(self.update)
-        if self.datalake.datalake_path:
-            self.update()
 
     def data(
         self, index: qc.QModelIndex, role: int = qc.Qt.ItemDataRole.DisplayRole
@@ -199,8 +194,9 @@ class ValidationModel(qc.QAbstractTableModel):
         gene_names: List[str],
         validation_method: str,
     ):
-        if self.datalake.datalake_path:
-            self.datalake.run_with_connection(
+        datalake = self.parent_component.get_datalake()
+        if datalake.datalake_path and os.path.exists(datalake.datalake_path):
+            datalake.run_with_connection(
                 "validation",
                 new_validation,
                 validation_name,
@@ -226,8 +222,9 @@ class ValidationModel(qc.QAbstractTableModel):
         acmg_classification: str,
         distribution_anomalie: str,
     ):
-        if self.datalake.datalake_path:
-            self.datalake.run_with_connection(
+        datalake = self.parent_component.get_datalake()
+        if datalake.datalake_path and os.path.exists(datalake.datalake_path):
+            datalake.run_with_connection(
                 "validation",
                 insert_validation_data,
                 table_uuid,
@@ -247,11 +244,13 @@ class ValidationModel(qc.QAbstractTableModel):
         self.beginResetModel()
         self.headers = []
         self._data = []
-        query_res: pl.DataFrame = self.datalake.run_with_connection(
-            "validation",
-            lambda conn: conn.sql(self.update_query).pl(),
-        )
-        self.headers = query_res.columns
-        self._data = [tuple(v for v in d.values()) for d in query_res.to_dicts()]
-        self.endResetModel()
-        self.model_updated.emit()
+        datalake = self.parent_component.get_datalake()
+        if datalake.datalake_path and os.path.exists(datalake.datalake_path):
+            query_res: pl.DataFrame = datalake.run_with_connection(
+                "validation",
+                lambda conn: conn.sql(self.update_query).pl(),
+            )
+            self.headers = query_res.columns
+            self._data = [tuple(v for v in d.values()) for d in query_res.to_dicts()]
+            self.endResetModel()
+            self.model_updated.emit()

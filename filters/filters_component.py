@@ -20,7 +20,7 @@ class FiltersComponent(app.AppComponent):
         )
         self.model.model_changed.connect(self.emit_filters_changed)
 
-        self.filters_widget = fltw.FiltersWidget(self.parent_component)
+        self.filters_widget = fltw.FiltersWidget(self.app, self, self.model)
 
     def get_instance_name(self):
         return self.instance_name

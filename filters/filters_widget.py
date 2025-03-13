@@ -4,6 +4,8 @@ import PySide6.QtCore as qc
 import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
 
+import app as ap
+import filters.filters_component as fltc
 import filters.filters_model as fltm
 from filters.filters import FilterItem, FilterType
 
@@ -166,8 +168,17 @@ class FiltersWidgetItemDelegate(qw.QStyledItemDelegate):
 
 # A filters editor widget, using a QTreeView
 class FiltersWidget(qw.QWidget):
-    def __init__(self, model: fltm.FilterModel, parent=None):
+    def __init__(
+        self,
+        app: ap.App,
+        parent_component: "fltc.FiltersComponent",
+        model: fltm.FilterModel,
+        parent=None,
+    ):
         super().__init__(parent)
+
+        self.app = app
+        self.parent_component = parent_component
 
         self.model = model
 

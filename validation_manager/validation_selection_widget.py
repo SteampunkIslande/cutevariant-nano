@@ -1,10 +1,11 @@
+import os
 from pathlib import Path
 
 import PySide6.QtCore as qc
 import PySide6.QtWidgets as qw
 
 import app as ap
-import datalake.datalake_component as dl
+import validation_manager.validation_manager_component as vmc
 from common_widgets.smart_view import SmartView
 from validation_manager.validation_model import ValidationModel
 from validation_manager.validation_wizard import ValidationWizard
@@ -34,13 +35,13 @@ class ValidationSelectionWidget(qw.QWidget):
     def __init__(
         self,
         app: ap.App,
-        datalake: dl.Datalake,
         validation_model: ValidationModel,
+        parent_component: ap.AppComponent,
         parent=None,
     ):
         super().__init__(parent)
         self.app = app
-        self.datalake = datalake
+        self.parent_component: vmc.ValidationManagerComponent = parent_component
         self.model = validation_model
 
         self._layout = qw.QVBoxLayout(self)
@@ -69,7 +70,7 @@ class ValidationSelectionWidget(qw.QWidget):
         )
         self.start_validation_button.clicked.connect(self.on_start_validation_clicked)
 
-        if not self.datalake.datalake_path:
+        if not self.parent_component.get_datalake():
             self.new_validation_button.setEnabled(False)
             self.start_validation_button.setEnabled(False)
 
@@ -78,7 +79,8 @@ class ValidationSelectionWidget(qw.QWidget):
         self.init_layout()
 
     def on_new_validation_clicked(self):
-        if not self.datalake:
+        datalake = self.parent_component.get_datalake()
+        if not datalake:
             return
         username = Path.home().name
 
@@ -92,7 +94,7 @@ class ValidationSelectionWidget(qw.QWidget):
             )
             return
 
-        wizard = ValidationWizard(self.app, self.datalake, self)
+        wizard = ValidationWizard(self.app, datalake, self)
         if wizard.exec() == qw.QDialog.DialogCode.Accepted:
 
             self.model.new_validation(username=username, **wizard.data)
@@ -116,9 +118,15 @@ class ValidationSelectionWidget(qw.QWidget):
         self.setLayout(self._layout)
 
     def on_datalake_changed(self):
-        if self.datalake and self.datalake.datalake_path:
+        datalake = self.parent_component.get_datalake()
+        if (
+            datalake
+            and datalake.datalake_path
+            and os.path.exists(datalake.datalake_path)
+        ):
             self.new_validation_button.setEnabled(True)
             self.start_validation_button.setEnabled(True)
+            self.model.update()
 
     def get_selected_validation(self) -> dict:
         selected = self.view.list_view.selectionModel().selectedIndexes()

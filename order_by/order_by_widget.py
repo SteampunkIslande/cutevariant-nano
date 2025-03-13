@@ -10,7 +10,7 @@ import order_by.order_by_component as obcmp
 
 class OrderByWidgetItemDelegate(qw.QStyledItemDelegate):
 
-    def __init__(self, component: obcmp.OrderByComponent, parent=None):
+    def __init__(self, component: "obcmp.OrderByComponent", parent=None):
         super().__init__(parent)
         self.component = component
 
@@ -43,7 +43,7 @@ class OrderByWidgetItemDelegate(qw.QStyledItemDelegate):
 
 
 class OrderByWidget(qw.QWidget):
-    def __init__(self, app: ap.App, component: obcmp.OrderByComponent, parent=None):
+    def __init__(self, app: ap.App, component: "obcmp.OrderByComponent", parent=None):
         super().__init__(parent)
 
         self.component = component

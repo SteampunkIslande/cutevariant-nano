@@ -10,11 +10,7 @@ from common_widgets.any_widget_dialog import AnyWidgetDialog
 from common_widgets.multiline_display import MultiLineDisplay
 from common_widgets.searchable_table import SearchableTable
 from common_widgets.string_list_chooser import StringListChooser
-from commons import (
-    duck_db_literal_string_list,
-    load_user_prefs,
-    yaml_load,
-)
+from commons import duck_db_literal_string_list, load_user_prefs, yaml_load
 from datalake.datalake_component import Datalake
 
 
@@ -38,7 +34,9 @@ class IntroPage(qw.QWizardPage):
             self.on_validation_name_changed
         )
         self.validation_name_lineedit.setValidator(
-            qg.QRegularExpressionValidator(qc.QRegularExpression(r"^(\p{L}| |[0-9])+$"))
+            qg.QRegularExpressionValidator(
+                qc.QRegularExpression(r"^\p{L}(\p{L}| |[0-9])+$")
+            )
         )
 
         self.validation_method_combo = qw.QComboBox()

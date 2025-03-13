@@ -5,7 +5,6 @@ import PySide6.QtWidgets as qw
 import app as ap
 import order_by.order_by_model as obm
 import order_by.order_by_widget as obw
-import query.query_component as q
 
 
 class OrderByComponent(ap.AppComponent):
@@ -17,6 +16,8 @@ class OrderByComponent(ap.AppComponent):
         self.model = obm.OrderByModel(self)
         self.order_by_widget = obw.OrderByWidget(self.app, self)
 
+        self.field_names = []
+
     def get_instance_name(self) -> str:
         return self.instance_name
 
@@ -27,7 +28,10 @@ class OrderByComponent(ap.AppComponent):
         return {}
 
     def on_start(self):
-        return
+        query_component_name = self.parent_component.get_instance_name()
+        query_component = self.app.get_component("query", query_component_name)
+
+        self.field_names = query_component.get_field_names()
 
     def widget(self) -> qw.QWidget:
         return self.order_by_widget
@@ -57,16 +61,15 @@ class OrderByComponent(ap.AppComponent):
         payload: dict,
     ):
         if action == "query_order_by_changed":
-            # We are concerned
-            if sender_component_name == self.parent_component.get_instance_name():
+            if sender_instance_name == self.parent_component.get_instance_name():
                 self.model.load(payload["order_by_expression"])
+        if action == "query_field_names_changed":
+            if sender_instance_name == self.parent_component.get_instance_name():
+                self.field_names = payload["field_names"]
         return
 
     def get_field_names(self):
-        query_component: q.QueryComponent = self.app.get_component(
-            "query", self.parent_component.get_instance_name()
-        )
-        pass
+        return self.field_names
 
 
 def register_component():

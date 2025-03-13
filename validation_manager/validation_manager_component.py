@@ -23,22 +23,18 @@ class ValidationManagerComponent(ap.AppComponent):
     ):
         super().__init__(app, instance_name, parent_component)
 
-        datalake: dl.Datalake = self.app.get_component("datalake")
-
         # Query Manager Component
         query_manager_component: qm.QueryManagerComponent = (
             self.app.instantiate_singleton("query_manager")
         )
 
         self.widget_holder = MultiWidgetHolder()
-        self.validation_model = ValidationModel(self.app, datalake, self)
+        self.validation_model = ValidationModel(self.app, self)
 
         self.validation_selection_widget = ValidationSelectionWidget(
-            self.app, datalake, self.validation_model
+            self.app, self.validation_model, self
         )
-        self.validation_widget = ValidationWidget(
-            self.app, query_manager_component, datalake
-        )
+        self.validation_widget = ValidationWidget(self.app, self)
 
         self.widget_holder.add_widget(
             self.validation_selection_widget, "validation_selection"
@@ -159,6 +155,15 @@ class ValidationManagerComponent(ap.AppComponent):
             self.instance_name,
             {},
         )
+
+    def generic_receiver(
+        self, action, sender_component_name, sender_instance_name, payload
+    ):
+        if action == "datalake_path_changed":
+            self.validation_selection_widget.on_datalake_changed()
+
+    def get_datalake(self) -> Union[dl.Datalake, None]:
+        return self.app.get_component("datalake", "datalake")
 
     def validate(self):
         # self.validation_model

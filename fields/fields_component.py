@@ -13,7 +13,7 @@ class FieldsComponent(app.AppComponent):
         self.model = fldm.FieldsModel(self)
         self.model.dataChanged.connect(self.emit_fields_changed)
 
-        self.fields_widget = FieldsWidget(self.app, self)
+        self.fields_widget = FieldsWidget(self.app, self.model)
 
     def get_instance_name(self):
         return self.instance_name

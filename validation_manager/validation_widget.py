@@ -2,8 +2,8 @@ import PySide6.QtCore as qc
 import PySide6.QtWidgets as qw
 
 import app as ap
-import datalake.datalake_component as dl_cmp
-import query_manager.query_manager_component as qm
+import query_manager.query_manager_component as qmc
+import validation_manager.validation_manager_component as vmc
 
 
 class ValidationWidget(qw.QWidget):
@@ -15,16 +15,18 @@ class ValidationWidget(qw.QWidget):
     def __init__(
         self,
         app: ap.App,
-        query_manager: qm.QueryManagerComponent,
-        datalake: dl_cmp.Datalake,
+        parent_component: "vmc.ValidationManagerComponent",
         parent: qw.QWidget = None,
     ):
         super().__init__(parent)
 
+        self.parent_component = parent_component
         self._layout = qw.QVBoxLayout(self)
-
         self.app = app
-        self.datalake = datalake
+
+        query_manager: qmc.QueryManagerComponent = self.app.get_component(
+            "query_manager"
+        )
 
         self.validate_button = qw.QPushButton(self.app.translate("Validate cart"), self)
         self.validate_button.clicked.connect(self.on_validate)
