@@ -54,6 +54,8 @@ class ValidationManagerComponent(ap.AppComponent):
         self.validation_widget.return_to_validation.connect(
             self.on_back_to_validation_selection
         )
+        self.validation_widget.export_to_genno.connect(self.export_to_genno)
+        self.validation_widget.validate.connect(self.validate)
 
     def on_validation_start(self):
         validation_info = self.validation_selection_widget.get_selected_validation()
@@ -118,7 +120,27 @@ class ValidationManagerComponent(ap.AppComponent):
                 },
             )
 
-    def export_csv(self):
+    def validate(self):
+        query_manager_component: qm.QueryManagerComponent = self.app.get_component(
+            "query_manager"
+        )
+        # Close all queries, replace with the final one
+        query_manager_component.clear()
+        query_manager_component.new_query(
+            self.app.translate("Final validation"),
+            self.validation_method["final"]["query"],
+            {
+                "sample_names": self.sample_names,
+                "table_uuid": self.table_uuid,
+                "gene_names": self.gene_names,
+                "parquet_files": self.parquet_files,
+            },
+        )
+
+    def export_to_genno(self):
+        if not self.validation_method:
+            return
+
         user_prefs = self.app.load_user_prefs()
         if "genno_export_folder" not in user_prefs:
             qw.QMessageBox.warning(
@@ -164,10 +186,6 @@ class ValidationManagerComponent(ap.AppComponent):
 
     def get_datalake(self) -> Union[dl.Datalake, None]:
         return self.app.get_component("datalake", "datalake")
-
-    def validate(self):
-        # self.validation_model
-        pass
 
     def get_instance_name(self) -> str:
         return self.instance_name

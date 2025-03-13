@@ -62,8 +62,7 @@ class QueryTableModel(qc.QAbstractTableModel):
         self.header = self.query.get_header()
         self._data = self.query.get_data()
 
-        # TODO: Create a
-        # self.query.query_changed.connect(self.update)
+        self.query.query_changed.connect(self.update)
 
         self.style = load_style()
 
@@ -132,16 +131,6 @@ class QueryTableModel(qc.QAbstractTableModel):
                 return font
 
         return
-
-    def export_to_excel(self, filename):
-        sql_query = self.query.select_query(
-            paginated=False, columns="COLUMNS('^[^.].+$')", where=None
-        )
-        import duckdb as db
-
-        conn = self.query.datalake.get_database("validation")
-        conn.sql(sql_query).pl().write_excel(filename)
-        conn.close()
 
     def set_style(self, style):
         self.style = style

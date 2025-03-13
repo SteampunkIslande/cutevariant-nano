@@ -9,7 +9,7 @@ import validation_manager.validation_manager_component as vmc
 class ValidationWidget(qw.QWidget):
 
     validate = qc.Signal()
-
+    export_to_genno = qc.Signal()
     return_to_validation = qc.Signal()
 
     def __init__(
@@ -29,7 +29,6 @@ class ValidationWidget(qw.QWidget):
         )
 
         self.validate_button = qw.QPushButton(self.app.translate("Validate cart"), self)
-        self.validate_button.clicked.connect(self.on_validate)
 
         self.return_to_validation_button = qw.QPushButton(
             self.app.translate("Back to validation selection"), self
@@ -41,6 +40,9 @@ class ValidationWidget(qw.QWidget):
 
         self.setup_layout()
 
+        self.completed = False
+        self.setup_state()
+
     def setup_layout(self):
 
         self._layout.addWidget(self.query_manager_widget)
@@ -51,10 +53,25 @@ class ValidationWidget(qw.QWidget):
         self._layout.addWidget(self.return_to_validation_button)
         self.setLayout(self._layout)
 
+    def setup_state(self):
+        if self.completed:
+            self.validate_button.setText(self.app.translate("Export to Genno"))
+            self.validate_button.clicked.disconnect(self.on_validate)
+            self.validate_button.clicked.connect(self.on_export_to_genno)
+        else:
+            self.validate_button.setText(self.app.translate("Validate cart"))
+            self.validate_button.clicked.disconnect(self.on_export_to_genno)
+            self.validate_button.clicked.connect(self.on_validate)
+
     def on_validate(self):
         self.completed = True
-
+        self.setup_state()
         self.validate.emit()
 
+    def on_export_to_genno(self):
+        self.export_to_genno.emit()
+
     def on_return_to_validation(self):
+        self.completed = False
+        self.setup_state()
         self.return_to_validation.emit()

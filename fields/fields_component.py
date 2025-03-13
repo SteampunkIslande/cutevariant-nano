@@ -55,8 +55,7 @@ class FieldsComponent(app.AppComponent):
         payload: dict,
     ):
         if action == "query_fields_changed":
-            # We are concerned
-            if payload["current_query"] == self.parent_component.get_instance_name():
+            if sender_component_name == self.parent_component.get_instance_name():
                 self.update_fields(payload["fields"])
         return
 

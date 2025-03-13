@@ -8,9 +8,7 @@ import PySide6.QtCore as qc
 
 import app as ap
 import datalake.datalake_component as dl
-import fields.fields_component as fld_cmp
 import filters.filters as flt
-import filters.filters_component as flt_cmp
 import query
 import query.query_table_widget
 from commons import duck_db_literal_string_list, duck_db_literal_string_tuple
@@ -91,43 +89,52 @@ class QueryComponent(ap.AppComponent):
         self, app: ap.App, instance_name: str, parent_component: ap.AppComponent
     ):
         super().__init__(app, instance_name, parent_component)
-        self.datalake: dl.Datalake = self.app.get_component("datalake")
+
+        self.view = query.query_table_widget.QueryTableWidget(self.app)
+        self.view.setWindowTitle(self.instance_name)
 
         self.init_state()
 
-        self.init_children_components()
+    def get_datalake(self) -> "dl.Datalake":
+        return self.app.get_component("datalake")
 
     def init_state(self):
         # When we create a new Query, we want to reset everything, except for the datalake path...
         self.query_template = ""
         self.query_definition: dict = None
+
+        # Order by, updated by the order_by_changed signal
         self.order_by = None
 
+        # All fields available to the user. Including those starting with a dot (hidden by default in the UI).
+        # Also includes fields that are not selected in the view. So that they can be filtered on.
+        self.all_fields = []
+
+        # Filter tree, updated by the filters_changed signal
+        self.applied_filter = {}
+
+        # Essential members, not meant to change
         self.readonly_table = None
         self.editable_table_name = None
         self.selected_samples = []
         self.selected_genes = []
 
+        # Pagination limits
         self.limit = 10
         self.offset = 0
 
+        # Pagination state
         self.current_page = 1
         self.page_count = 1
 
+        # Data
         self.data = []
         self.header = []
-        self.database_path = None
 
+        # User-defined variables
         self.variables = dict()
 
         return self
-
-    def init_children_components(self):
-        self.app.instantiate_component("fields", f"{self.instance_name}.fields", self)
-        self.app.instantiate_component("filters", f"{self.instance_name}.filters", self)
-
-        self.view = query.query_table_widget.QueryTableWidget(self.app, self)
-        self.view.setWindowTitle(self.instance_name)
 
     def add_variable(self, key: str, value: str):
         if key in QueryComponent.RESERVED_VARIABLES:
@@ -202,35 +209,47 @@ class QueryComponent(ap.AppComponent):
     def set_readonly_table(self, files: List[str]):
         if not files:
             return self
-        self.readonly_table = f"read_parquet({duck_db_literal_string_list(self.datalake.relative_to_absolute(f) for f in files)})"
+        datalake = self.get_datalake()
+        if not datalake:
+            return self
+
+        self.readonly_table = f"read_parquet({duck_db_literal_string_list(datalake.relative_to_absolute(f) for f in files)})"
         return self
 
     def get_editable_table_human_readable_name(self) -> str:
-        if not self.datalake.datalake_path:
+        datalake = self.get_datalake()
+        if not datalake or not datalake.datalake_path:
             return self.app.translate("No datalake selected")
-        conn = self.datalake.get_database("validation")
-        try:
-            name = conn.sql(
-                f"SELECT validation_name FROM validations WHERE table_uuid = '{self.editable_table_name}'"
-            ).fetchall()[0][0]
-        except IndexError:
-            name = self.app.translate("Cannot find validation table")
-        finally:
-            conn.close()
-        return name
+
+        return datalake.run_with_connection(
+            "validation",
+            lambda conn: conn.sql(
+                f"SELECT table_name FROM validations WHERE table_uuid = '{self.editable_table_name}'"
+            ).fetchone()[0],
+        ) or self.app.translate(
+            "No table with name {}".format(self.editable_table_name)
+        )
 
     def get_column_info(self, colname: str):
         select = self.select_query(paginated=False, columns=f'"{colname}"')
-        conn = self.datalake.get_database("validation")
-        (datatype, nullable) = conn.sql(
-            f"SELECT column_type,null FROM (describe({select}))"
-        ).fetchone()
-        top_10_values = [
-            c[1]
-            for c in conn.sql(
-                f"""SELECT COUNT(*) AS count,"{colname}" FROM ({select}) GROUP BY "{colname}" ORDER BY count DESC LIMIT 10"""
-            ).fetchall()
-        ]
+        datalake = self.get_datalake()
+        if not datalake:
+            return
+        (datatype, nullable) = datalake.run_with_connection(
+            "validation",
+            lambda conn: conn.sql(
+                f"SELECT column_type,null FROM (describe({select}))"
+            ).fetchone(),
+        )
+        top_10_values = datalake.run_with_connection(
+            "validation",
+            lambda conn: [
+                c[1]
+                for c in conn.sql(
+                    f"""SELECT COUNT(*) AS count,"{colname}" FROM ({select}) GROUP BY "{colname}" ORDER BY count DESC LIMIT 10"""
+                ).fetchall()
+            ],
+        )
 
         return {
             "name": colname,
@@ -270,45 +289,58 @@ class QueryComponent(ap.AppComponent):
         self.query_definition = data
         self.query_template = build_query_template(data)
         self.query_setup_changed.emit()
+        self.all_fields = data["select"]["fields"]
+
+        self.broadcast.emit(
+            "query_fields_changed",
+            "query",
+            self.instance_name,
+            {"fields": self.list_exposed_fields()},
+        )
+
         return self
 
     def select_query(self, paginated=True, columns=None, where=None) -> str:
-        """Generates the select query to run on the database. Set paginated to False if you need a query that returns all rows (i.e. for counting)."""
+        """Generates the select query_names to run on the database. Set paginated to False if you need a query that returns all rows (i.e. for counting)."""
         if not self.readonly_table:
             return ""
 
         fields = columns or "*"
-        order_by_data = self.order_by_model.get_data()
 
-        order_by = ' ORDER BY ".validation_hash" ASC ' + (
-            ", " + ", ".join([f'"{ob[0]}" {ob[1]}' for ob in order_by_data])
-            if order_by_data
+        order_by = (
+            " ORDER BY " + ", ".join([f'"{ob[0]}" {ob[1]}' for ob in self.order_by])
+            if self.order_by
             else ""
         )
 
         pagination = f" LIMIT {self.limit} OFFSET {self.offset}" if paginated else ""
 
         additional_where = where or (
-            f" WHERE {str(self.filter_model)}" if str(self.filter_model) else ""
+            f" WHERE {self.filter_tree_to_string(self.applied_filter)}"
+            if self.filter_tree_to_string(self.applied_filter)
+            else ""
         )
 
         return f"SELECT {fields} FROM ({self.query_template}){additional_where}{order_by}{pagination}".format(
             **{
                 "main_table": self.readonly_table,
                 "user_table": f'"{self.editable_table_name}"',
-                "pwd": self.datalake.datalake_path,
+                "pwd": self.get_datalake().datalake_path,
                 "selected_genes": duck_db_literal_string_tuple(self.selected_genes),
                 "selected_samples": duck_db_literal_string_tuple(self.selected_samples),
                 **self.variables,
             }
         )
 
+    def get_all_fields(self):
+        return self.all_fields
+
     def list_exposed_fields(self):
         q = self.select_query(paginated=True, columns="COLUMNS('^[^.].+$')")
         if not q:
             return []
 
-        cols = self.datalake.run_with_connection(
+        cols = self.get_datalake().run_with_connection(
             "validation",
             lambda conn: conn.sql(q).columns,
         )
@@ -316,7 +348,7 @@ class QueryComponent(ap.AppComponent):
 
     def get_variant_info(self, validation_hash: int, columns: List[str] = None):
 
-        variant_info = self.datalake.run_with_connection(
+        variant_info = self.get_datalake().run_with_connection(
             "validation",
             lambda conn: conn.sql(
                 self.select_query(
@@ -337,10 +369,10 @@ class QueryComponent(ap.AppComponent):
         )
 
     def is_valid(self):
-        return bool(self.readonly_table) and self.datalake
+        return bool(self.readonly_table) and self.get_datalake()
 
     def to_do(self):
-        if not self.datalake.datalake_path:
+        if not self.get_datalake().datalake_path:
             return "Please select a datalake"
         if not self.readonly_table:
             return "Please select a main table"
@@ -349,13 +381,13 @@ class QueryComponent(ap.AppComponent):
 
     def get_table_data(self) -> List[dict]:
         q = self.select_query()
-        return self.datalake.run_with_connection(
+        return self.get_datalake().run_with_connection(
             "validation", lambda conn: run_sql(q, conn)
         )
 
     def get_row_count(self) -> int:
         q = self.count_query()
-        return self.datalake.run_with_connection(
+        return self.get_datalake().run_with_connection(
             "validation", lambda conn: run_sql(q, conn)[0]["count_star"]
         )
 
@@ -394,12 +426,6 @@ class QueryComponent(ap.AppComponent):
         self.query_setup_changed.emit()
         self.update_data()
 
-    def get_fields_component(self) -> fld_cmp.FieldsComponent:
-        return self.fields_component
-
-    def get_filters_component(self) -> flt_cmp.FiltersComponent:
-        return self.filters_component
-
     def get_variant_info_component(self) -> ap.AppComponent:
         return
 
@@ -412,9 +438,6 @@ class QueryComponent(ap.AppComponent):
     def load_from_session(self, session: dict):
         return
 
-    def get_signal(self, signal_name: str):
-        return self.signals.get(signal_name)
-
     def get_menubar_entries(self):
         return []
 
@@ -426,6 +449,25 @@ class QueryComponent(ap.AppComponent):
 
     def get_instance_name(self) -> str:
         return self.instance_name
+
+    def filter_tree_to_string(self, f: dict) -> str:
+        return str(flt.FilterItem.from_json(f))
+
+    def generic_receiver(
+        self, action, sender_component_name, sender_instance_name, payload
+    ):
+        if action == "order_by_changed":
+            if sender_instance_name == f"{self.instance_name}/order_by":
+                self.order_by = payload["order_by_expression"]
+                self.commit()
+        if action == "filters_changed":
+            if sender_instance_name == f"{self.instance_name}/filters":
+                self.applied_filter = payload["filter_tree"]
+                self.commit()
+        if action == "selected_fields_changed":
+            if sender_instance_name == f"{self.instance_name}/fields":
+                self.view.update_selected_fields(payload["fields"])
+                self.commit()
 
 
 def register_component():

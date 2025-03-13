@@ -10,7 +10,6 @@ import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
 
 import app as ap
-import fields.fields_model as fields_model
 import query.query_component as q_cmpt
 import query.query_table_model as q_tm
 from commons import duck_db_literal_string_list
@@ -70,16 +69,16 @@ class PageSelector(qw.QWidget):
         self.setLayout(layout)
 
     def goto_first_page(self):
-        self.query.first_page()
+        self.query.first_page().commit()
 
     def goto_previous_page(self):
-        self.query.previous_page()
+        self.query.previous_page().commit()
 
     def goto_next_page(self):
-        self.query.next_page()
+        self.query.next_page().commit()
 
     def goto_last_page(self):
-        self.query.last_page()
+        self.query.last_page().commit()
 
     def update_page_selector(self):
         # Block signals to avoid infinite loops
@@ -100,24 +99,20 @@ class PageSelector(qw.QWidget):
         self.rows_lineedit.blockSignals(False)
 
     def set_page(self, page):
-        self.query.set_page(int(page) if page else 1)
+        self.query.set_page(int(page) if page else 1).commit()
 
     def set_rows_per_page(self, rows_per_page):
-        self.query.set_limit(int(rows_per_page or 10))
+        self.query.set_limit(int(rows_per_page or 10)).commit()
 
 
 class QueryTableProxyModel(qc.QSortFilterProxyModel):
 
     def __init__(
         self,
-        columns_model: "fields_model.FieldsModel",
-        columns_model_col: int = 0,
         parent: qc.QObject = None,
     ):
         super().__init__(parent)
-        self.columns_model = columns_model
-        self.columns_model.model_changed.connect(self.invalidateColumnsFilter)
-        self.columns_model_col = columns_model_col
+        self.selected_fields = []
 
     # Automatically hides columns which names start with a dot
     def filterAcceptsColumn(self, source_column: int, source_parent: qc.QModelIndex):
@@ -125,10 +120,8 @@ class QueryTableProxyModel(qc.QSortFilterProxyModel):
         header: str = source_model.headerData(
             source_column, qc.Qt.Orientation.Horizontal
         )
-        if header.startswith("."):
-            return False
 
-        return header in self.columns_model.checked_fields()
+        return not header.startswith(".") and header in self.selected_fields
 
     # Rename columns by splitting on every colon
     def headerData(
@@ -143,6 +136,10 @@ class QueryTableProxyModel(qc.QSortFilterProxyModel):
         if role == qc.Qt.ItemDataRole.DisplayRole:
             return header.split(":")[0] if header else header
         return header
+
+    def update_selected_fields(self, fields: List[str]):
+        self.selected_fields = fields
+        self.invalidateFilter()
 
 
 def insert_validation_data(
@@ -187,11 +184,11 @@ class QueryTableWidget(qw.QWidget):
         super().__init__(parent)
 
         self.app = app
-
         self.query = query
-        self.model = q_tm.QueryTableModel(query)
-        self.proxy_model = QueryTableProxyModel(self.query.fields_model, 0)
-        self.proxy_model.setSourceModel(self.model)
+
+        self.query_model = q_tm.QueryTableModel(self.query)
+        self.proxy_model = QueryTableProxyModel()
+        self.proxy_model.setSourceModel(self.query_model)
 
         self.table_view = qw.QTableView()
         self.table_view.setSelectionBehavior(
@@ -249,7 +246,7 @@ class QueryTableWidget(qw.QWidget):
         menu.exec(self.table_view.mapToGlobal(pos))
 
     def add_order_by(self, index: qc.QModelIndex):
-        self.query.order_by_model.add_order_by(
+        self.query.add_order_by(
             self.proxy_model.headerData(index.column(), qc.Qt.Orientation.Horizontal),
             "ASC",
         )
@@ -277,7 +274,6 @@ class QueryTableWidget(qw.QWidget):
         menu.exec(qg.QCursor.pos())
 
     def add_variant_to_validation(self):
-        conn = self.query.datalake.get_database("validation")
         for index in self.table_view.selectionModel().selectedRows():
             row_data: dict[str, Union[str | int]] = index.data(
                 qc.Qt.ItemDataRole.UserRole
@@ -287,22 +283,22 @@ class QueryTableWidget(qw.QWidget):
 
             val_table_uuid = self.query.get_editable_table_name()
 
-            insert_validation_data(
-                conn,
-                val_table_uuid,
-                validation_hash,
-                row_data["Échantillon"],
-                row_data["Nom du run"],
-                row_data["NM"],
-                variant_hash,
-                True,
-                "",
-                [],
-                "",
-                "",
-            )
-        conn.close()
-        self.query.commit()
+            # self.query_model.
+
+            # insert_validation_data(
+            #     conn,
+            #     val_table_uuid,
+            #     validation_hash,
+            #     row_data["Échantillon"],
+            #     row_data["Nom du run"],
+            #     row_data["NM"],
+            #     variant_hash,
+            #     True,
+            #     "",
+            #     [],
+            #     "",
+            #     "",
+            # )
 
     def show_row_userdata(self, index: qc.QModelIndex):
         row_data = index.data(qc.Qt.ItemDataRole.UserRole)
@@ -312,16 +308,6 @@ class QueryTableWidget(qw.QWidget):
         )
         dialog.setWindowTitle(self.app.translate("Underlying data"))
         dialog.exec()
-
-    def export_to_excel(self):
-        file_name, _ = qw.QFileDialog.getSaveFileName(
-            self,
-            self.app.translate("Export validation table to Excel"),
-            "",
-            self.app.translate("Excel files (*.xlsx)"),
-        )
-        if file_name:
-            self.model.export_to_excel(file_name)
 
     def goto_mobidetails(self, index: qc.QModelIndex):
         import requests
@@ -367,6 +353,9 @@ class QueryTableWidget(qw.QWidget):
                     self.app.translate("Cannot find variant on Mobidetails"),
                 )
 
+    def update_selected_fields(self, fields: list[str]):
+        self.proxy_model.update_selected_fields(fields)
+
     def filter_column(self, index: qc.QModelIndex):
 
         col_name = index.model().headerData(
@@ -374,7 +363,7 @@ class QueryTableWidget(qw.QWidget):
         )
         dialog = SimpleFilterDialog(self.query.get_column_info(col_name), self)
 
-        if dialog.exec_() == qw.QDialog.DialogCode.Accepted:
+        if dialog.exec() == qw.QDialog.DialogCode.Accepted:
             filter_text = dialog.get_filter()
             self.query.filter_model.add_filter(
                 filter_text,
@@ -383,10 +372,11 @@ class QueryTableWidget(qw.QWidget):
 
 class SimpleFilterDialog(qw.QDialog):
 
-    def __init__(self, col_info: dict, parent=None):
+    def __init__(self, app: ap.App, col_info: dict, parent=None):
         super().__init__(parent)
 
         self.col_info = col_info
+        self.app = app
 
         self.setWindowTitle(self.app.translate("Filter a column"))
 

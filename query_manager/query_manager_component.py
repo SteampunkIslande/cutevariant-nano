@@ -100,6 +100,8 @@ class QueryManagerComponent(ap.AppComponent):
 
         self.set_current_query(query_name)
 
+        return query
+
     def get_query_model(self):
         return self.query_model
 
@@ -142,18 +144,11 @@ class QueryManagerComponent(ap.AppComponent):
 
         self.current_query = self.queries[current_query_name]
 
-        # COMPONENT HOLDERS UPDATE
-        fields_holder: WidgetHolderComponent = self.app.get_component(
-            "widget_holder", "fields_widget_holder"
-        )
-        filters_holder: WidgetHolderComponent = self.app.get_component(
-            "widget_holder", "filters_widget_holder"
-        )
-        fields_holder.set_current_component(
-            f"{self.current_query.get_instance_name()}/fields"
-        )
-        filters_holder.set_current_component(
-            f"{self.current_query.get_instance_name()}/filters"
+        self.broadcast.emit(
+            "current_query_changed",
+            "query_manager",
+            self.instance_name,
+            {"current_query": self.current_query.get_instance_name()},
         )
 
     def load_from_session(self, session: dict):
