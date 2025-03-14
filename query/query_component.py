@@ -90,10 +90,11 @@ class QueryComponent(ap.AppComponent):
     ):
         super().__init__(app, instance_name, parent_component)
 
-        self.view = query.query_table_widget.QueryTableWidget(self.app)
-        self.view.setWindowTitle(self.instance_name)
-
+        # Safer to init state before setting up the view
         self.init_state()
+
+        self.view = query.query_table_widget.QueryTableWidget(self.app, self)
+        self.view.setWindowTitle(self.instance_name.split("/")[-1])
 
     def get_datalake(self) -> "dl.Datalake":
         return self.app.get_component("datalake")
@@ -317,7 +318,7 @@ class QueryComponent(ap.AppComponent):
 
         additional_where = where or (
             f" WHERE {self.filter_tree_to_string(self.applied_filter)}"
-            if self.filter_tree_to_string(self.applied_filter)
+            if self.applied_filter and self.filter_tree_to_string(self.applied_filter)
             else ""
         )
 

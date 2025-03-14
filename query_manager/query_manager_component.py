@@ -64,8 +64,6 @@ class QueryManagerComponent(ap.AppComponent):
             "query", f"{self.instance_name}/{query_name}", self
         )
 
-        print(query_options)
-
         query.setup_query(data_prep).set_editable_table_name(
             query_options["table_uuid"]
         ).set_readonly_table(query_options["parquet_files"]).set_selected_genes(
@@ -138,7 +136,8 @@ class QueryManagerComponent(ap.AppComponent):
         # Tab index changed but not its content (for example, the tab was moved)
         if (
             self.current_query
-            and current_query_name == self.current_query.get_instance_name()
+            and current_query_name
+            == self.current_query.get_instance_name().split("/")[-1]
         ):
             return
 

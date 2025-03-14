@@ -56,11 +56,17 @@ class ValidationWidget(qw.QWidget):
     def setup_state(self):
         if self.completed:
             self.validate_button.setText(self.app.translate("Export to Genno"))
-            self.validate_button.clicked.disconnect(self.on_validate)
+            if self.validate_button.isSignalConnected(
+                qc.QMetaMethod.fromSignal(self.validate_button.clicked)
+            ):
+                self.validate_button.clicked.disconnect(self.on_validate)
             self.validate_button.clicked.connect(self.on_export_to_genno)
         else:
             self.validate_button.setText(self.app.translate("Validate cart"))
-            self.validate_button.clicked.disconnect(self.on_export_to_genno)
+            if self.validate_button.isSignalConnected(
+                qc.QMetaMethod.fromSignal(self.validate_button.clicked)
+            ):
+                self.validate_button.clicked.disconnect(self.on_export_to_genno)
             self.validate_button.clicked.connect(self.on_validate)
 
     def on_validate(self):
