@@ -21,12 +21,23 @@ class FieldsModel(qg.QStandardItemModel):
         if not self.fields:
             return
         for i, field in enumerate(self.fields):
+            if field.startswith("."):
+                continue
             item = qg.QStandardItem(field)
             # item.setData(i, qc.Qt.ItemDataRole.UserRole)
             item.setDragEnabled(True)
             item.setCheckable(True)
             item.setCheckState(qc.Qt.CheckState.Checked)
             self.appendRow(item)
+
+    def set_checked_fields(self, fields: list[str]):
+        for i in range(self.rowCount()):
+            item = self.item(i)
+            item.setCheckState(
+                qc.Qt.CheckState.Checked
+                if item.text() in fields
+                else qc.Qt.CheckState.Unchecked
+            )
 
     def checked_fields(self):
         return [
