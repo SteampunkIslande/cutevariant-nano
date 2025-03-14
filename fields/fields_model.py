@@ -18,6 +18,8 @@ class FieldsModel(qg.QStandardItemModel):
 
     def load(self):
         self.clear()
+        if not self.fields:
+            return
         for i, field in enumerate(self.fields):
             item = qg.QStandardItem(field)
             # item.setData(i, qc.Qt.ItemDataRole.UserRole)

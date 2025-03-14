@@ -168,6 +168,12 @@ class ValidationManagerComponent(ap.AppComponent):
         genno_export_folder = Path(genno_export_folder)
 
     def on_back_to_validation_selection(self):
+        query_manager_component: qm.QueryManagerComponent = self.app.get_component(
+            "query_manager"
+        )
+        # Close all queries, replace with the final one
+        query_manager_component.clear()
+
         self.widget_holder.set_current_widget("validation_selection")
 
         # Broadcast that we are back to validation selection

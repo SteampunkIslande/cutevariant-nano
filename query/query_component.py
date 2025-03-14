@@ -82,9 +82,6 @@ class QueryComponent(ap.AppComponent):
     # Signal for external use (tell the UI to update)
     query_changed = qc.Signal()
 
-    # Signal for internal use only
-    query_setup_changed = qc.Signal()
-
     def __init__(
         self, app: ap.App, instance_name: str, parent_component: ap.AppComponent
     ):
@@ -95,6 +92,8 @@ class QueryComponent(ap.AppComponent):
 
         self.view = query.query_table_widget.QueryTableWidget(self.app, self)
         self.view.setWindowTitle(self.instance_name.split("/")[-1])
+
+        self.changes_list = []
 
     def get_datalake(self) -> "dl.Datalake":
         return self.app.get_component("datalake")
@@ -110,6 +109,8 @@ class QueryComponent(ap.AppComponent):
         # All fields available to the user. Including those starting with a dot (hidden by default in the UI).
         # Also includes fields that are not selected in the view. So that they can be filtered on.
         self.all_fields = []
+
+        self.selected_fields = None
 
         # Filter tree, updated by the filters_changed signal
         self.applied_filter = {}
@@ -153,12 +154,15 @@ class QueryComponent(ap.AppComponent):
         if key in QueryComponent.RESERVED_VARIABLES:
             raise ValueError(f"Variable name {key} is reserved")
         self.variables[key] = value
+        self.changes_list.append(("variable", {"key": key, "value": value}))
         return self
 
     def get_limit(self) -> int:
         return self.limit
 
     def set_limit(self, limit: int):
+        if limit != self.limit:
+            self.changes_list.append(("limit", {"limit": limit}))
         self.limit = limit
         return self
 
@@ -173,6 +177,9 @@ class QueryComponent(ap.AppComponent):
         return self.current_page
 
     def set_page(self, page: int):
+        if page != self.current_page:
+            self.changes_list.append(("page", {"page": page}))
+
         self.current_page = page
         self.set_offset((page - 1) * self.limit)
         return self
@@ -215,6 +222,9 @@ class QueryComponent(ap.AppComponent):
             return self
 
         self.readonly_table = f"read_parquet({duck_db_literal_string_list(datalake.relative_to_absolute(f) for f in files)})"
+        self.changes_list.append(
+            ("readonly_table", {"readonly_table": self.readonly_table})
+        )
         return self
 
     def get_editable_table_human_readable_name(self) -> str:
@@ -263,10 +273,18 @@ class QueryComponent(ap.AppComponent):
         return self.editable_table_name
 
     def set_editable_table_name(self, name: str):
+        if self.editable_table_name != name:
+            self.changes_list.append(
+                ("editable_table_name", {"editable_table_name": name})
+            )
         self.editable_table_name = name
         return self
 
     def set_selected_samples(self, samples: List[str]):
+        if samples != self.selected_samples:
+            self.changes_list.append(
+                ("selected_samples", {"selected_samples": samples})
+            )
         self.selected_samples = samples
         return self
 
@@ -274,13 +292,43 @@ class QueryComponent(ap.AppComponent):
         return self.selected_samples
 
     def set_selected_genes(self, genes: List[str]):
+        if genes != self.selected_genes:
+            self.changes_list.append(("selected_genes", {"selected_genes": genes}))
         self.selected_genes = genes
         return self
 
     def get_selected_genes(self) -> List[str]:
         return self.selected_genes
 
-    def setup_query(self, data: dict) -> "QueryComponent":
+    def get_all_fields(self) -> List[str]:
+        return self.all_fields
+
+    def set_fields(self, fields: List[str]):
+        if fields != self.all_fields:
+            self.changes_list.append(("all_fields", {"all_fields": fields}))
+        self.all_fields = fields
+        return self
+
+    def compute_all_fields(self):
+        self.all_fields = self.get_datalake().run_with_connection(
+            "validation", lambda conn: conn.sql(self.select_query()).columns
+        )
+        return self
+
+    def set_selected_fields(self, fields: List[str]):
+        if fields != self.selected_fields:
+            self.changes_list.append(("selected_fields", {"fields": fields}))
+        self.selected_fields = fields
+        return self
+
+    def setup_query(
+        self,
+        data: dict,
+        editable_table_name: str,
+        readonly_table: List[str],
+        selected_genes: List[str],
+        selected_samples: List[str],
+    ) -> "QueryComponent":
         """Builds a query template from a json object.
         Provided json object must have a select key at the root level.
 
@@ -289,15 +337,18 @@ class QueryComponent(ap.AppComponent):
         """
         self.query_definition = data
         self.query_template = build_query_template(data)
-        self.query_setup_changed.emit()
-        self.all_fields = data["select"]["fields"]
 
-        self.broadcast.emit(
-            "query_fields_changed",
-            "query",
-            self.instance_name,
-            {"fields": self.list_exposed_fields()},
-        )
+        self.set_editable_table_name(editable_table_name)
+        self.set_readonly_table(readonly_table)
+        self.set_selected_genes(selected_genes)
+        self.set_selected_samples(selected_samples)
+
+        previous_fields = self.all_fields
+        self.compute_all_fields()
+        new_fields = self.all_fields
+
+        if previous_fields != new_fields:
+            self.changes_list.append(("all_fields", {"all_fields": new_fields}))
 
         return self
 
@@ -306,7 +357,15 @@ class QueryComponent(ap.AppComponent):
         if not self.readonly_table:
             return ""
 
-        fields = columns or "*"
+        fields = (
+            columns
+            or (
+                ", ".join(f'"{f}"' for f in self.selected_fields)
+                if self.selected_fields
+                else None
+            )
+            or "*"
+        )
 
         order_by = (
             " ORDER BY " + ", ".join([f'"{ob[0]}" {ob[1]}' for ob in self.order_by])
@@ -333,19 +392,16 @@ class QueryComponent(ap.AppComponent):
             }
         )
 
-    def get_all_fields(self):
-        return self.all_fields
+    # def list_exposed_fields(self):
+    #     q = self.select_query(paginated=True, columns="COLUMNS('^[^.].+$')")
+    #     if not q:
+    #         return []
 
-    def list_exposed_fields(self):
-        q = self.select_query(paginated=True, columns="COLUMNS('^[^.].+$')")
-        if not q:
-            return []
-
-        cols = self.get_datalake().run_with_connection(
-            "validation",
-            lambda conn: conn.sql(q).columns,
-        )
-        return cols
+    #     cols = self.get_datalake().run_with_connection(
+    #         "validation",
+    #         lambda conn: conn.sql(q).columns,
+    #     )
+    #     return cols
 
     def get_variant_info(self, validation_hash: int, columns: List[str] = None):
 
@@ -424,7 +480,21 @@ class QueryComponent(ap.AppComponent):
         self.query_changed.emit()
 
     def commit(self):
-        self.query_setup_changed.emit()
+        # Could emit:
+        # query:variable_changed with payload keys: key, value
+        # query:limit_changed with payload keys: limit
+        # query:page_changed with payload keys: page
+        # query:readonly_table_changed with payload keys: readonly_table
+        # query:editable_table_name_changed with payload keys: editable_table_name
+        # query:selected_samples_changed with payload keys: selected_samples
+        # query:selected_genes_changed with payload keys: selected_genes
+        # query:all_fields_changed with payload keys: all_fields
+        # query:selected_fields_changed with payload keys: fields
+        for change, payload in self.changes_list:
+            self.broadcast.emit(
+                f"query:{change}_changed", "query", self.instance_name, payload
+            )
+        self.changes_list.clear()
         self.update_data()
 
     def get_variant_info_component(self) -> ap.AppComponent:
@@ -461,12 +531,13 @@ class QueryComponent(ap.AppComponent):
             if sender_instance_name == f"{self.instance_name}/order_by":
                 self.order_by = payload["order_by_expression"]
                 self.commit()
-        if action == "filters_changed":
-            if sender_instance_name == f"{self.instance_name}/filters":
-                self.applied_filter = payload["filter_tree"]
-                self.commit()
+        # if action == "query:filters_changed":
+        #     if sender_instance_name == f"{self.instance_name}/filters":
+        #         self.applied_filter = payload["filter_tree"]
+        #         self.commit()
         if action == "selected_fields_changed":
             if sender_instance_name == f"{self.instance_name}/fields":
+                self.set_selected_fields(payload["fields"])
                 self.view.update_selected_fields(payload["fields"])
                 self.commit()
 

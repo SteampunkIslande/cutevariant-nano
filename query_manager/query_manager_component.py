@@ -64,13 +64,13 @@ class QueryManagerComponent(ap.AppComponent):
             "query", f"{self.instance_name}/{query_name}", self
         )
 
-        query.setup_query(data_prep).set_editable_table_name(
-            query_options["table_uuid"]
-        ).set_readonly_table(query_options["parquet_files"]).set_selected_genes(
-            query_options["gene_names"]
-        ).set_selected_samples(
-            query_options["sample_names"]
-        ).commit()
+        query.setup_query(
+            data_prep,
+            query_options["table_uuid"],
+            query_options["parquet_files"],
+            query_options["gene_names"],
+            query_options["sample_names"],
+        )
         self.query_model.appendRow(qg.QStandardItem(query_name))
 
         fields_component = self.app.instantiate_component(
@@ -96,8 +96,8 @@ class QueryManagerComponent(ap.AppComponent):
         self.queries[query_name] = query
         self.queries_tab_widget.blockSignals(False)
 
+        query.commit()
         self.set_current_query(query_name)
-
         return query
 
     def get_query_model(self):

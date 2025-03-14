@@ -54,9 +54,11 @@ class FieldsComponent(app.AppComponent):
         sender_instance_name: str,
         payload: dict,
     ):
-        if action == "query_fields_changed":
-            print(sender_instance_name, sender_component_name, payload)
-            self.update_fields(payload["fields"])
+        if (
+            action == "query:all_fields_changed"
+            and f"{sender_instance_name}/fields" == self.instance_name
+        ):
+            self.update_fields(payload["all_fields"])
         return
 
     def update_fields(self, fields: list[str]):

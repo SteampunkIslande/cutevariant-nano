@@ -117,25 +117,15 @@ class QueryTableProxyModel(qc.QSortFilterProxyModel):
     # Automatically hides columns which names start with a dot
     def filterAcceptsColumn(self, source_column: int, source_parent: qc.QModelIndex):
         source_model = self.sourceModel()
-        header: str = source_model.headerData(
+        colname: str = source_model.headerData(
             source_column, qc.Qt.Orientation.Horizontal
         )
 
-        return not header.startswith(".") and header in self.selected_fields
-
-    # Rename columns by splitting on every colon
-    def headerData(
-        self,
-        section: int,
-        orientation: qc.Qt.Orientation,
-        role: int = qc.Qt.ItemDataRole.DisplayRole,
-    ):
-        source_model = self.sourceModel()
-        actual_section = self.mapToSource(self.index(0, section)).column()
-        header: str = source_model.headerData(actual_section, orientation, role)
-        if role == qc.Qt.ItemDataRole.DisplayRole:
-            return header.split(":")[0] if header else header
-        return header
+        # If the column name starts with a dot, hide it
+        # If self.selected_fields is empty, show all non-hidden columns
+        return not colname.startswith(".") and (
+            colname in self.selected_fields or (not self.selected_fields)
+        )
 
     def update_selected_fields(self, fields: List[str]):
         self.selected_fields = fields

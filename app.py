@@ -48,11 +48,11 @@ class App(qc.QObject):
         from datalake import datalake_component
         from fields import fields_component
         from filters import filters_component
+        from order_by import order_by_component
         from query import query_component
         from query_manager import query_manager_component
         from validation_manager import validation_manager_component
         from widget_holder import widget_holder_component
-        from order_by import order_by_component
 
         self.register_component(*datalake_component.register_component())
         self.register_component(*app_manager_component.register_component())
@@ -166,11 +166,22 @@ class App(qc.QObject):
         new_instance: AppComponent = definition["class"](
             self, instance_name, parent_component
         )
-        new_instance.broadcast.connect(self.broadcast_dispatcher)
+        new_instance.broadcast.connect(self.dispatch_broadcast)
         self.broadcast_dispatcher.connect(new_instance.generic_receiver)
         instances[instance_name] = new_instance
 
         return new_instance
+
+    def dispatch_broadcast(
+        self,
+        action: str,
+        sender_component_name: str,
+        sender_instance_name: str,
+        payload: dict,
+    ):
+        self.broadcast_dispatcher.emit(
+            action, sender_component_name, sender_instance_name, payload
+        )
 
     # APP START
 
