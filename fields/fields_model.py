@@ -21,8 +21,6 @@ class FieldsModel(qg.QStandardItemModel):
         if not self.fields:
             return
         for i, field in enumerate(self.fields):
-            if field.startswith("."):
-                continue
             item = qg.QStandardItem(field)
             # item.setData(i, qc.Qt.ItemDataRole.UserRole)
             item.setDragEnabled(True)
