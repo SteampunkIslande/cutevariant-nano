@@ -531,10 +531,10 @@ class QueryComponent(ap.AppComponent):
             if sender_instance_name == f"{self.instance_name}/order_by":
                 self.order_by = payload["order_by_expression"]
                 self.commit()
-        # if action == "query:filters_changed":
-        #     if sender_instance_name == f"{self.instance_name}/filters":
-        #         self.applied_filter = payload["filter_tree"]
-        #         self.commit()
+        if action == "filters_changed":
+            if sender_instance_name == f"{self.instance_name}/filters":
+                self.applied_filter = payload["filter_tree"]
+                self.commit()
         if action == "selected_fields_changed":
             if sender_instance_name == f"{self.instance_name}/fields":
                 self.set_selected_fields(payload["fields"])
