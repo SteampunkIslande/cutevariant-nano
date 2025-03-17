@@ -1,5 +1,6 @@
 import json
 import typing
+import weakref
 from pathlib import Path
 from typing import Union
 
@@ -136,7 +137,13 @@ class App(qc.QObject):
             instances = self.components[component_name]["instances"]
             if instance_name in instances:
                 # TODO: Call AppComponent.on_delete() - Not implemented yet
-                pass
+                import referrers
+
+                if component_name == "query":
+                    print(referrers.get_referrer_graph(instances[instance_name]))
+                del instances[instance_name]
+                # print(referrers.get_referrer_graph(instances[instance_name]))
+                # pass
 
     def instantiate_component(
         self,
@@ -155,7 +162,7 @@ class App(qc.QObject):
             return
         definition = self.components[component_name]["definition"]
 
-        instances: dict[int, AppComponent] = self.components[component_name][
+        instances: dict[str, AppComponent] = self.components[component_name][
             "instances"
         ]
         if definition["instantiation_policy"] == "singleton":
@@ -354,7 +361,7 @@ class AppComponent(qc.QObject):
 
     def __init__(self, app: App, instance_name: str, parent_component: "AppComponent"):
         super().__init__()
-        self.app = app
+        self.app: App = weakref.proxy(app)
         self.instance_name = instance_name
         self.parent_component = parent_component
 

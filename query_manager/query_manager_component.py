@@ -108,8 +108,13 @@ class QueryManagerComponent(ap.AppComponent):
         self.queries_tab_widget.setCurrentIndex(
             self.queries_tab_widget.indexOf(self.queries[query_name].widget())
         )
+        self.current_query = self.queries[query_name]
 
     def close_query(self, query: q.QueryComponent):
+
+        if query is self.current_query:
+            self.current_query = None
+
         tab_index = self.queries_tab_widget.indexOf(query.widget())
 
         if tab_index >= 0:
@@ -125,6 +130,9 @@ class QueryManagerComponent(ap.AppComponent):
         )
         fields_holder.remove_component(f"{query.get_instance_name()}/fields")
         filters_holder.remove_component(f"{query.get_instance_name()}/filters")
+
+        self.app.remove_instance("fields", f"{query.get_instance_name()}/fields")
+        self.app.remove_instance("filters", f"{query.get_instance_name()}/filters")
         self.app.remove_instance("query", query.get_instance_name())
 
     def on_query_tab_changed(self, tab_index: int):
@@ -141,7 +149,7 @@ class QueryManagerComponent(ap.AppComponent):
         ):
             return
 
-        self.current_query = self.queries[current_query_name]
+        self.set_current_query(current_query_name)
 
         self.broadcast.emit(
             "current_query_changed",

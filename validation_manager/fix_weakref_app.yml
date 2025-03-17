@@ -1,0 +1,11 @@
+id: fix_weakref_app
+language: python
+rule:
+  pattern: self.app
+  inside:
+    not:
+      any:
+        - kind: assignment
+        - kind: call
+
+fix: self.app()
