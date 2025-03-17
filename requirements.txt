@@ -13,3 +13,4 @@ typeguard==4.2.1
 zstandard==0.22.0
 pyyaml==6.0.1
 xlsxwriter==3.2.0
+requests==2.32.3

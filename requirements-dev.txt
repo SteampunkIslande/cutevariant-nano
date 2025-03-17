@@ -16,3 +16,4 @@ typeguard==4.2.1
 typing-extensions==4.12.2
 xlsxwriter==3.2.0
 zstandard==0.22.0
+requests==2.32.3

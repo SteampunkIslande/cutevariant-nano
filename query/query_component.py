@@ -392,17 +392,6 @@ class QueryComponent(ap.AppComponent):
             }
         )
 
-    # def list_exposed_fields(self):
-    #     q = self.select_query(paginated=True, columns="COLUMNS('^[^.].+$')")
-    #     if not q:
-    #         return []
-
-    #     cols = self.get_datalake().run_with_connection(
-    #         "validation",
-    #         lambda conn: conn.sql(q).columns,
-    #     )
-    #     return cols
-
     def get_variant_info(self, validation_hash: int, columns: List[str] = None):
 
         variant_info = self.get_datalake().run_with_connection(

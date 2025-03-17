@@ -2,7 +2,7 @@ import PySide6.QtWidgets as qw
 
 
 class AnyWidgetDialog(qw.QDialog):
-    def __init__(self, widget: qw.QWidget, title: str, parent=None):
+    def __init__(self, widget: qw.QWidget, title: str, parent=None, add_stretch=True):
         super().__init__(parent)
         self.setWindowTitle(title)
         self._layout = qw.QVBoxLayout()
@@ -15,7 +15,8 @@ class AnyWidgetDialog(qw.QDialog):
         self.dialog_buttons.accepted.connect(self.accept)
         self.dialog_buttons.rejected.connect(self.reject)
 
-        self._layout.addStretch()
+        if add_stretch:
+            self._layout.addStretch()
         self._layout.addWidget(self.dialog_buttons)
 
         self.setLayout(self._layout)

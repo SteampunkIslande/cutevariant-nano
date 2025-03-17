@@ -12,6 +12,7 @@ import PySide6.QtWidgets as qw
 import app as ap
 import query.query_component as q_cmpt
 import query.query_table_model as q_tm
+from common_widgets.any_widget_dialog import AnyWidgetDialog
 from commons import duck_db_literal_string_list
 
 
@@ -291,12 +292,50 @@ class QueryTableWidget(qw.QWidget):
             # )
 
     def show_row_userdata(self, index: qc.QModelIndex):
-        row_data = index.data(qc.Qt.ItemDataRole.UserRole)
-        dialog = qw.QMessageBox(self)
-        dialog.setText(
-            "".join(f"<br><b>{k}</b>: {v}</br>" for k, v in row_data.items())
+        row_data: dict = index.data(qc.Qt.ItemDataRole.UserRole)
+
+        table_widget = qw.QTableView()
+        simple_model = qg.QStandardItemModel(0, 2)
+        simple_model.setHorizontalHeaderLabels(
+            [
+                self.app.translate("Column name"),
+                self.app.translate("Column value"),
+            ]
         )
-        dialog.setWindowTitle(self.app.translate("Underlying data"))
+        for key, value in row_data.items():
+            key_item = qg.QStandardItem(key)
+            key_item.setEditable(False)
+
+            value_item = qg.QStandardItem(str(value))
+            value_item.setEditable(False)
+
+            simple_model.appendRow([key_item, value_item])
+        table_widget.setModel(simple_model)
+        table_widget.horizontalHeader().setStretchLastSection(True)
+        table_widget.horizontalHeader().setSectionResizeMode(
+            0, qw.QHeaderView.ResizeMode.ResizeToContents
+        )
+        table_widget.horizontalHeader().setSectionResizeMode(
+            1, qw.QHeaderView.ResizeMode.Stretch
+        )
+        # Smooth scrolling
+        table_widget.setHorizontalScrollMode(
+            qw.QAbstractItemView.ScrollMode.ScrollPerPixel
+        )
+        table_widget.verticalHeader().setVisible(False)
+        table_widget.setSelectionMode(
+            qw.QAbstractItemView.SelectionMode.ExtendedSelection
+        )
+        table_widget.setSelectionBehavior(
+            qw.QAbstractItemView.SelectionBehavior.SelectRows
+        )
+
+        dialog = AnyWidgetDialog(
+            table_widget,
+            self.app.translate("Underlying data"),
+            self,
+            add_stretch=False,
+        )
         dialog.exec()
 
     def goto_mobidetails(self, index: qc.QModelIndex):
@@ -351,7 +390,9 @@ class QueryTableWidget(qw.QWidget):
         col_name = index.model().headerData(
             index.column(), qc.Qt.Orientation.Horizontal
         )
-        dialog = SimpleFilterDialog(self.query.get_column_info(col_name), self)
+        dialog = SimpleFilterDialog(
+            self.app, self.query.get_column_info(col_name), self
+        )
 
         if dialog.exec() == qw.QDialog.DialogCode.Accepted:
             filter_text = dialog.get_filter()
@@ -382,18 +423,18 @@ class SimpleFilterDialog(qw.QDialog):
         self._operator_combo = qw.QComboBox()
 
         operators = [
-            ("égale à", "="),
-            ("différent de", "!="),
-            ("est nul", "IS NULL"),
-            ("n'est pas nul", "IS NOT NULL"),
+            (self.app.translate("equal to"), "="),
+            (self.app.translate("not equal to"), "!="),
+            (self.app.translate("is null"), "IS NULL"),
+            (self.app.translate("is not null"), "IS NOT NULL"),
         ]
 
-        if self.col_info["type"] in ("INTEGER", "FLOAT"):
+        if self.col_info["type"] not in ("VARCHAR", "TEXT"):
             operators += [
-                ("supérieur à", ">"),
-                ("supérieur ou égal à", ">="),
-                ("inférieur à", "<"),
-                ("inférieur ou égal à", "<="),
+                (self.app.translate("greater than"), ">"),
+                (self.app.translate("greater than or equal to"), ">="),
+                (self.app.translate("less than"), "<"),
+                (self.app.translate("less than or equal to"), "<="),
             ]
 
         for label, operator in operators:
@@ -408,7 +449,7 @@ class SimpleFilterDialog(qw.QDialog):
 
         # Add widgets to layout
         self._layout.addRow(self._col_name_label, self._operator_combo)
-        self._layout.addRow("Valeur", self._value_le)
+        self._layout.addRow(self.app.translate("Valeur"), self._value_le)
         self._layout.addRow(self._button_box)
 
         self.setLayout(self._layout)
