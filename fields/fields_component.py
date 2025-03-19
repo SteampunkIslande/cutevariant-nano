@@ -1,3 +1,5 @@
+import weakref
+
 import app
 from fields import fields_model as fldm
 from fields.fields_widget import FieldsWidget
@@ -10,10 +12,10 @@ class FieldsComponent(app.AppComponent):
     ):
         super().__init__(app, instance_name, parent_component)
 
-        self.model = fldm.FieldsModel(self)
+        self.model = fldm.FieldsModel()
         self.model.dataChanged.connect(self.emit_fields_changed)
 
-        self.fields_widget = FieldsWidget(self.app, self.model)
+        self.fields_widget = FieldsWidget(self.app, weakref.proxy(self))
 
     def get_instance_name(self):
         return self.instance_name
@@ -63,6 +65,9 @@ class FieldsComponent(app.AppComponent):
 
     def update_fields(self, fields: list[str]):
         self.model.update_fields(fields)
+
+    def __del__(self):
+        print("FieldsComponent deleted")
 
 
 def register_component():

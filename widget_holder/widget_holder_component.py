@@ -67,6 +67,7 @@ class WidgetHolderComponent(app.AppComponent):
     def set_current_component(self, component_name: str):
         if component_name not in self.held_components:
             self.current_component_name = None
+            return False
         if self.current_component_name == component_name:
             return False
         self.current_component_name = component_name
@@ -80,6 +81,8 @@ class WidgetHolderComponent(app.AppComponent):
 
     def update_widget(self) -> QWidget:
 
+        self._layout_widget.hide()
+
         # Empty the layout
         while self._layout.count():
             item = self._layout.takeAt(0)
@@ -89,6 +92,7 @@ class WidgetHolderComponent(app.AppComponent):
         # Current component name is not set: show placeholder
         if self.current_component_name is None:
             self._layout_widget.setWindowTitle(self.place_holder.windowTitle())
+            self._layout_widget.show()
             self._layout.addWidget(self.place_holder)
             return False
 
@@ -96,6 +100,7 @@ class WidgetHolderComponent(app.AppComponent):
         # Component is not found: show placeholder
         if current_component is None:
             self._layout_widget.setWindowTitle(self.place_holder.windowTitle())
+            self._layout_widget.show()
             self._layout.addWidget(self.place_holder)
             return False
 
@@ -103,13 +108,14 @@ class WidgetHolderComponent(app.AppComponent):
         # Component has no widget: show placeholder
         if current_widget is None:
             self._layout_widget.setWindowTitle(self.place_holder.windowTitle())
+            self._layout_widget.show()
             self._layout.addWidget(self.place_holder)
             return False
 
         self._layout.addWidget(current_widget)
         self._layout_widget.setWindowTitle(current_component.get_instance_name())
 
-        current_widget.show()
+        self._layout_widget.show()
 
     def get_signal(self, signal_name: str) -> SignalInstance:
         # Implement signal retrieval logic here

@@ -48,3 +48,6 @@ class FieldsModel(qg.QStandardItemModel):
             for i in range(self.rowCount())
             if self.item(i).checkState() == qc.Qt.CheckState.Checked
         ]
+
+    def __del__(self):
+        print("FieldsModel deleted")

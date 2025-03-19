@@ -4,6 +4,7 @@ import PySide6.QtCore as qc
 import PySide6.QtWidgets as qw
 
 import app as ap
+import fields.fields_component as fld_cmp
 import fields.fields_model as fldm
 from common_widgets.searchable_list import SearchableList
 
@@ -85,13 +86,17 @@ class PresetsWidget(qw.QWidget):
         self.load_presets()
         self.presets_combobox.blockSignals(False)
 
+    def __del__(self):
+        print("PresetsWidget deleted")
+
 
 class FieldsWidget(qw.QWidget):
-    def __init__(self, app: ap.App, model: fldm.FieldsModel):
+    def __init__(self, app: ap.App, component: "fld_cmp.FieldsComponent"):
         super().__init__()
 
         self.app = app
-        self.model = model
+        self.component = component
+        self.model = self.component.model
 
         self.proxy_model = qc.QSortFilterProxyModel(self)
         self.proxy_model.setSourceModel(self.model)
@@ -113,3 +118,6 @@ class FieldsWidget(qw.QWidget):
         layout.addWidget(self.searchable_list)
         layout.addWidget(self.presets_widget)
         self.setLayout(layout)
+
+    def __del__(self):
+        print("FieldsWidget deleted")
