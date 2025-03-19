@@ -136,35 +136,9 @@ class App(qc.QObject):
         if component_name in self.components:
             instances = self.components[component_name]["instances"]
             if instance_name in instances:
-                # TODO: Call AppComponent.on_delete() - Not implemented yet
-                # import referrers
-
-                # if component_name == "query":
-                #     print(referrers.get_referrer_graph(instances[instance_name]))
                 instance: AppComponent = instances[instance_name]
-                # instance.close()
-                # instance.broadcast.disconnect(self.dispatch_broadcast)
-                # self.broadcast_dispatcher.disconnect(instance.generic_receiver)
-
-                # instance.deleteLater()
-                # del instances[instance_name]
-                # del instance
-                import gc
-
-                # Generate graphviz graph of referrers and referents of instance
-                if component_name == "query":
-                    import matplotlib.pyplot as plt
-                    import networkx as nx
-                    import referrers
-
-                    graph = referrers.get_referrer_graph(instance)
-
-                    # Reverse the graph so that arrows point from referrers to referents
-                    nx_graph: nx.MultiDiGraph = graph.to_networkx().reverse()
-                    nx.drawing.nx_pydot.write_dot(nx_graph, "graph.dot")
-
-                # print(referrers.get_referrer_graph(instances[instance_name]))
-                # pass
+                del instances[instance_name]
+                del instance
 
     def instantiate_component(
         self,
@@ -384,7 +358,9 @@ class AppComponent(qc.QObject):
         super().__init__()
         self.app: App = weakref.proxy(app)
         self.instance_name = instance_name
-        self.parent_component = parent_component
+        self.parent_component = (
+            weakref.proxy(parent_component) if parent_component else None
+        )
 
     def get_instance_name(self) -> str:
         return self.instance_name
@@ -452,10 +428,6 @@ class AppComponent(qc.QObject):
         payload: dict,
     ):
         pass
-
-    def close(self):
-        self.app = None
-        self.parent_component = None
 
 
 if __name__ == "__main__":

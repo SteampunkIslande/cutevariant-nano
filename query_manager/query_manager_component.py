@@ -133,6 +133,7 @@ class QueryManagerComponent(ap.AppComponent):
 
         self.app.remove_instance("fields", f"{query.get_instance_name()}/fields")
         self.app.remove_instance("filters", f"{query.get_instance_name()}/filters")
+
         self.app.remove_instance("query", query.get_instance_name())
 
     def on_query_tab_changed(self, tab_index: int):
@@ -188,6 +189,7 @@ class QueryManagerComponent(ap.AppComponent):
         # Close all
         for _, query in self.queries.items():
             self.close_query(query)
+        self.queries.clear()
         self.query_model.clear()
 
 

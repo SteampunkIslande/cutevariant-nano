@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import weakref
 from math import ceil
 from typing import List, Union
 
@@ -90,7 +91,9 @@ class QueryComponent(ap.AppComponent):
         # Safer to init state before setting up the view
         self.init_state()
 
-        self.view = query.query_table_widget.QueryTableWidget(self.app, self)
+        self.view = query.query_table_widget.QueryTableWidget(
+            self.app, weakref.proxy(self)
+        )
         self.view.setWindowTitle(self.instance_name.split("/")[-1])
 
         self.changes_list = []
@@ -391,6 +394,20 @@ class QueryComponent(ap.AppComponent):
                 **self.variables,
             }
         )
+
+    # def list_exposed_fields(self):
+    #     q = self.select_query(paginated=True, columns="COLUMNS('^[^.].+$')")
+    #     if not q:
+    #         return []
+
+    #     cols = self.get_datalake().run_with_connection(
+    #         "validation",
+    #         lambda conn: conn.sql(q).columns,
+    #     )
+    #     return cols
+
+    def __del__(self):
+        print("QueryComponent deleted")
 
     def get_variant_info(self, validation_hash: int, columns: List[str] = None):
 
