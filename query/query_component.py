@@ -526,7 +526,6 @@ class QueryComponent(ap.AppComponent):
                 self.commit()
         if action == "selected_fields_changed":
             if sender_instance_name == f"{self.instance_name}/fields":
-                print(f"I'm {id(self)} and I received a selected_fields_changed signal")
                 self.set_selected_fields(payload["fields"])
                 self.view.update_selected_fields(payload["fields"])
                 self.commit()

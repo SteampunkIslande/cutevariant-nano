@@ -57,8 +57,7 @@ default:
   query:
     select:
       fields:
-        - if(contains(main_table.snpeff_Annotation,'intron_variant'), TRY_CAST (regexp_extract(main_table."snpeff_HGVS.c",'[\+|-](\d+)', 1) AS INT16), '0') AS 'Distance de l exon'
-        - MAP{{'A':'red','C':'green','G':'blue','T':'yellow'}}[main_table.reference][1]
+        - MAP{{'A':'red','C':'green','G':'blue','T':'black'}}[main_table.reference]
           AS '.refcolor'
         - MAP{{ 'missense_variant':'red', 'synonymous_variant':'green' }}[main_table.snpeff_Annotation][1]
           AS '.annotationcolor'
@@ -67,28 +66,32 @@ default:
         - main_table.run_name AS 'Nom du run'
         - main_table.sample_name AS 'Échantillon'
         - main_table."snpeff_HGVS.c" AS 'c. de l anomalie'
+        - main_table."snpeff_HGVS.p" AS 'p. de l anomalie'
         - main_table.snpeff_Gene_Name AS 'Nom du gène'
         - main_table.snpeff_Feature_ID AS 'NM'
-        - main_table.chromosome AS 'Chromosome'
-        - cast(main_table.position AS INT64) AS 'Position'
-        - main_table.reference AS 'Allèle de référence'
-        - main_table.alternate AS 'Allèle alternatif'
+        - concat(main_table.chromosome,'-',main_table.position,'-',main_table.reference,'-',main_table.alternate) AS 'Chr-Position-REF-ALT'
+        - main_table.position AS '.Position'
+        - main_table.reference AS '.Allèle de référence'
+        - main_table.alternate AS '.Allèle alternatif'
         - if(len(main_table.reference)>len(main_table.alternate),'deletion',if(len(main_table.reference)<len(main_table.alternate),'insertion','substitution')) AS 'Famille de l anomalie'
         - format('{{:.2f}}',main_table.cv_AF) AS 'Fréquence allélique'
+        - info_AC_raw AS 'Allele count Gnomad(exome)'
+        - floor(1e5 * "info_AF_raw") / 1e5 AS 'Frequence Gnomad(exome)'
+        - info_Hom_raw AS 'Nombre d''Homozygote (exome)'
         - main_table.snpeff_Annotation AS 'Annotation'
-        - MAP{{-1:'UNK',0:'REF',1:'HET',2:'HOM'}}[main_table.cv_GT][1] AS 'Génotype'
+        - MAP{{-1:'UNK',0:'REF',1:'HET',2:'HOM'}}[main_table.cv_GT] AS 'Génotype'
         - main_table.snpeff_Annotation_Impact AS 'Annotation impact'
-        - agg.ref_count AS 'Nombre d''allèles de référence dans la base'
         - agg.var_count AS 'Nombre de variants détectés dans la base'
         - recur.count AS 'Nombre d''observations du variant dans ce run'
-        - main_table."snpeff_HGVS.p" AS 'p. de l anomalie'
         - refseq_contigs.refseq AS '.NC'
         - main_table.identifier[1] AS '.rsid'
         - user_table.accepted AS '.accepted'
         - user_table.comment AS '.comment'
         - user_table.tags AS '.tags'
+        - if(contains(main_table.snpeff_Annotation,'intron_variant'), TRY_CAST (regexp_extract(main_table."snpeff_HGVS.c",'[\+|-](\d+)', 1) AS INT16), '0') AS 'Distance de l exon'
         - if(user_table.accepted = true,'OUI','NON') AS 'Validé ?'
         - if(user_table.accepted IS NULL,'#A1A1A1',MAP{{true:'green',false:'#A1A1A1'}}[user_table.accepted][1]) AS '.accepted_color'
+
       tables:
         - expression: "{main_table}"
           alias: main_table

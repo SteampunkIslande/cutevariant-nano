@@ -38,7 +38,7 @@ class PresetsWidget(qw.QWidget):
         self.setLayout(layout)
 
     def get_selected_fields(self):
-        return self.presets_combobox.currentData(qc.Qt.ItemDataRole.UserRole)
+        return self.presets_combobox.currentData(qc.Qt.ItemDataRole.UserRole)["fields"]
 
     def load_presets(self):
         success, config_folder = self.app.get_config_folder()
@@ -77,6 +77,8 @@ class PresetsWidget(qw.QWidget):
         if not success:
             return
         presets_file = config_folder / "presets" / "presets.json"
+        # Create if not exists
+        presets_file.parent.mkdir(parents=True,exist_ok=True)
         with open(presets_file, "w") as f:
             json.dump(self.presets, f)
         self.presets_combobox.blockSignals(True)
@@ -101,6 +103,7 @@ class FieldsWidget(qw.QWidget):
         )
 
         self.presets_widget = PresetsWidget(self.app, self.model)
+        self.presets_widget.preset_changed.connect(lambda: self.model.set_checked_fields(self.presets_widget.get_selected_fields()))
 
         layout = qw.QHBoxLayout(self)
         layout.addWidget(self.searchable_list)

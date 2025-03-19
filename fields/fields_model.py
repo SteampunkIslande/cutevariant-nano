@@ -28,6 +28,11 @@ class FieldsModel(qg.QStandardItemModel):
             item.setCheckState(qc.Qt.CheckState.Checked)
             self.appendRow(item)
 
+    def canDropMimeData(self, data, action, row, column, parent):
+        if parent.isValid():
+            return False
+        return True
+
     def set_checked_fields(self, fields: list[str]):
         for i in range(self.rowCount()):
             item = self.item(i)

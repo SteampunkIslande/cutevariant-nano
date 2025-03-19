@@ -262,7 +262,16 @@ class QueryTableWidget(qw.QWidget):
         )
         goto_mobidetails_action.triggered.connect(partial(self.goto_mobidetails, index))
 
+        copy_action: qg.QAction = menu.addAction(self.app.translate("Copy"))
+        copy_action.triggered.connect(partial(self.copy_current_row, index))
+        copy_action.setShortcut("Ctrl+C")
+
         menu.exec(qg.QCursor.pos())
+
+    def copy_current_row(self, index: qc.QModelIndex):
+        qg.QGuiApplication.clipboard().setText(
+            index.data(qc.Qt.ItemDataRole.DisplayRole) or ""
+        )
 
     def add_variant_to_validation(self):
         for index in self.table_view.selectionModel().selectedRows():
@@ -363,9 +372,9 @@ class QueryTableWidget(qw.QWidget):
 
         row_data: dict[str] = index.data(qc.Qt.ItemDataRole.UserRole)
         nc = row_data.get(".NC", None)
-        position = row_data.get("Position", None)
-        reference = row_data.get("Allèle de référence", None)
-        alternate = row_data.get("Allèle alternatif", None)
+        position = row_data.get(".Position", None)
+        reference = row_data.get(".Allèle de référence", None)
+        alternate = row_data.get(".Allèle alternatif", None)
         if all((nc, position, reference, alternate)):
             res = mobidetails_get(nc, position, reference, alternate)
             if "mobidetails_id" in res:
