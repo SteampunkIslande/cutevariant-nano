@@ -95,18 +95,17 @@ class ValidationManagerComponent(ap.AppComponent):
 
         self.init_validation(validation_info)
 
-        if validation_info.get("completed"):
-            query_manager_component.new_query(
-                self.app.translate("Final validation"),
-                self.validation_method["final"]["query"],
-                {
-                    "sample_names": self.sample_names,
-                    "table_uuid": self.table_uuid,
-                    "gene_names": self.gene_names,
-                    "parquet_files": self.parquet_files,
-                },
-            )
-            return
+        # Add final validation query
+        query_manager_component.new_query(
+            self.app.translate("Final validation"),
+            self.validation_method["final"]["query"],
+            {
+                "sample_names": self.sample_names,
+                "table_uuid": self.table_uuid,
+                "gene_names": self.gene_names,
+                "parquet_files": self.parquet_files,
+            },
+        )
 
         for sample_name in self.sample_names:
             query_manager_component.new_query(
