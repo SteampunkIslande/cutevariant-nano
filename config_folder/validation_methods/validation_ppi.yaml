@@ -161,7 +161,7 @@ final:
         - main_table.alternate AS Alt
         - main_table.format_AD[1] AS 'Ref allele count'
         - main_table.format_AD[2] AS 'Alt allele count'
-        - main_table.cv_AF AS 'VAF'
+        - round(main_table.cv_AF,5) AS 'VAF'
         - main_table."snpeff_HGVS.c" AS 'c. de l anomalie'
         - main_table."snpeff_HGVS.p" AS 'p. de l anomalie'
         - "'g.'||main_table.chromosome||'-'||main_table.position||main_table.reference||'-'||main_table.alternate AS 'g. de l anomalie'"
