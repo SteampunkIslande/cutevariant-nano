@@ -374,6 +374,17 @@ class QueryComponent(ap.AppComponent):
         if not self.readonly_table:
             return ""
 
+        if not columns:
+            if self.all_fields and self.selected_fields:
+                columns = ",".join(
+                    [f'"{f}"' for f in self.selected_fields if f in self.all_fields]
+                    + [
+                        f'"{f}"'
+                        for f in self.all_fields
+                        if f not in self.selected_fields
+                    ]
+                )
+
         fields = columns or "*"
 
         order_by = (
