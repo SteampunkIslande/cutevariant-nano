@@ -50,11 +50,11 @@ class PresetsWidget(qw.QWidget):
             return
         with open(presets_file) as f:
             self.presets = json.load(f)
-        if "fields" not in self.presets:
+        if "fields_presets" not in self.presets:
             return
 
         self.presets_combobox.clear()
-        for preset_name, preset_data in self.presets["fields"].items():
+        for preset_name, preset_data in self.presets["fields_presets"].items():
             self.presets_combobox.addItem(preset_name, preset_data)
         if self.presets_combobox.count() >= 1:
             self.presets_combobox.setCurrentIndex(0)

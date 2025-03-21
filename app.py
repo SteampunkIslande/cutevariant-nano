@@ -371,7 +371,7 @@ class AppComponent(qc.QObject):
         super().__init__()
         self.app: App = weakref.proxy(app)
         self.instance_name = instance_name
-        self.parent_component = (
+        self.parent_component: AppComponent = (
             weakref.proxy(parent_component) if parent_component else None
         )
 

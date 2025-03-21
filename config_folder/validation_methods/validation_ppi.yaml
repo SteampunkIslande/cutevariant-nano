@@ -134,6 +134,9 @@ default:
         children:
           - expression: main_table.sample_name IN {selected_samples}
           - expression: main_table.snpeff_Gene_Name IN {selected_genes}
+      order_by:
+        - field: main_table."validation_hash"
+          order: DESC
 
 final:
   query:

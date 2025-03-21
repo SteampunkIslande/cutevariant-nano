@@ -55,6 +55,12 @@ def build_query_template(data: dict) -> str:
             group_by = ",".join(group_by)
         result += f" GROUP BY {group_by} "
 
+    # order_by is a list of dicts with keys "field" and "order"
+    if "order_by" in select_def:
+        order_by = select_def["order_by"]
+        result += " ORDER BY "
+        result += ", ".join([f'{ob["field"]} {ob["order"]}' for ob in order_by])
+
     return result
 
 
@@ -360,15 +366,7 @@ class QueryComponent(ap.AppComponent):
         if not self.readonly_table:
             return ""
 
-        fields = (
-            columns
-            or (
-                ", ".join(f'"{f}"' for f in self.selected_fields)
-                if self.selected_fields
-                else None
-            )
-            or "*"
-        )
+        fields = columns or "*"
 
         order_by = (
             " ORDER BY " + ", ".join([f'"{ob[0]}" {ob[1]}' for ob in self.order_by])
