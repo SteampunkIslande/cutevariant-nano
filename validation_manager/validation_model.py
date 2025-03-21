@@ -67,33 +67,85 @@ def insert_validation_data(
     conn: db.DuckDBPyConnection,
     table_uuid: str,
     validation_hash: int,
-    sample_name: str,
-    run_name: str,
-    transcript_ID: str,
-    variant_hash: int,
-    accepted: bool,
-    comment: str,
-    tags: List[str],
-    acmg_classification: str,
-    distribution_anomalie: str,
+    **kwargs,
 ):
-    is_validation_hash_present = (
-        conn.sql(
-            f"""SELECT COUNT(*) FROM "{table_uuid}" WHERE validation_hash = {validation_hash}"""
-        ).fetchone()[0]
-        == 1
-    )
 
-    username = qc.QDir().home().dirName()
+    conn.begin()
+    try:
 
-    if not is_validation_hash_present:
-        conn.sql(
-            f"""INSERT INTO "{table_uuid}" (validation_hash,sample_name,run_name, transcript_ID, variant_hash) VALUES ({validation_hash}, '{sample_name}', '{run_name}', '{transcript_ID}', '{variant_hash}')"""
+        is_validation_hash_present = (
+            conn.sql(
+                f"""SELECT COUNT(*) FROM "{table_uuid}" WHERE validation_hash = {validation_hash}"""
+            ).fetchone()[0]
+            == 1
         )
 
-    conn.sql(
-        f"""UPDATE "{table_uuid}" SET accepted = {accepted}, comment = comment || [row('{comment}','{username}',NOW())], tags = {duck_db_literal_string_list(tags)}, acmg_classification = '{acmg_classification}', distribution_anomalie = '{distribution_anomalie}' WHERE validation_hash = {validation_hash}"""
-    )
+        username = qc.QDir().home().dirName()
+
+        if not is_validation_hash_present:
+            if not all(
+                [
+                    "sample_name" in kwargs,
+                    "run_name" in kwargs,
+                    "transcript_ID" in kwargs,
+                    "variant_hash" in kwargs,
+                ]
+            ):
+                raise ValueError(
+                    "sample_name, run_name, transcript_ID and variant_hash are required"
+                )
+
+            conn.sql(
+                f"""INSERT INTO "{table_uuid}" (validation_hash,sample_name,run_name, transcript_ID, variant_hash) VALUES ({validation_hash}, '{kwargs["sample_name"]}', '{kwargs["run_name"]}', '{kwargs["transcript_ID"]}', '{kwargs["variant_hash"]}')"""
+            )
+
+        comment_update = ""
+        if "comment" in kwargs:
+            comment_update = (
+                f"comment = comment || [row('{kwargs['comment']}','{username}',NOW())]"
+            )
+
+        accepted_update = ""
+        if "accepted" in kwargs:
+            accepted_update = f"accepted = {kwargs['accepted']}"
+
+        tags_update = ""
+        if "tags" in kwargs:
+            tags_update = f"tags = {duck_db_literal_string_list(kwargs['tags'])}"
+
+        acmg_classification_update = ""
+        if "acmg_classification" in kwargs:
+            acmg_classification_update = (
+                f"acmg_classification = '{kwargs['acmg_classification']}'"
+            )
+
+        distribution_anomalie_update = ""
+        if "distribution_anomalie" in kwargs:
+            distribution_anomalie_update = (
+                f"distribution_anomalie = '{kwargs['distribution_anomalie']}'"
+            )
+
+        updates = ", ".join(
+            filter(
+                None,
+                [
+                    comment_update,
+                    accepted_update,
+                    tags_update,
+                    acmg_classification_update,
+                    distribution_anomalie_update,
+                ],
+            )
+        )
+        if updates:
+            conn.sql(
+                f"""UPDATE "{table_uuid}" SET {updates} WHERE validation_hash = {validation_hash}"""
+            )
+    except Exception as e:
+        print(e)
+        conn.rollback()
+    else:
+        conn.commit()
 
 
 def get_validation_from_table_uuid(
@@ -208,20 +260,7 @@ class ValidationModel(qc.QAbstractTableModel):
             )
             self.update()
 
-    def insert_validation_data(
-        self,
-        table_uuid: str,
-        validation_hash: int,
-        sample_name: str,
-        run_name: str,
-        transcript_ID: str,
-        variant_hash: int,
-        accepted: bool,
-        comment: str,
-        tags: List[str],
-        acmg_classification: str,
-        distribution_anomalie: str,
-    ):
+    def insert_validation_data(self, table_uuid: str, validation_hash: int, **kwargs):
         datalake = self.parent_component.get_datalake()
         if datalake.datalake_path and os.path.exists(datalake.datalake_path):
             datalake.run_with_connection(
@@ -229,15 +268,7 @@ class ValidationModel(qc.QAbstractTableModel):
                 insert_validation_data,
                 table_uuid,
                 validation_hash,
-                sample_name,
-                run_name,
-                transcript_ID,
-                variant_hash,
-                accepted,
-                comment,
-                tags,
-                acmg_classification,
-                distribution_anomalie,
+                **kwargs,
             )
 
     def update(self) -> None:

@@ -147,6 +147,14 @@ class QueryComponent(ap.AppComponent):
 
         return self
 
+    def add_variant_to_validation(self, payload: dict):
+        self.broadcast.emit(
+            "add_variant_to_validation",
+            "query",
+            self.instance_name,
+            payload,
+        )
+
     def add_variable(self, key: str, value: str):
         if key in QueryComponent.RESERVED_VARIABLES:
             raise ValueError(f"Variable name {key} is reserved")
@@ -402,10 +410,17 @@ class QueryComponent(ap.AppComponent):
     #         "validation",
     #         lambda conn: conn.sql(q).columns,
     #     )
-    #     return cols
+    # return cols
 
     def __del__(self):
         print("QueryComponent deleted")
+
+    def add_order_by(self, colname: str, order: str):
+        if not self.order_by:
+            self.order_by = []
+        self.order_by.append((colname, order))
+        self.changes_list.append(("order_by", {"order_by": self.order_by}))
+        return self
 
     def get_variant_info(self, validation_hash: int, columns: List[str] = None):
 
@@ -543,6 +558,9 @@ class QueryComponent(ap.AppComponent):
             if sender_instance_name == f"{self.instance_name}/fields":
                 self.set_selected_fields(payload["fields"])
                 self.view.update_selected_fields(payload["fields"])
+                self.commit()
+        if action == "validation_infos_added":
+            if sender_instance_name == f"validation_manager":
                 self.commit()
 
 

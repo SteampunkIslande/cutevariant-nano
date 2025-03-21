@@ -184,11 +184,25 @@ class ValidationManagerComponent(ap.AppComponent):
             {},
         )
 
+    def add_variants_to_validation(self, validation_infos: list[dict]):
+        for validation_info in validation_infos:
+            self.validation_model.insert_validation_data(**validation_info)
+
+        self.broadcast.emit(
+            "validation_infos_added",
+            "validation_manager",
+            self.instance_name,
+            {"validation_infos": validation_infos},
+        )
+
     def generic_receiver(
         self, action, sender_component_name, sender_instance_name, payload
     ):
         if action == "datalake_path_changed":
             self.validation_selection_widget.on_datalake_changed()
+        if action == "add_variant_to_validation":
+            if "validation_infos" in payload:
+                self.add_variants_to_validation(payload["validation_infos"])
 
     def get_datalake(self) -> Union[dl.Datalake, None]:
         return self.app.get_component("datalake", "datalake")
