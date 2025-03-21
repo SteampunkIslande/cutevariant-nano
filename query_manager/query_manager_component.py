@@ -100,6 +100,9 @@ class QueryManagerComponent(ap.AppComponent):
         self.set_current_query(query_name)
         return query
 
+    def get_final_query(self):
+        return self.queries.get(self.app.translate("Final validation"))
+
     def get_query_model(self):
         return self.query_model
 

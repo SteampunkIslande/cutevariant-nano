@@ -86,6 +86,8 @@ class ValidationManagerComponent(ap.AppComponent):
         self.gene_names = validation_info.get("gene_names")
         self.parquet_files = validation_info.get("parquet_files")
 
+        self.validation_name = validation_info.get("validation_name")
+
     def set_validation(self, validation_info: dict):
         # Completely new validation, forget all the queries we may have
         query_manager_component: qm.QueryManagerComponent = self.app.get_component(
@@ -143,14 +145,14 @@ class ValidationManagerComponent(ap.AppComponent):
         user_prefs = self.app.load_user_prefs()
         if "genno_export_folder" not in user_prefs:
             qw.QMessageBox.warning(
-                self,
+                self.widget(),
                 self.app.translate("Export"),
                 self.app.translate(
                     "No Genno export folder selected, please choose one."
                 ),
             )
             genno_export_folder = qw.QFileDialog.getExistingDirectory(
-                self, self.app.translate("Choose Genno export folder")
+                self.widget(), self.app.translate("Choose Genno export folder")
             )
             if genno_export_folder:
                 self.app.save_user_prefs({"genno_export_folder": genno_export_folder})
@@ -165,6 +167,26 @@ class ValidationManagerComponent(ap.AppComponent):
             genno_export_folder = user_prefs["genno_export_folder"]
 
         genno_export_folder = Path(genno_export_folder)
+
+        query_manager_component: qm.QueryManagerComponent = self.app.get_component(
+            "query_manager"
+        )
+        query = query_manager_component.get_final_query()
+        if not query:
+            print("No query to export")
+            return
+        sql_query = query.select_query(paginated=False)
+        datalake = self.get_datalake()
+        if not datalake:
+            return
+        else:
+            base_filename = self.validation_name or "validation"
+            datalake.run_with_connection(
+                "validation",
+                lambda conn: conn.sql(
+                    f""" COPY ({sql_query}) TO '{genno_export_folder / f'{base_filename}.csv'}' (DELIMITER ';') """
+                ),
+            )
 
     def on_back_to_validation_selection(self):
         query_manager_component: qm.QueryManagerComponent = self.app.get_component(
