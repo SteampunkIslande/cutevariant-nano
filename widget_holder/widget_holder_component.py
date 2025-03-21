@@ -66,7 +66,6 @@ class WidgetHolderComponent(app.AppComponent):
 
     def set_current_component(self, component_name: str):
         if component_name not in self.held_components:
-            self.current_component_name = None
             return False
         if self.current_component_name == component_name:
             return False
@@ -94,6 +93,7 @@ class WidgetHolderComponent(app.AppComponent):
             self._layout_widget.setWindowTitle(self.place_holder.windowTitle())
             self._layout_widget.show()
             self._layout.addWidget(self.place_holder)
+            self.place_holder.show()
             return False
 
         current_component = self.held_components.get(self.current_component_name)
@@ -102,6 +102,7 @@ class WidgetHolderComponent(app.AppComponent):
             self._layout_widget.setWindowTitle(self.place_holder.windowTitle())
             self._layout_widget.show()
             self._layout.addWidget(self.place_holder)
+            self.place_holder.show()
             return False
 
         current_widget = current_component.widget()
@@ -110,9 +111,11 @@ class WidgetHolderComponent(app.AppComponent):
             self._layout_widget.setWindowTitle(self.place_holder.windowTitle())
             self._layout_widget.show()
             self._layout.addWidget(self.place_holder)
+            self.place_holder.show()
             return False
 
         self._layout.addWidget(current_widget)
+        current_widget.show()
         self._layout_widget.setWindowTitle(current_component.get_instance_name())
 
         self._layout_widget.show()
