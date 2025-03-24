@@ -92,14 +92,6 @@ class QueryTableModel(qc.QAbstractTableModel):
         draw_options = self.style_from_index(self.style, index)
 
         if role == qc.Qt.ItemDataRole.ForegroundRole:
-            # background_color = self.data(index, qc.Qt.ItemDataRole.BackgroundRole)
-            # if background_color is not None:
-            #     if isinstance(background_color, qg.QColor):
-            #         return qg.QColor.fromRgb(
-            #             255 - background_color.red(),
-            #             255 - background_color.green(),
-            #             255 - background_color.blue(),
-            #         )
             if (
                 "color" in draw_options
                 and draw_options["color"]
