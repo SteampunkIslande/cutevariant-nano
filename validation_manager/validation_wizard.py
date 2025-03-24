@@ -10,7 +10,7 @@ from common_widgets.any_widget_dialog import AnyWidgetDialog
 from common_widgets.multiline_display import MultiLineDisplay
 from common_widgets.searchable_table import SearchableTable
 from common_widgets.string_list_chooser import StringListChooser
-from commons import duck_db_literal_string_list, load_user_prefs, yaml_load
+from commons import duck_db_literal_string_list, yaml_load
 from datalake.datalake_component import Datalake
 
 
@@ -267,7 +267,7 @@ class GeneListSelectPage(qw.QWizardPage):
         if "validation_method" in self.data:
 
             validation_method: dict[str, dict] = yaml_load(
-                Path(load_user_prefs()["config_folder"])
+                Path(self.app.load_user_prefs()["config_folder"])
                 / Path("validation_methods")
                 / Path(self.data["validation_method"] + ".yaml")
             )

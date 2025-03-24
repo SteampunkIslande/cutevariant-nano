@@ -271,6 +271,16 @@ class ValidationModel(qc.QAbstractTableModel):
                 **kwargs,
             )
 
+    def finish_validation(self, table_uuid: str):
+        datalake = self.parent_component.get_datalake()
+        if datalake.datalake_path and os.path.exists(datalake.datalake_path):
+            datalake.run_with_connection(
+                "validation",
+                finish_validation,
+                table_uuid,
+            )
+            self.update()
+
     def update(self) -> None:
         self.beginResetModel()
         self.headers = []

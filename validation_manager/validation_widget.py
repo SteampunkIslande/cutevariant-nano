@@ -53,6 +53,10 @@ class ValidationWidget(qw.QWidget):
         self._layout.addWidget(self.return_to_validation_button)
         self.setLayout(self._layout)
 
+    def set_completed(self, completed: bool):
+        self.completed = completed
+        self.setup_state()
+
     def setup_state(self):
         if self.completed:
             self.validate_button.setText(self.app.translate("Export to Genno"))

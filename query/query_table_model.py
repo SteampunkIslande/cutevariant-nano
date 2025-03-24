@@ -7,50 +7,6 @@ import PySide6.QtCore as qc
 import PySide6.QtGui as qg
 
 import query.query_component as q_cmp
-from commons import get_config_folder, load_user_prefs
-
-
-def load_style():
-    prefs = load_user_prefs()
-    style: str = prefs.get("column_styles", "style42.json")
-    success, config_folder = get_config_folder()
-    if not success:
-        return
-    style_file_path = (config_folder / "styles" / style).resolve()
-    if style_file_path.is_file():
-        with open(style_file_path, "r", encoding="utf-8") as f:
-            return json.load(f)
-
-
-def style_from_index(style: dict, index: qc.QModelIndex):
-    # Read from config file
-    colname = index.model().headerData(index.column(), qc.Qt.Orientation.Horizontal)
-    row_data = index.data(qc.Qt.ItemDataRole.UserRole)
-
-    base_style = {}
-    base_style_def = style.get("*", {})
-    for style_key in base_style_def:
-        style_origin = list(base_style_def[style_key].keys())[0]
-        if style_origin == "from_column":
-            base_style[style_key] = row_data.get(
-                base_style_def[style_key]["from_column"], ""
-            )
-        elif style_origin == "constant":
-            base_style[style_key] = base_style_def[style_key]["constant"]
-
-    style_def = style.get(colname, {})
-    if not style_def:
-        return base_style
-    for style_key in style_def:
-        style_origin = list(style_def[style_key].keys())[0]
-        if style_origin == "from_column":
-            base_style[style_key] = row_data.get(
-                style_def[style_key]["from_column"], ""
-            )
-        elif style_origin == "constant":
-            base_style[style_key] = style_def[style_key]["constant"]
-
-    return base_style
 
 
 class QueryTableModel(qc.QAbstractTableModel):
@@ -64,7 +20,7 @@ class QueryTableModel(qc.QAbstractTableModel):
 
         self.query.query_changed.connect(self.update)
 
-        self.style = load_style()
+        self.style = self.load_style()
 
     def rowCount(self, parent):
         if parent.isValid():
@@ -77,6 +33,47 @@ class QueryTableModel(qc.QAbstractTableModel):
         if self._data:
             return len(self._data[0])
         return 0
+
+    def load_style(self):
+        prefs = self.query.app.load_user_prefs()
+        style: str = prefs.get("column_styles", "style42.json")
+        success, config_folder = self.query.app.get_config_folder()
+        if not success:
+            return
+        style_file_path = (config_folder / "styles" / style).resolve()
+        if style_file_path.is_file():
+            with open(style_file_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+
+    def style_from_index(self, style: dict, index: qc.QModelIndex):
+        # Read from config file
+        colname = index.model().headerData(index.column(), qc.Qt.Orientation.Horizontal)
+        row_data = index.data(qc.Qt.ItemDataRole.UserRole)
+
+        base_style = {}
+        base_style_def = style.get("*", {})
+        for style_key in base_style_def:
+            style_origin = list(base_style_def[style_key].keys())[0]
+            if style_origin == "from_column":
+                base_style[style_key] = row_data.get(
+                    base_style_def[style_key]["from_column"], ""
+                )
+            elif style_origin == "constant":
+                base_style[style_key] = base_style_def[style_key]["constant"]
+
+        style_def = style.get(colname, {})
+        if not style_def:
+            return base_style
+        for style_key in style_def:
+            style_origin = list(style_def[style_key].keys())[0]
+            if style_origin == "from_column":
+                base_style[style_key] = row_data.get(
+                    style_def[style_key]["from_column"], ""
+                )
+            elif style_origin == "constant":
+                base_style[style_key] = style_def[style_key]["constant"]
+
+        return base_style
 
     def data(self, index: qc.QModelIndex, role=qc.Qt.ItemDataRole.DisplayRole):
         if role == qc.Qt.ItemDataRole.DisplayRole:
@@ -92,7 +89,7 @@ class QueryTableModel(qc.QAbstractTableModel):
                 str(colname): str(val)
                 for colname, val in zip(self.header, self._data[index.row()])
             }
-        draw_options = style_from_index(self.style, index)
+        draw_options = self.style_from_index(self.style, index)
 
         if role == qc.Qt.ItemDataRole.ForegroundRole:
             # background_color = self.data(index, qc.Qt.ItemDataRole.BackgroundRole)

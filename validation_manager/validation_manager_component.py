@@ -107,6 +107,11 @@ class ValidationManagerComponent(ap.AppComponent):
             },
         )
 
+        completed = validation_info.get("completed")
+        if completed:
+            self.validation_widget.set_completed(True)
+            return
+
         for sample_name in self.sample_names:
             query_manager_component.new_query(
                 sample_name,

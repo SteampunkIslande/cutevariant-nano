@@ -59,7 +59,7 @@ default:
       fields:
         - MAP{{'A':'red','C':'green','G':'blue','T':'black'}}[main_table.reference]
           AS '.refcolor'
-        - MAP{{ 'missense_variant':'red', 'synonymous_variant':'green' }}[main_table.snpeff_Annotation][1]
+        - MAP{{ 'missense_variant':'red', 'synonymous_variant':'green' }}[main_table.snpeff_Annotation]
           AS '.annotationcolor'
         - main_table.validation_hash AS '.validation_hash'
         - main_table.variant_hash AS '.variant_hash'
@@ -93,7 +93,7 @@ default:
         - user_table.tags AS '.tags'
         - if(contains(main_table.snpeff_Annotation,'intron_variant'), TRY_CAST (regexp_extract(main_table."snpeff_HGVS.c",'[\+|-](\d+)', 1) AS INT16), '0') AS 'Distance de l exon'
         - if(user_table.accepted = true,'OUI','NON') AS 'Validé ?'
-        - if(user_table.accepted IS NULL,'#A1A1A1',MAP{{true:'green',false:'#A1A1A1'}}[user_table.accepted][1]) AS '.accepted_color'
+        - if(user_table.accepted IS NULL,'#A1A1A1',MAP{{true:'green',false:'#A1A1A1'}}[user_table.accepted]) AS '.accepted_color'
 
       tables:
         - expression: "{main_table}"
