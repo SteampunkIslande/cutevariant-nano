@@ -212,6 +212,9 @@ class QueryTableWidget(qw.QWidget):
 
         index = self.table_view.indexAt(pos)
 
+        if not index.data(qc.Qt.ItemDataRole.UserRole):
+            return
+
         debug_action: qg.QAction = menu.addAction(
             self.app.translate("(DEBUG) Show underlying data for this line")
         )
@@ -368,9 +371,9 @@ class QueryTableWidget(qw.QWidget):
 
         if dialog.exec() == qw.QDialog.DialogCode.Accepted:
             filter_text = dialog.get_filter()
-            self.query.filter_model.add_filter(
-                filter_text,
-            )
+            # self.query.filter_model.add_filter(
+            #     filter_text,
+            # )
 
 
 class SimpleFilterDialog(qw.QDialog):
