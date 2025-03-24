@@ -8,7 +8,33 @@
 
 from typing import Union
 
+import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
+
+
+class ColorEditor(qw.QWidget):
+    def __init__(self, color: qg.QColor, parent=None):
+        super().__init__(parent)
+
+        self._layout = qw.QHBoxLayout()
+        self._color = color
+
+        self.color_select_button = qw.QPushButton("Select color")
+        self.color_select_button.clicked.connect(self.on_color_select)
+        self._layout.addWidget(self.color_select_button)
+
+        self.setLayout(self._layout)
+
+    def on_color_select(self):
+        color = qw.QColorDialog.getColor(initial=self._color)
+        if color.isValid():
+            self._color = color
+
+    def color(self):
+        return self._color
+
+    def setColor(self, color: qg.QColor):
+        self._color = color
 
 
 class ExistingFileEditor(qw.QWidget):
@@ -176,11 +202,29 @@ class PrefsWidget(qw.QDialog):
             editor.addItems(possible_values)
             editor.setCurrentText(value)
             layout.addRow(key_name, editor)
+        elif editor_type == "color":
+            editor = ColorEditor(qg.QColor(value))
+            layout.addRow(key_name, editor)
         else:
             editor = qw.QLineEdit()
             editor.setText(str(value))
             layout.addRow(key_name, editor)
         self.editors[key] = editor
+
+    def format_prefs(self):
+        new_prefs = {}
+        for k, v in self.prefs.items():
+            if "." in k:
+                category_key, sub_key = k.split(".", 1)
+                if category_key == "General":
+                    new_prefs[sub_key] = v
+                    continue
+                if category_key not in new_prefs:
+                    new_prefs[category_key] = {}
+                new_prefs[category_key][sub_key] = v
+            else:
+                new_prefs[k] = v
+        self.prefs = new_prefs
 
     def save_prefs(self):
         for key, editor in self.editors.items():
@@ -198,22 +242,16 @@ class PrefsWidget(qw.QDialog):
                 self.prefs[key] = editor.text()
             elif isinstance(editor, qw.QComboBox):
                 self.prefs[key] = editor.currentText()
+            elif isinstance(editor, ColorEditor):
+                self.prefs[key] = editor.color().name()
             else:
                 raise ValueError(f"Unknown editor type: {type(editor)}")
-        new_prefs = {}
-        for k, v in self.prefs.items():
-            if "." in k:
-                category_key, sub_key = k.split(".", 1)
-                if category_key == "General":
-                    new_prefs[sub_key] = v
-                    continue
-                if category_key not in new_prefs:
-                    new_prefs[category_key] = {}
-                new_prefs[category_key][sub_key] = v
-            else:
-                new_prefs[k] = v
-        self.prefs = new_prefs
+        self.format_prefs()
         self.accept()
+
+    def reject(self):
+        self.format_prefs()
+        super().reject()
 
     @staticmethod
     def validate_prefs(prefs: dict):
@@ -233,6 +271,14 @@ class PrefsWidget(qw.QDialog):
                         raise ValueError(
                             f"Value {sub_v} is not a JSON serializable type"
                         )
+            else:
+                if not isinstance(k, str):
+                    raise ValueError(f"Key {k} is not a string")
+                if (
+                    not isinstance(v, (str, int, float, bool, list, tuple))
+                    and v is not None
+                ):
+                    raise ValueError(f"Value {v} is not a JSON serializable type")
 
 
 if __name__ == "__main__":
@@ -249,6 +295,7 @@ if __name__ == "__main__":
             "my_other_string": "world",
             "my_other_number": 24,
             "my_other_bool": False,
+            "some_color:color": "#ff0000",
         },
     }
     widget = PrefsWidget(prefs)
