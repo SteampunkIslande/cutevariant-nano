@@ -109,18 +109,12 @@ class QueryTableModel(qc.QAbstractTableModel):
             else:
                 return
         if role == qc.Qt.ItemDataRole.BackgroundRole:
-            if "background" in draw_options and draw_options["background"]:
-                if draw_options["background"].startswith("#"):
-                    if draw_options["background"] == "#FF000000":
-                        return
-                    if len(draw_options["background"]) == 7:
-                        return qg.QColor.fromRgb(
-                            int(draw_options["background"][1:], 16)
-                        )
-                    elif len(draw_options["background"]) == 9:
-                        return qg.QColor.fromRgba(
-                            int(draw_options["background"][1:], 16)
-                        )
+            if (
+                "background" in draw_options
+                and draw_options["background"]
+                and draw_options["background"] != "None"
+            ):
+                return qg.QColor(draw_options["background"])
         if role == qc.Qt.ItemDataRole.FontRole:
             if "bold" in draw_options:
                 font = qg.QFont()

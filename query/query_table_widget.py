@@ -267,6 +267,8 @@ class QueryTableWidget(qw.QWidget):
 
     def show_row_userdata(self, index: qc.QModelIndex):
         row_data: dict = index.data(qc.Qt.ItemDataRole.UserRole)
+        if not row_data:
+            return
 
         table_widget = qw.QTableView()
         simple_model = qg.QStandardItemModel(0, 2)
