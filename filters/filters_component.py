@@ -54,6 +54,21 @@ class FiltersComponent(app.AppComponent):
             {"filter_tree": self.model.to_dict()},
         )
 
+    def generic_receiver(
+        self, action, sender_component_name, sender_instance_name, payload
+    ):
+        if sender_component_name + "/filters" == self.instance_name:
+            if action == "query:all_fields_changed":
+                self.model.load(
+                    {
+                        "filter_type": "ROOT",
+                        "children": [{"filter_type": "AND", "children": []}],
+                    }
+                )
+
+    def __del__(self):
+        print("FiltersComponent deleted")
+
 
 def register_component():
     return "filters", {
