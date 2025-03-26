@@ -65,8 +65,6 @@ class ValidationManagerComponent(ap.AppComponent):
 
     def init_validation(self, validation_info: dict):
         self.sample_names = validation_info.get("sample_names")
-        if not self.sample_names:
-            return
         validation_method = validation_info.get("validation_method")
         if not validation_method:
             return
@@ -92,7 +90,7 @@ class ValidationManagerComponent(ap.AppComponent):
             "query_manager"
         )
         query_manager_component.clear()
-
+        print(validation_info)
         self.init_validation(validation_info)
 
         # Add final validation query
