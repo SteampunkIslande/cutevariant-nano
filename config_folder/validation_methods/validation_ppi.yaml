@@ -126,7 +126,7 @@ default:
           how: ""
         - expression: read_csv('{pwd}/lists/liste_nms.csv',sep=',',header=false,names=['NM'])
           alias: nms
-          "on": main_table.snpeff_Feature_ID = nms.NM
+          "on": split(main_table.snpeff_Feature_ID,'.')[1] = split(nms.NM,'.')[1]
           how: ""
         - expression: read_csv('{pwd}/annotations/ucscToRefSeq.txt.gz',header=False,names=['contig','_1','_2','refseq'])
           alias: refseq_contigs
@@ -147,10 +147,10 @@ final:
       fields:
         - "'hg19' AS 'Version genome' "
         - "regexp_replace(main_table.sample_name,'-[MF]?_S\\d+$','') AS 'Sample ID'"
-        - if(len(main_table.reference)>len(main_table.alternate),'deletion',if(len(main_table.reference)<len(main_table.alternate),'insertion','substitution')) AS 'Famille de l anomalie'
-        - main_table.chromosome||':'||main_table.position||':'||main_table.reference||'>'||main_table.alternate AS 'Libelle de l anomalie'
+        - "'Mutation ponctuelle' AS 'Famille de l anomalie' "
+        - upper(main_table.snpeff_Gene_Name)||' '||main_table."snpeff_HGVS.c"||', '||main_table."snpeff_HGVS.p" AS 'Libelle de l anomalie'
         - main_table.chromosome AS Chr
-        - main_table.snpeff_Gene_Name AS 'Nom du gene'
+        - upper(main_table.snpeff_Gene_Name) AS 'Nom du gene'
         - hgnc.name AS 'Code HGNC'
         - main_table.snpeff_Feature_ID AS 'NM'
         - main_table.snpeff_Annotation AS 'Type region'
@@ -170,7 +170,7 @@ final:
         - user_table.clnacc AS 'Numéro d''accession clinvar'
         - user_table.clnsig AS 'Signification CLINVAR'
         - MAP{{0:'Référence',1:'Hétérozygote',2:'Homozygote'}}[cv_GT][1] AS 'Statut du resultat'
-        - "'detecte' AS 'Statut de detection'"
+        - "'Detecte' AS 'Statut de detection'"
         - "user_table.acmg_classification AS 'Pathogenicite de l anomalie'"
         - "user_table.distribution_anomalie AS 'Distribution de l anomalie'"
         - "'SMAUG V2.4' AS 'Pipe SMAUG'"
