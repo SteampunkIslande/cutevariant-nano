@@ -176,7 +176,7 @@ class ValidationManagerComponent(ap.AppComponent):
         if not query:
             print("No query to export")
             return
-        sql_query = query.select_query(paginated=False)
+        sql_query = query.select_query(paginated=False , columns="COLUMNS('^[^.]')")
         datalake = self.get_datalake()
         if not datalake:
             return
