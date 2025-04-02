@@ -79,6 +79,9 @@ class QueryManagerComponent(ap.AppComponent):
         filters_component = self.app.instantiate_component(
             "filters", f"{self.instance_name}/{query_name}/filters", query
         )
+        order_by_component = self.app.instantiate_component(
+            "order_by", f"{self.instance_name}/{query_name}/order_by", query
+        )
 
         # COMPONENT HOLDERS INSTALLATION
         fields_holder: WidgetHolderComponent = self.app.get_component(
@@ -87,9 +90,13 @@ class QueryManagerComponent(ap.AppComponent):
         filters_holder: WidgetHolderComponent = self.app.get_component(
             "widget_holder", "filters_widget_holder"
         )
+        order_by_holder: WidgetHolderComponent = self.app.get_component(
+            "widget_holder", "order_by_widget_holder"
+        )
 
         fields_holder.add_component(fields_component)
         filters_holder.add_component(filters_component)
+        order_by_holder.add_component(order_by_component)
 
         self.queries_tab_widget.blockSignals(True)
         self.app.window().add_component_to_window(query, mw.WindowRegion.UPPER)
@@ -131,11 +138,17 @@ class QueryManagerComponent(ap.AppComponent):
         filters_holder: WidgetHolderComponent = self.app.get_component(
             "widget_holder", "filters_widget_holder"
         )
+        order_by_holder: WidgetHolderComponent = self.app.get_component(
+            "widget_holder", "order_by_widget_holder"
+        )
+
         fields_holder.remove_component(f"{query.get_instance_name()}/fields")
         filters_holder.remove_component(f"{query.get_instance_name()}/filters")
+        order_by_holder.remove_component(f"{query.get_instance_name()}/order_by")
 
         self.app.remove_instance("fields", f"{query.get_instance_name()}/fields")
         self.app.remove_instance("filters", f"{query.get_instance_name()}/filters")
+        self.app.remove_instance("order_by", f"{query.get_instance_name()}/order_by")
 
         self.app.remove_instance("query", query.get_instance_name())
 

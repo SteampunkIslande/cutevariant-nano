@@ -17,6 +17,8 @@ class OrderByComponent(ap.AppComponent):
         self.model = obm.OrderByModel(self)
         self.order_by_widget = obw.OrderByWidget(self.app, self)
 
+        self.model.model_changed.connect(self.emit_order_by_changed)
+
         self.field_names = []
 
     def get_instance_name(self) -> str:
@@ -61,9 +63,9 @@ class OrderByComponent(ap.AppComponent):
         sender_instance_name: str,
         payload: dict,
     ):
-        if action == "query_order_by_changed":
+        if action == "query:order_by_changed":
             if sender_instance_name == self.parent_component.get_instance_name():
-                self.model.load(payload["order_by_expression"])
+                self.model.load(payload["order_by"])
         if action == "query_field_names_changed":
             if sender_instance_name == self.parent_component.get_instance_name():
                 self.field_names = payload["field_names"]

@@ -119,7 +119,6 @@ class OrderByModel(qc.QAbstractTableModel):
         self.beginResetModel()
         self._data = data
         self.endResetModel()
-        self.model_changed.emit()
 
     def get_data(self) -> list[tuple[str, str]]:
         return self._data

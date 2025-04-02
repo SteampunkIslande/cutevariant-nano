@@ -36,6 +36,14 @@ class AppManager(app.AppComponent):
         )
         filters_widget_holder.set_title(self.app.translate("Filters selection"))
 
+        # Instantiate order by selection component holder
+        order_by_widget_holder: widget_holder.WidgetHolderComponent = (
+            self.app.instantiate_component(
+                "widget_holder", "order_by_widget_holder", self
+            )
+        )
+        order_by_widget_holder.set_title(self.app.translate("Order by selection"))
+
         # Instantiate validation component itself
         validation_component: (
             validation_manager_component.ValidationManagerComponent
@@ -47,6 +55,10 @@ class AppManager(app.AppComponent):
         window.add_component_to_window(
             filters_widget_holder, mainwindow.WindowRegion.LOWER
         )
+        window.add_component_to_window(
+            order_by_widget_holder, mainwindow.WindowRegion.LOWER
+        )
+
         window.add_component_to_window(
             validation_component, mainwindow.WindowRegion.RIGHT
         )
