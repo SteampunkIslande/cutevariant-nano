@@ -90,7 +90,6 @@ class ValidationManagerComponent(ap.AppComponent):
             "query_manager"
         )
         query_manager_component.clear()
-        print(validation_info)
         self.init_validation(validation_info)
 
         # Add final validation query
@@ -176,7 +175,7 @@ class ValidationManagerComponent(ap.AppComponent):
         if not query:
             print("No query to export")
             return
-        sql_query = query.select_query(paginated=False , columns="COLUMNS('^[^.]')")
+        sql_query = query.select_query(paginated=False, columns="COLUMNS('^[^.]')")
         datalake = self.get_datalake()
         if not datalake:
             return

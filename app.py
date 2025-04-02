@@ -136,21 +136,11 @@ class App(qc.QObject):
         if component_name in self.components:
             instances = self.components[component_name]["instances"]
             if instance_name in instances:
-                instance: AppComponent = instances[instance_name]
-                del instances[instance_name]
-
                 import gc
 
-                if component_name == "fields":
-                    model = getattr(instance, "model", None)
-                    if model:
-                        print("Model is referred to by", gc.get_referrers(model))
-                    widget = getattr(instance, "fields_widget", None)
-                    if widget:
-                        print("Widget is referred to by", gc.get_referrers(widget))
-
+                instance: AppComponent = instances[instance_name]
+                del instances[instance_name]
                 del instance
-
                 gc.collect()
 
     def instantiate_component(

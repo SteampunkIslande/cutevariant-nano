@@ -1,3 +1,4 @@
+import logging
 import os
 import typing
 from pathlib import Path
@@ -7,6 +8,8 @@ import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
 
 import app
+
+LOGGER = logging.getLogger(__name__)
 
 
 class DatabaseConnection:
@@ -24,8 +27,11 @@ class DatabaseConnection:
     def __enter__(self):
         return self.conn
 
-    def __exit__(self, type, value, traceback):
-        return True
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type is not None:
+            info = (exc_type, exc_val, exc_tb)
+            LOGGER.log(logging.ERROR, "Database connection error", exc_info=info)
+            return False
 
     def init_conn(self):
         self.conn.sql(
