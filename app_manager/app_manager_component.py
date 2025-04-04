@@ -80,18 +80,27 @@ class AppManager(app.AppComponent):
             filters_widget_holder: widget_holder.WidgetHolderComponent = (
                 self.app.get_component("widget_holder", "filters_widget_holder")
             )
+            order_by_widget_holder: widget_holder.WidgetHolderComponent = (
+                self.app.get_component("widget_holder", "order_by_widget_holder")
+            )
+
             current_query_fields_component = self.app.get_component(
                 "fields", f"{payload['current_query']}/fields"
             )
             current_query_filters_component = self.app.get_component(
                 "filters", f"{payload['current_query']}/filters"
             )
+            current_query_order_by_component = self.app.get_component(
+                "order_by", f"{payload['current_query']}/order_by"
+            )
             if not all(
                 [
                     fields_widget_holder,
                     filters_widget_holder,
+                    order_by_widget_holder,
                     current_query_fields_component,
                     current_query_filters_component,
+                    current_query_order_by_component,
                 ]
             ):
                 return
@@ -100,6 +109,9 @@ class AppManager(app.AppComponent):
             )
             filters_widget_holder.set_current_component(
                 current_query_filters_component.get_instance_name()
+            )
+            order_by_widget_holder.set_current_component(
+                current_query_order_by_component.get_instance_name()
             )
 
     def get_menubar_entries(self):

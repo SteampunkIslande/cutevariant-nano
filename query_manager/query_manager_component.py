@@ -30,6 +30,8 @@ class QueryManagerWidget(qw.QWidget):
         )
 
     def on_current_query_changed(self, current: qc.QModelIndex, _: qc.QModelIndex):
+        if not current:
+            return
         if not current.isValid():
             return
         # Either None or empty string
