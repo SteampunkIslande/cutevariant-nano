@@ -169,7 +169,7 @@ final:
         - main_table.identifier[1] as 'rsID'
         - user_table.clnacc AS 'Numéro d''accession clinvar'
         - user_table.clnsig AS 'Signification CLINVAR'
-        - MAP{{0:'Référence',1:'Hétérozygote',2:'Homozygote'}}[cv_GT][1] AS 'Statut du resultat'
+        - MAP{{0:'Référence',1:'Hétérozygote',2:'Homozygote'}}[cv_GT] AS 'Statut du resultat'
         - "'Detecte' AS 'Statut de detection'"
         - "user_table.acmg_classification AS 'Pathogenicite de l anomalie'"
         - "user_table.distribution_anomalie AS 'Distribution de l anomalie'"

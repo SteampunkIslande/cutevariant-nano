@@ -57,7 +57,7 @@ fr_FR = {
     "Start/Resume validation": "Démarrer/Continuer une validation",
     "This wizard allows you to create a new validation": "Ce wizard permet la création d'une nouvelle validation",
     "Underlying data": "Données sous-jacentes",
-    "Validate cart": "Validater le panier",
+    "Validate cart": "Valider le panier",
     "Validation": "Validation",
     "Validation name": "Nom de la validation",
     "Validation selection": "Sélection de la validation",
