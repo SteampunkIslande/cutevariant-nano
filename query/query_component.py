@@ -429,7 +429,7 @@ class QueryComponent(ap.AppComponent):
     def add_order_by(self, colname: str, order: str):
         if not self.order_by:
             self.order_by = []
-        self.order_by.append((colname, order))
+        self.order_by.append([colname, order])
         self.changes_list.append(("order_by", {"order_by": self.order_by}))
         return self
 

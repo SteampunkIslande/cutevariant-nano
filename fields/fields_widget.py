@@ -1,4 +1,5 @@
 import json
+import weakref
 
 import PySide6.QtCore as qc
 import PySide6.QtWidgets as qw
@@ -32,7 +33,7 @@ class PresetsWidget(qw.QWidget):
         layout.addWidget(self.add_to_presets_button)
         layout.addWidget(self.presets_combobox)
 
-        self.presets_combobox.currentIndexChanged.connect(self.preset_changed)
+        self.presets_combobox.activated.connect(self.preset_changed)
 
         self.load_presets()
 
@@ -98,7 +99,7 @@ class FieldsWidget(qw.QWidget):
         self.component = component
         self.model = self.component.model
 
-        self.proxy_model = qc.QSortFilterProxyModel(self)
+        self.proxy_model = qc.QSortFilterProxyModel()
         self.proxy_model.setSourceModel(self.model)
         self.proxy_model.setFilterRegularExpression("^[^.].+$")
 
