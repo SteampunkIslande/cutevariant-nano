@@ -77,7 +77,7 @@ default:
         - main_table.reference AS '.Allèle de référence'
         - main_table.alternate AS '.Allèle alternatif'
         - if(len(main_table.reference)>len(main_table.alternate),'deletion',if(len(main_table.reference)<len(main_table.alternate),'insertion','substitution')) AS 'Famille de l anomalie'
-        - format('{{:.2f}}',main_table.cv_AF) AS 'Fréquence allélique'
+        - floor(1e2 * main_table.cv_AF) / 1e2 AS 'Fréquence allélique'
         - info_AC_raw AS 'Allele count Gnomad(exome)'
         - floor(1e5 * "info_AF_raw") / 1e5 AS 'Frequence Gnomad(exome)'
         - info_Hom_raw AS 'Nombre d''Homozygote (exome)'
