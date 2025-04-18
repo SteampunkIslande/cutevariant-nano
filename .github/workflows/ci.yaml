@@ -38,9 +38,9 @@ jobs:
           script-name: app.py
           mode: onefile
           enable-plugins: pyside6
-          include-module: polars,yaml,xlsxwriter,numpy,imageio
+          include-module: polars,yaml,xlsxwriter,numpy
           nofollow-import-to: ipython
-          windows-icon-from-ico: icon.png
+          windows-icon-from-ico: icon.ico
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
