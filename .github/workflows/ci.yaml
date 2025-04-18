@@ -38,7 +38,7 @@ jobs:
           script-name: app.py
           mode: onefile
           enable-plugins: pyside6
-          include-module: polars,yaml,xlsxwriter,numpy
+          include-module: polars,yaml,xlsxwriter,numpy,imageio
           nofollow-import-to: ipython
           windows-icon-from-ico: icon.png
 
