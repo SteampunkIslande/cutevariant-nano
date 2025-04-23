@@ -1,5 +1,3 @@
-import weakref
-
 import app
 from fields import fields_model as fldm
 from fields.fields_widget import FieldsWidget
@@ -39,7 +37,7 @@ class FieldsComponent(app.AppComponent):
         return
 
     def get_contextmenu_entries(self, local_info):
-        return
+        return []
 
     def emit_fields_changed(self):
         self.broadcast.emit(

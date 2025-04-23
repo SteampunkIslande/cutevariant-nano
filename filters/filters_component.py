@@ -47,7 +47,7 @@ class FiltersComponent(app.AppComponent):
         return
 
     def get_contextmenu_entries(self, local_info):
-        return
+        return []
 
     def emit_filters_changed(self):
         self.broadcast.emit(

@@ -38,7 +38,7 @@ class FieldsModel(qg.QStandardItemModel):
             item = self.item(i)
             item.setCheckState(
                 qc.Qt.CheckState.Checked
-                if item.text() in fields
+                if item.text() in fields or item.text().startswith(".")
                 else qc.Qt.CheckState.Unchecked
             )
 

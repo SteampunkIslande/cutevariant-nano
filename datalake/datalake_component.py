@@ -89,7 +89,9 @@ class Datalake(app.AppComponent):
         self.set_datalake_path_action = qg.QAction(self.app.translate("Open datalake"))
         self.set_datalake_path_action.triggered.connect(self.set_datalake_path)
 
-        self.update_datalake_action = qg.QAction(self.app.translate("Update datalake"))
+        self.update_datalake_action = qg.QAction(
+            self.app.translate("Update datalake (genno)")
+        )
         self.update_datalake_action.triggered.connect(self.update_datalake)
 
         return [
@@ -109,7 +111,7 @@ class Datalake(app.AppComponent):
         ]
 
     def update_datalake(self, incoming_parquet_file: str | Path):
-        from datalake_import import import_parquet
+        from datalake.datalake_import_genno import import_parquet
 
         run_name = Path(incoming_parquet_file).name.split(".")[0]
 
