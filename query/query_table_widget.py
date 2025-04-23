@@ -12,6 +12,7 @@ import app as ap
 import query.query_component as q_cmpt
 import query.query_table_model as q_tm
 from common_widgets.any_widget_dialog import AnyWidgetDialog
+from filters import filters_component as f_cmpt
 
 
 class PageSelector(qw.QWidget):
@@ -371,9 +372,12 @@ class QueryTableWidget(qw.QWidget):
 
         if dialog.exec() == qw.QDialog.DialogCode.Accepted:
             filter_text = dialog.get_filter()
-            # self.query.filter_model.add_filter(
-            #     filter_text,
-            # )
+            filter_component: f_cmpt.FiltersComponent = self.app.get_component(
+                "filters", self.query.get_instance_name() + "/filters"
+            )
+            if not filter_component:
+                return
+            filter_component.add_expression(filter_text)
 
 
 class SimpleFilterDialog(qw.QDialog):
@@ -411,6 +415,11 @@ class SimpleFilterDialog(qw.QDialog):
                 (self.app.translate("less than"), "<"),
                 (self.app.translate("less than or equal to"), "<="),
             ]
+        else:
+            operators += [
+                (self.app.translate("regex matches"), "SIMILAR TO"),
+                (self.app.translate("regex does not match"), "NOT SIMILAR TO"),
+            ]
 
         for label, operator in operators:
             self._operator_combo.addItem(label, operator)
@@ -424,7 +433,7 @@ class SimpleFilterDialog(qw.QDialog):
 
         # Add widgets to layout
         self._layout.addRow(self._col_name_label, self._operator_combo)
-        self._layout.addRow(self.app.translate("Valeur"), self._value_le)
+        self._layout.addRow(self.app.translate("Value"), self._value_le)
         self._layout.addRow(self._button_box)
 
         self.setLayout(self._layout)
@@ -436,4 +445,16 @@ class SimpleFilterDialog(qw.QDialog):
     def get_filter(self):
         operator = self._operator_combo.currentData()
         value = self._value_le.text()
-        return f'"{self.col_info["name"]}" {operator} \'{value}\''
+        if self.col_info["type"] in ("VARCHAR", "TEXT"):
+            value = f"'{value}'"
+        else:
+            # Neutralize user defined value, make sure it won't execute any code
+            try:
+                value = str(int(value))
+            except ValueError:
+                try:
+                    value = str(float(value))
+                except ValueError:
+                    value = f"'{value}'"
+
+        return f'"{self.col_info["name"]}" {operator} {value}'

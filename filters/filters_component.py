@@ -22,6 +22,9 @@ class FiltersComponent(app.AppComponent):
 
         self.filters_widget = fltw.FiltersWidget(self.app, self, self.model)
 
+    def add_expression(self, expression: str):
+        self.model.add_filter(expression)
+
     def get_instance_name(self):
         return self.instance_name
 

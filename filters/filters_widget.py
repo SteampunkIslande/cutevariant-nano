@@ -40,8 +40,6 @@ class FiltersHistoryWidget(qw.QWidget):
 
         self.setLayout(self._layout)
 
-        qw.QApplication.instance().aboutToQuit.connect(self.save_history)
-
         # Add context menu to remove filters from the history, and to apply them to the current query
 
         self.setup_actions()
@@ -103,6 +101,7 @@ class FiltersHistoryWidget(qw.QWidget):
                     "filter_item": filter_item.to_json(),
                 }
             )
+        return hist
 
     def setup_actions(self):
         self.remove_filter_action = qg.QAction("Remove filter", self)
@@ -133,8 +132,9 @@ class FiltersHistoryWidget(qw.QWidget):
 
 class FiltersWidgetItemDelegate(qw.QStyledItemDelegate):
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, app: ap.App = None):
         super().__init__(parent)
+        self.app = app
 
     def createEditor(self, parent, option, index):
         # TODO: Would be best to use index.data() to determine the type of editor to create
@@ -144,8 +144,8 @@ class FiltersWidgetItemDelegate(qw.QStyledItemDelegate):
             return editor
         if item.filter_type in (FilterType.AND, FilterType.OR):
             editor = qw.QComboBox(parent)
-            editor.addItem("AND")
-            editor.addItem("OR")
+            editor.addItem(self.app.translate("AND"))
+            editor.addItem(self.app.translate("OR"))
             return editor
 
     def setEditorData(self, editor: qw.QLineEdit | qw.QComboBox, index):
@@ -197,7 +197,7 @@ class FiltersWidget(qw.QWidget):
     def setup_model_view(self):
         self.filters_view = qw.QTreeView(self)
 
-        self.filters_view_item_delegate = FiltersWidgetItemDelegate(self)
+        self.filters_view_item_delegate = FiltersWidgetItemDelegate(self, self.app)
         self.filters_view.setItemDelegate(self.filters_view_item_delegate)
 
         # Add context menu with actions to add, remove, and move filters
@@ -238,12 +238,14 @@ class FiltersWidget(qw.QWidget):
 
     def update_filters_label(self):
         self._filters_label.setText(
-            "<b>Resulting filter:</b><br/>" + escape(str(self.model))
+            self.app.translate("<b>Resulting filter:</b><br/>")
+            + escape(str(self.model))
         )
         self._filters_label.setWordWrap(True)
 
-    def add_filter(self, filter_type: FilterType):
-        index = self.filters_view.currentIndex()
+    def add_filter(self, filter_type: FilterType, index: qc.QModelIndex = None):
+        if index is None:
+            return
 
         parent_item: FilterItem = index.internalPointer()
         while parent_item.filter_type == FilterType.LEAF:
@@ -270,21 +272,28 @@ class FiltersWidget(qw.QWidget):
         self.model.remove_child(index)
 
     def context_menu_requested(self, pos):
+        from functools import partial
+
         menu = qw.QMenu(self)
 
         index = self.filters_view.indexAt(pos)
-        item: FilterItem = index.internalPointer()
 
-        add_filter_action = menu.addAction("Add expression filter")
-        add_filter_action.triggered.connect(lambda: self.add_filter(FilterType.LEAF))
+        add_filter_action = menu.addAction(self.app.translate("Add expression filter"))
+        add_filter_action.triggered.connect(
+            partial(self.add_filter, FilterType.LEAF, index)
+        )
 
-        add_filter_and_action = menu.addAction("Add AND filter")
-        add_filter_and_action.triggered.connect(lambda: self.add_filter(FilterType.AND))
+        add_filter_and_action = menu.addAction(self.app.translate("Add AND filter"))
+        add_filter_and_action.triggered.connect(
+            partial(self.add_filter, FilterType.AND, index)
+        )
 
-        add_filter_or_action = menu.addAction("Add OR filter")
-        add_filter_or_action.triggered.connect(lambda: self.add_filter(FilterType.OR))
+        add_filter_or_action = menu.addAction(self.app.translate("Add OR filter"))
+        add_filter_or_action.triggered.connect(
+            partial(self.add_filter, FilterType.OR, index)
+        )
 
-        remove_filter_action = menu.addAction("Remove filter")
+        remove_filter_action = menu.addAction(self.app.translate("Remove filter"))
         remove_filter_action.triggered.connect(self.remove_filter)
 
         menu.exec_(self.filters_view.viewport().mapToGlobal(pos))

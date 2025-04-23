@@ -1,5 +1,7 @@
+import glob
 import logging
 import os
+import shutil
 import typing
 from pathlib import Path
 
@@ -86,10 +88,63 @@ class Datalake(app.AppComponent):
     def get_menubar_entries(self):
         self.set_datalake_path_action = qg.QAction(self.app.translate("Open datalake"))
         self.set_datalake_path_action.triggered.connect(self.set_datalake_path)
+
+        self.update_datalake_action = qg.QAction(self.app.translate("Update datalake"))
+        self.update_datalake_action.triggered.connect(self.update_datalake)
+
         return [(self.app.translate("File"), self.set_datalake_path_action)]
 
     def get_contextmenu_entries(self, local_info: dict):
         return []
+
+    def list_runs(self):
+        return [
+            os.path.basename(r).split(".")[0]
+            for r in glob.glob(
+                os.path.join(self.datalake_path, "genotypes/runs/*.parquet")
+            )
+        ]
+
+    def update_datalake(self, incoming_parquet_file: str | Path):
+        from datalake_import import import_parquet
+
+        run_name = Path(incoming_parquet_file).name.split(".")[0]
+
+        existing_runs = self.list_runs()
+        if run_name in existing_runs:
+            qw.QMessageBox.warning(
+                self.app.window(),
+                self.app.translate("Import Error"),
+                self.app.translate(
+                    "Run {run_name} already exists in datalake. Nothing imported.".format(
+                        run_name=run_name
+                    )
+                ),
+            )
+            return
+
+        control_file = os.path.join(
+            self.datalake_path, "vcf_extracted", run_name + ".parquet"
+        )
+
+        shutil.copy(
+            incoming_parquet_file,
+            control_file,
+        )
+        try:
+            import_parquet(Path(self.datalake_path), control_file)
+        except Exception as e:
+            qw.QMessageBox.warning(
+                self.app.window(),
+                self.app.translate("Import Error"),
+                self.app.translate(
+                    "Error importing {incoming_parquet_file}: {e}. The datalake is now in an undefined state...".format(
+                        incoming_parquet_file=incoming_parquet_file, e=e
+                    )
+                ),
+            )
+            os.remove(control_file)
+            return
 
     def set_datalake_path(self):
         existing_dir = qw.QFileDialog.getExistingDirectory(self.app.window())
