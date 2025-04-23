@@ -349,6 +349,8 @@ class App(qc.QObject):
     def on_close(self):
 
         last_sesssion_path = self.get_last_session_path()
+        if self.missing_translations:
+            print("Missing translations:", self.missing_translations)
         if last_sesssion_path:
             self.save_session(last_sesssion_path)
 

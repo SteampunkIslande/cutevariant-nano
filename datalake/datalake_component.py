@@ -92,7 +92,10 @@ class Datalake(app.AppComponent):
         self.update_datalake_action = qg.QAction(self.app.translate("Update datalake"))
         self.update_datalake_action.triggered.connect(self.update_datalake)
 
-        return [(self.app.translate("File"), self.set_datalake_path_action)]
+        return [
+            (self.app.translate("File"), self.set_datalake_path_action),
+            (self.app.translate("File"), self.update_datalake_action),
+        ]
 
     def get_contextmenu_entries(self, local_info: dict):
         return []
