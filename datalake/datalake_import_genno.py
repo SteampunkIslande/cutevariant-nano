@@ -14,6 +14,7 @@ class DataLake:
         (self.path / "genotypes" / "partitions").mkdir(parents=True, exist_ok=True)
         (self.path / "genotypes" / "runs").mkdir(parents=True, exist_ok=True)
         (self.path / "aggregates").mkdir(parents=True, exist_ok=True)
+        (self.path / "vcf_extracted").mkdir(parents=True, exist_ok=True)
 
 
 def weird_fix_parquet(parquet_file: Path):
@@ -99,7 +100,7 @@ def snpEff_parser(lf: pl.LazyFrame) -> pl.LazyFrame:
 def preprocess_parquet(input_parquet: Path, output_parquet: Path):
     sample_names = [
         s.replace("_GT", "").replace("format_", "")
-        for s in pl.scan_parquet(input_parquet).columns
+        for s in pl.scan_parquet(input_parquet).collect_schema().names()
         if s.endswith("_GT") and s.startswith("format_")
     ]
 
@@ -239,7 +240,7 @@ def split_by_sample(input_parquet: Path, output_parquet: Path, run_name: str):
 
     sample_names = [
         s.replace("format_", "").replace("_GT", "")
-        for s in pl.scan_parquet(input_parquet).columns
+        for s in pl.scan_parquet(input_parquet).collect_schema().names()
         if s.endswith("_GT") and s.startswith("format_")
     ]
     if not sample_names:
@@ -300,8 +301,12 @@ def save_to_partitions(input_parquet: Path, datalake: DataLake):
             )
 
 
+def init_datalake(datalake_path: Path):
+    return DataLake(datalake_path)
+
+
 def import_parquet(datalake_path: Path, input_parquet: Path):
-    datalake = DataLake(datalake_path)
+    datalake = init_datalake(datalake_path)
 
     run_name = input_parquet.stem.split(".")[0]
 

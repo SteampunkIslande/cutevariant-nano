@@ -110,8 +110,15 @@ class Datalake(app.AppComponent):
             )
         ]
 
-    def update_datalake(self, incoming_parquet_file: str | Path):
-        from datalake.datalake_import_genno import import_parquet
+    def update_datalake(self):
+        from datalake.datalake_import_genno import import_parquet, init_datalake
+
+        incoming_parquet_file = qw.QFileDialog.getOpenFileName(
+            self.app.window(),
+            self.app.translate("Select incoming parquet file"),
+            "",
+            "Parquet files (*.parquet)",
+        )[0]
 
         run_name = Path(incoming_parquet_file).name.split(".")[0]
 
@@ -130,14 +137,16 @@ class Datalake(app.AppComponent):
             self.datalake_path, "vcf_extracted", run_name + ".parquet"
         )
 
+        init_datalake(Path(self.datalake_path))
+
         shutil.copy(
             incoming_parquet_file,
             control_file,
         )
         try:
-            import_parquet(Path(self.datalake_path), control_file)
+            import_parquet(Path(self.datalake_path), Path(control_file))
         except Exception as e:
-            qw.QMessageBox.warning(
+            qw.QMessageBox.critical(
                 self.app.window(),
                 self.app.translate("Import Error"),
                 self.app.translate(
@@ -146,6 +155,13 @@ class Datalake(app.AppComponent):
             )
             os.remove(control_file)
             return
+        qw.QMessageBox.information(
+            self.app.window(),
+            self.app.translate("Import Success"),
+            self.app.translate(
+                "Run {run_name} imported successfully. The datalake is now up to date."
+            ).format(run_name=run_name),
+        )
 
     def set_datalake_path(self):
         existing_dir = qw.QFileDialog.getExistingDirectory(self.app.window())
