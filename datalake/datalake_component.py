@@ -121,10 +121,8 @@ class Datalake(app.AppComponent):
                 self.app.window(),
                 self.app.translate("Import Error"),
                 self.app.translate(
-                    "Run {run_name} already exists in datalake. Nothing imported.".format(
-                        run_name=run_name
-                    )
-                ),
+                    "Run {run_name} already exists in datalake. Nothing imported."
+                ).format(run_name=run_name),
             )
             return
 
@@ -143,10 +141,8 @@ class Datalake(app.AppComponent):
                 self.app.window(),
                 self.app.translate("Import Error"),
                 self.app.translate(
-                    "Error importing {incoming_parquet_file}: {e}. The datalake is now in an undefined state...".format(
-                        incoming_parquet_file=incoming_parquet_file, e=e
-                    )
-                ),
+                    "Error importing {incoming_parquet_file}: {e}. The datalake is now in an undefined state..."
+                ).format(incoming_parquet_file=incoming_parquet_file, e=e),
             )
             os.remove(control_file)
             return
