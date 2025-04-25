@@ -16,7 +16,7 @@ LOGGER = logging.getLogger(__name__)
 
 class DatabaseConnection:
 
-    def __init__(self, datalake: "Datalake", database_name: str):
+    def __init__(self, datalake: "DatalakeComponent", database_name: str):
         database = Path(datalake.datalake_path) / f"{database_name}.db"
 
         # If the database already exists, we shouldn't initialize it
@@ -44,7 +44,7 @@ class DatabaseConnection:
         )
 
 
-class Datalake(app.AppComponent):
+class DatalakeComponent(app.AppComponent):
 
     def __init__(
         self,
@@ -199,5 +199,5 @@ def register_component():
     return "datalake", {
         "instantiation_policy": "singleton",
         "instantiate_on": "setup",
-        "class": Datalake,
+        "class": DatalakeComponent,
     }

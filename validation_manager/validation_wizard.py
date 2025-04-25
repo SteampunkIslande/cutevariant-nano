@@ -11,7 +11,7 @@ from common_widgets.multiline_display import MultiLineDisplay
 from common_widgets.searchable_table import SearchableTable
 from common_widgets.string_list_chooser import StringListChooser
 from commons import duck_db_literal_string_list, yaml_load
-from datalake.datalake_component import Datalake
+from datalake.datalake_component import DatalakeComponent
 
 
 class IntroPage(qw.QWizardPage):
@@ -98,7 +98,9 @@ class IntroPage(qw.QWizardPage):
 
 class ParquetSelectPage(qw.QWizardPage):
 
-    def __init__(self, datalake: Datalake, app: ap.App, data: dict, parent=None):
+    def __init__(
+        self, datalake: DatalakeComponent, app: ap.App, data: dict, parent=None
+    ):
         super().__init__(parent)
         self.app = app
         self.setTitle(self.app.translate("Run selection"))
@@ -186,7 +188,9 @@ class ParquetSelectPage(qw.QWizardPage):
 
 class SamplesSelectPage(qw.QWizardPage):
 
-    def __init__(self, datalake: Datalake, app: ap.App, data: dict, parent=None):
+    def __init__(
+        self, datalake: DatalakeComponent, app: ap.App, data: dict, parent=None
+    ):
         super().__init__(parent)
         self.app = app
         self.setTitle(self.app.translate("Select samples"))
@@ -240,7 +244,9 @@ class SamplesSelectPage(qw.QWizardPage):
 
 
 class GeneListSelectPage(qw.QWizardPage):
-    def __init__(self, datalake: Datalake, app: ap.App, data: dict, parent=None):
+    def __init__(
+        self, datalake: DatalakeComponent, app: ap.App, data: dict, parent=None
+    ):
         super().__init__(parent)
         self.app = app
         self.setTitle(self.app.translate("Gene list selection"))
@@ -310,7 +316,7 @@ class GeneListSelectPage(qw.QWizardPage):
 
 class ValidationWizard(qw.QWizard):
 
-    def __init__(self, app: ap.App, datalake: Datalake, parent=None):
+    def __init__(self, app: ap.App, datalake: DatalakeComponent, parent=None):
         super().__init__(parent)
 
         self.app = app

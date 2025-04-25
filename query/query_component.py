@@ -104,7 +104,7 @@ class QueryComponent(ap.AppComponent):
 
         self.changes_list = []
 
-    def get_datalake(self) -> "dl.Datalake":
+    def get_datalake(self) -> "dl.DatalakeComponent":
         return self.app.get_component("datalake")
 
     def init_state(self):

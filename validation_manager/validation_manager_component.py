@@ -225,7 +225,7 @@ class ValidationManagerComponent(ap.AppComponent):
             if "validation_infos" in payload:
                 self.add_variants_to_validation(payload["validation_infos"])
 
-    def get_datalake(self) -> Union[dl.Datalake, None]:
+    def get_datalake(self) -> Union[dl.DatalakeComponent, None]:
         return self.app.get_component("datalake", "datalake")
 
     def get_instance_name(self) -> str:
