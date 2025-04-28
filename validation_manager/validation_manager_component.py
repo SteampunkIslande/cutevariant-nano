@@ -137,6 +137,7 @@ class ValidationManagerComponent(ap.AppComponent):
                 "parquet_files": self.parquet_files,
             },
         )
+        self.validation_model.finish_validation(self.table_uuid)
 
     def export_to_genno(self):
         if not self.validation_method:
