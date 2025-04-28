@@ -119,6 +119,15 @@ class DatalakeComponent(app.AppComponent):
             "",
             "Parquet files (*.parquet)",
         )[0]
+        if not incoming_parquet_file or not os.path.isfile(incoming_parquet_file):
+            qw.QMessageBox.warning(
+                self.app.window(),
+                self.app.translate("Import Error"),
+                self.app.translate(
+                    "No incoming parquet file selected. Nothing imported."
+                ),
+            )
+            return
 
         run_name = Path(incoming_parquet_file).name.split(".")[0]
 
@@ -143,6 +152,7 @@ class DatalakeComponent(app.AppComponent):
             incoming_parquet_file,
             control_file,
         )
+        print(Path(control_file))
         try:
             import_parquet(Path(self.datalake_path), Path(control_file))
         except Exception as e:

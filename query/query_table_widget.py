@@ -226,10 +226,11 @@ class QueryTableWidget(qw.QWidget):
         )
         add_variant_action.triggered.connect(self.add_variant_to_validation)
 
-        goto_mobidetails_action: qg.QAction = menu.addAction(
-            self.app.translate("Browse variant in Mobidetails")
-        )
-        goto_mobidetails_action.triggered.connect(partial(self.goto_mobidetails, index))
+        # Neutralize Goto Mobidetails action
+        # goto_mobidetails_action: qg.QAction = menu.addAction(
+        #     self.app.translate("Browse variant in Mobidetails")
+        # )
+        # goto_mobidetails_action.triggered.connect(partial(self.goto_mobidetails, index))
 
         copy_action: qg.QAction = menu.addAction(self.app.translate("Copy"))
         copy_action.triggered.connect(partial(self.copy_current_row, index))
