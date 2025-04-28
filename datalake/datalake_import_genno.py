@@ -22,7 +22,8 @@ def weird_fix_parquet(parquet_file: Path):
     db.sql(
         f"COPY (SELECT * FROM '{parquet_file}' ) TO '{parquet_file}.tmp' (FORMAT PARQUET)"
     )
-    os.rename(f"{parquet_file}.tmp", f"{parquet_file}")
+    os.remove(parquet_file)
+    os.rename(f"{parquet_file}.tmp", parquet_file)
 
 
 def nmd_parser(lf: pl.LazyFrame) -> pl.LazyFrame:
@@ -285,6 +286,7 @@ def save_to_partitions(input_parquet: Path, datalake: DataLake):
             TO '{datalake.path}/genotypes/partitions/.part{i}.parquet'
             """
             )
+            os.remove(f"{datalake.path}/genotypes/partitions/part{i}.parquet")
             os.rename(
                 f"{datalake.path}/genotypes/partitions/.part{i}.parquet",
                 f"{datalake.path}/genotypes/partitions/part{i}.parquet",
