@@ -138,6 +138,8 @@ class FilterModel(QAbstractItemModel):
 
         if role == Qt.ItemDataRole.DisplayRole:
             return item.display()
+        if role == Qt.ItemDataRole.EditRole:
+            return item.to_json()
 
     def setData(
         self,

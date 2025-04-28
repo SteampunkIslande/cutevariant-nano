@@ -144,8 +144,8 @@ class FiltersWidgetItemDelegate(qw.QStyledItemDelegate):
             return editor
         if item.filter_type in (FilterType.AND, FilterType.OR):
             editor = qw.QComboBox(parent)
-            editor.addItem(self.app.translate("AND"))
-            editor.addItem(self.app.translate("OR"))
+            editor.addItem("AND", self.app.translate("AND"))
+            editor.addItem("OR", self.app.translate("OR"))
             return editor
 
     def setEditorData(self, editor: qw.QLineEdit | qw.QComboBox, index):
