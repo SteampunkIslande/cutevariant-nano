@@ -1,11 +1,54 @@
 #regexp_replace('ABCD-F','-[MF](_S\d+)?$','')
 genes_list:
-  BGL:
+  DREPANOCYTOSE:
+    - HBA1
+    - HBA2
+    - HBB
+    - G6PD
+    - UGT1A1
+    - PKLR
+    - CYB5R3
+    - HMOX1
+    - APOL1
+    - PIEZO1
+    - HBS1L
+    - SLC40A1
+    - BCL11A
+    - HbG2
+    - KL
+    - SCN11A
+  THALASSEMIE:
+    - HBA1
+    - HBA2
+    - HBB
+    - G6PD
+    - UGT1A1
+    - PKLR
+    - HBS1L
+    - BCL11A
+  MALADIE DE GILBERT / DEFICIT EN PYRUVATE KINASE:
+    - G6PD
+    - UGT1A1
+    - PKLR
+  HB VARIANT:
+    - HBA1
+    - HBA2
+    - HBB
+    - CYB5R3
+    - BPGM
+  HEMOLYSE:
     - PKLR
     - HBB
     - HBA2
     - HBA1
-  SURF:
+    - G6PD
+    - CYB5R3
+    - BPGM
+    - GPI
+    - TPI1
+    - PIEZO1
+    - APOL1
+  SURFACTANT:
     - COPA
     - SFTPB
     - SFTPC
@@ -13,7 +56,7 @@ genes_list:
     - ABCA3
     - FOXF1
     - TBX4
-    - MARS
+    - MARS1
   SCN:
     - SCN9A
     - SCN10A
@@ -22,30 +65,18 @@ genes_list:
     - LMNA
   HFE:
     - HFE
-  GILBERT:
-    - UGT1A1
   CFTR:
     - CFTR
   TTR:
     - TTR
   HBG2:
     - HBG2
-  TPI1:
-    - TPI1
-  GPI:
-    - GPI
-  BPGM:
-    - BPGM
   HMOX1:
     - HMOX1
-  CYB5R3:
-    - CYB5R3
   ALAS2:
     - ALAS2
   GLA:
     - GLA
-  G6PD:
-    - G6PD
   SRY:
     - SRY
 variant_info_url_templates:
@@ -76,13 +107,13 @@ default:
         - main_table.position AS '.Position'
         - main_table.reference AS '.Allèle de référence'
         - main_table.alternate AS '.Allèle alternatif'
-        - if(len(main_table.reference)>len(main_table.alternate),'deletion',if(len(main_table.reference)<len(main_table.alternate),'insertion','substitution')) AS 'Famille de l anomalie'
         - floor(1e2 * main_table.cv_AF) / 1e2 AS 'Fréquence allélique'
+        - MAP{{-1:'UNK',0:'REF',1:'HET',2:'HOM'}}[main_table.cv_GT] AS 'Génotype'
         - info_AC_raw AS 'Allele count Gnomad(exome)'
         - floor(1e5 * "info_AF_raw") / 1e5 AS 'Frequence Gnomad(exome)'
         - info_Hom_raw AS 'Nombre d''Homozygote (exome)'
+        - if(len(main_table.reference)>len(main_table.alternate),'deletion',if(len(main_table.reference)<len(main_table.alternate),'insertion','substitution')) AS 'Famille de l anomalie'
         - main_table.snpeff_Annotation AS 'Annotation'
-        - MAP{{-1:'UNK',0:'REF',1:'HET',2:'HOM'}}[main_table.cv_GT] AS 'Génotype'
         - main_table.snpeff_Annotation_Impact AS 'Annotation impact'
         - agg.var_count AS 'Nombre de variants détectés dans la base'
         - agg.hom_count AS 'Nombre d''homozygotes dans la base'
@@ -95,7 +126,7 @@ default:
         - user_table.tags AS '.tags'
         - if(contains(main_table.snpeff_Annotation,'intron_variant'), TRY_CAST (regexp_extract(main_table."snpeff_HGVS.c",'[\+|-](\d+)', 1) AS INT16), 0) AS 'Distance de l exon'
         - if(user_table.accepted = true,'OUI','NON') AS 'Validé ?'
-        - if(user_table.accepted IS NULL,'#A1A1A1',MAP{{true:'green',false:'#A1A1A1'}}[user_table.accepted]) AS '.accepted_color'
+        - if(user_table.accepted IS NULL,'#A1A1A1',MAP{{true:'green',false:'#A1A1A1'}}[user_table.accepted][1]) AS '.accepted_color'
 
       tables:
         - expression: "{main_table}"
