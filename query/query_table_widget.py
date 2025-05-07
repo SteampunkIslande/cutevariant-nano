@@ -425,6 +425,8 @@ class SimpleFilterDialog(qw.QDialog):
         for label, operator in operators:
             self._operator_combo.addItem(label, operator)
 
+        self._operator_combo.activated.connect(self.update_operator)
+
         self._value_le = qw.QLineEdit()
 
         self._button_box = qw.QDialogButtonBox(
@@ -443,6 +445,14 @@ class SimpleFilterDialog(qw.QDialog):
         self._button_box.accepted.connect(self.accept)
         self._button_box.rejected.connect(self.reject)
 
+    def update_operator(self, index: int):
+        # Update the operator combo box based on the selected index
+        operator = self._operator_combo.itemData(index)
+        if operator in ("IS NULL", "IS NOT NULL"):
+            self._value_le.setVisible(False)
+        else:
+            self._value_le.setVisible(True)
+
     def get_filter(self):
         operator = self._operator_combo.currentData()
         value = self._value_le.text()
@@ -457,5 +467,9 @@ class SimpleFilterDialog(qw.QDialog):
                     value = str(float(value))
                 except ValueError:
                     value = f"'{value}'"
+        # If the operator is IS NULL or IS NOT NULL, set value to empty string
+        if operator in ("IS NULL", "IS NOT NULL"):
+            # No value for null operators
+            value = ""
 
         return f'"{self.col_info["name"]}" {operator} {value}'
