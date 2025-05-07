@@ -134,12 +134,13 @@ class App(qc.QObject):
 
     def remove_instance(self, component_name: str, instance_name: str):
         if component_name in self.components:
-            instances = self.components[component_name]["instances"]
+            instances: dict[str, AppComponent] = self.components[component_name][
+                "instances"
+            ]
             if instance_name in instances:
                 import gc
 
-                instance: AppComponent = instances[instance_name]
-                del instances[instance_name]
+                instance: AppComponent = instances.pop(instance_name)
                 del instance
                 gc.collect()
 
