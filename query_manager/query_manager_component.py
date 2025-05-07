@@ -148,9 +148,9 @@ class QueryManagerComponent(ap.AppComponent):
         filters_holder.remove_component(f"{query.get_instance_name()}/filters")
         order_by_holder.remove_component(f"{query.get_instance_name()}/order_by")
 
-        self.app.remove_instance("fields", f"{query.get_instance_name()}/fields")
-        self.app.remove_instance("filters", f"{query.get_instance_name()}/filters")
-        self.app.remove_instance("order_by", f"{query.get_instance_name()}/order_by")
+        # self.app.remove_instance("fields", f"{query.get_instance_name()}/fields")
+        # self.app.remove_instance("filters", f"{query.get_instance_name()}/filters")
+        # self.app.remove_instance("order_by", f"{query.get_instance_name()}/order_by")
 
         self.app.remove_instance("query", query.get_instance_name())
 

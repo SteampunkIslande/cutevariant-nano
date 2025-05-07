@@ -56,7 +56,7 @@ class FieldsComponent(app.AppComponent):
     ):
         if (
             action == "query:all_fields_changed"
-            and f"{sender_instance_name}/fields" == self.instance_name
+            and sender_instance_name == self.parent_component.get_instance_name()
         ):
             self.update_fields(payload["all_fields"])
         return

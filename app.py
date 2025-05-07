@@ -360,7 +360,7 @@ class AppComponent(qc.QObject):
     broadcast = qc.Signal(str, str, str, dict)
 
     def __init__(self, app: App, instance_name: str, parent_component: "AppComponent"):
-        super().__init__()
+        super().__init__(parent=parent_component)
         self.app: App = weakref.proxy(app)
         self.instance_name = instance_name
         self.parent_component: AppComponent = (

@@ -44,11 +44,6 @@ class AppManager(app.AppComponent):
         )
         order_by_widget_holder.set_title(self.app.translate("Order by selection"))
 
-        # Instantiate validation component itself
-        validation_component: (
-            validation_manager_component.ValidationManagerComponent
-        ) = self.app.instantiate_singleton("validation_manager")
-
         window.add_component_to_window(
             fields_widget_holder, mainwindow.WindowRegion.LOWER
         )
@@ -59,9 +54,21 @@ class AppManager(app.AppComponent):
             order_by_widget_holder, mainwindow.WindowRegion.LOWER
         )
 
-        window.add_component_to_window(
-            validation_component, mainwindow.WindowRegion.RIGHT
-        )
+        if self.app.load_user_prefs().get("validation", "genno") == "genno":
+            # Instantiate validation component itself
+            validation_component: (
+                validation_manager_component.ValidationManagerComponent
+            ) = self.app.instantiate_singleton("validation_manager")
+            window.add_component_to_window(
+                validation_component, mainwindow.WindowRegion.RIGHT
+            )
+        else:
+            generic_explorer_component: (
+                validation_manager_component.ValidationManagerComponent
+            ) = self.app.instantiate_singleton("validation_manager")
+            window.add_component_to_window(
+                validation_component, mainwindow.WindowRegion.LEFT
+            )
 
     def widget(self):
         return None

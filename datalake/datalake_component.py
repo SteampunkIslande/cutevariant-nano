@@ -92,7 +92,7 @@ class DatalakeComponent(app.AppComponent):
         self.update_datalake_action = qg.QAction(
             self.app.translate("Update datalake (genno)")
         )
-        self.update_datalake_action.triggered.connect(self.update_datalake)
+        self.update_datalake_action.triggered.connect(self.genno_update_datalake)
 
         return [
             (self.app.translate("File"), self.set_datalake_path_action),
@@ -102,7 +102,7 @@ class DatalakeComponent(app.AppComponent):
     def get_contextmenu_entries(self, local_info: dict):
         return []
 
-    def list_runs(self):
+    def genno_list_runs(self):
         return [
             os.path.basename(r).split(".")[0]
             for r in glob.glob(
@@ -110,7 +110,7 @@ class DatalakeComponent(app.AppComponent):
             )
         ]
 
-    def update_datalake(self):
+    def genno_update_datalake(self):
         from datalake.datalake_import_genno import import_parquet, init_datalake
 
         incoming_parquet_file = qw.QFileDialog.getOpenFileName(
@@ -131,7 +131,7 @@ class DatalakeComponent(app.AppComponent):
 
         run_name = Path(incoming_parquet_file).name.split(".")[0]
 
-        existing_runs = self.list_runs()
+        existing_runs = self.genno_list_runs()
         if run_name in existing_runs:
             qw.QMessageBox.warning(
                 self.app.window(),
@@ -152,7 +152,6 @@ class DatalakeComponent(app.AppComponent):
             incoming_parquet_file,
             control_file,
         )
-        print(Path(control_file))
         try:
             import_parquet(Path(self.datalake_path), Path(control_file))
         except Exception as e:
