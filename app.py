@@ -14,7 +14,11 @@ from commons import add_action_to_menubar, default_prefs
 
 class App(qc.QObject):
 
-    broadcast_dispatcher = qc.Signal(str, str, str, dict)
+    current_query_changed = qc.Signal()
+    current_variant_changed = qc.Signal()
+    current_datalake_changed = qc.Signal()
+
+    application_started = qc.Signal()
 
     def __init__(self):
         super().__init__()
@@ -36,8 +40,6 @@ class App(qc.QObject):
 
         # Allow all the instantiated components to connect to one another, now that they have been instantiated
         self.start()
-
-        self.main_window.show()
 
     # COMPONENT REGISTRATION
 
@@ -83,25 +85,28 @@ class App(qc.QObject):
             self.set_config_folder_action,
         )
 
-        self.show_loaded_components_action = qg.QAction(
-            self.translate("Show loaded components")
-        )
-        self.show_loaded_components_action.triggered.connect(
-            self.show_loaded_components
-        )
-        add_action_to_menubar(
-            self.main_window.menuBar(),
-            self.translate("File/Debug"),
-            self.show_loaded_components_action,
-        )
+        if self.app_options.get("debug", False):
+            self.show_loaded_components_action = qg.QAction(
+                self.translate("Show loaded components")
+            )
+            self.show_loaded_components_action.triggered.connect(
+                self.show_loaded_components
+            )
+            add_action_to_menubar(
+                self.main_window.menuBar(),
+                self.translate("File/Debug"),
+                self.show_loaded_components_action,
+            )
 
         for component_name, component in self.components.items():
             definition = component["definition"]
             instantiate_on = definition["instantiate_on"]
             instantiation_policy = definition["instantiation_policy"]
-            if instantiate_on == "setup":
-                if instantiation_policy == "singleton":
-                    self.instantiate_singleton(component_name)
+            if instantiate_on == "setup" and instantiation_policy == "singleton":
+                self.instantiate_singleton(component_name)
+
+    def set_app_options(self, options: dict):
+        self.app_options = options
 
     def show_loaded_components(self):
         print("Loaded components:")
@@ -437,12 +442,26 @@ class AppComponent(qc.QObject):
 
 
 if __name__ == "__main__":
+    import argparse
     import sys
 
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--debug",
+        "-d",
+        action="store_true",
+        help="Enable debug mode",
+    )
+    args = parser.parse_args()
+
     pyside_app = qw.QApplication(sys.argv)
+
     pyside_app.setApplicationName("cutevariant-nano")
     pyside_app.setOrganizationName("CharlesMB")
 
     app = App()
+    app.set_app_options(vars(args))
+
+    app.main_window.show()
 
     sys.exit(pyside_app.exec())
