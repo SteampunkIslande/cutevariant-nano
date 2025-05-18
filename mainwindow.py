@@ -77,8 +77,15 @@ class MainWindow(qw.QMainWindow):
         if component.widget() is None:
             return
 
-        self.widget_regions[region].addTab(
-            component.widget(), component.widget().windowTitle()
+        tab_widget = self.widget_regions[region]
+        tab_widget.addTab(component.widget(), component.widget().windowTitle())
+        component.widget().windowTitleChanged.connect(
+            lambda title: tab_widget.setTabText(
+                tab_widget.indexOf(component.widget()), title
+            )
+        )
+        component.closing.connect(
+            lambda: tab_widget.removeTab(tab_widget.indexOf(component.widget()))
         )
 
     def get_window_panel(self, region: WindowRegion):

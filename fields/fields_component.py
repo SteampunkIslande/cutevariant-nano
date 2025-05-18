@@ -1,43 +1,23 @@
 import app
 from fields import fields_model as fldm
 from fields.fields_widget import FieldsWidget
+import logging
+
+LOGGER = logging.getLogger(__name__)
 
 
 class FieldsComponent(app.AppComponent):
 
-    def __init__(
-        self, app: app.App, instance_name: str, parent_component: app.AppComponent
-    ):
-        super().__init__(app, instance_name, parent_component)
+    def __init__(self, app: app.App, instance_name: str):
+        super().__init__(app, instance_name)
 
         self.model = fldm.FieldsModel(self)
         self.model.dataChanged.connect(self.emit_fields_changed)
 
         self.fields_widget = FieldsWidget(self.app, self)
 
-    def get_instance_name(self):
-        return self.instance_name
-
-    def load_from_session(self, session):
-        return
-
-    def save_to_session(self):
-        return
-
-    def on_start(self):
-        return
-
     def widget(self):
         return self.fields_widget
-
-    def get_signal(self, signal_name):
-        return
-
-    def get_menubar_entries(self):
-        return
-
-    def get_contextmenu_entries(self, local_info):
-        return []
 
     def emit_fields_changed(self):
         self.broadcast.emit(
@@ -54,15 +34,17 @@ class FieldsComponent(app.AppComponent):
         sender_instance_name: str,
         payload: dict,
     ):
-        if (
-            action == "query:all_fields_changed"
-            and sender_instance_name == self.parent_component.get_instance_name()
-        ):
-            self.update_fields(payload["all_fields"])
-        return
+        pass
 
     def update_fields(self, fields: list[str]):
         self.model.update_fields(fields)
+
+    def close(self):
+        self.model.close()
+        self.fields_widget.close()
+        self.model = None
+        self.fields_widget = None
+        super().close()
 
     def __del__(self):
         print("FieldsComponent deleted")

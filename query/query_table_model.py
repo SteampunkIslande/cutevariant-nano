@@ -35,7 +35,7 @@ class QueryTableModel(qc.QAbstractTableModel):
         return 0
 
     def load_style(self):
-        prefs = self.query.app.load_user_prefs()
+        prefs = self.query.app.get_user_prefs()
         style: str = prefs.get("column_styles", "style42.json")
         success, config_folder = self.query.app.get_config_folder()
         if not success:

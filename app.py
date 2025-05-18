@@ -1,6 +1,5 @@
 import json
 import typing
-import weakref
 from pathlib import Path
 from typing import Union
 
@@ -11,6 +10,10 @@ import PySide6.QtWidgets as qw
 import mainwindow as mw
 from commons import add_action_to_menubar, default_prefs
 
+import logging
+
+LOGGER = logging.getLogger(__name__)
+
 
 class App(qc.QObject):
 
@@ -20,17 +23,21 @@ class App(qc.QObject):
 
     application_started = qc.Signal()
 
+    broadcast_dispatcher = qc.Signal(str, str, str, dict)
+
     def __init__(self):
         super().__init__()
         self.main_window = mw.MainWindow(self)
         self.main_window.closing.connect(self.on_close)
+
+        self.app_options: dict = {}
 
         self.missing_translations = set()
 
         # Very first thing to do, translations are needed to setup menus and actions (among others)
         self.load_translations()
 
-        self.components: dict[str, Union[dict[str, AppComponent], dict]] = {}
+        self.components: dict[str, dict[str, Union[dict, AppComponent]]] = {}
 
         # Find and register all components
         self.register_components()
@@ -55,11 +62,9 @@ class App(qc.QObject):
         from query import query_component
         from query_manager import query_manager_component
         from validation_manager import validation_manager_component
-        from widget_holder import widget_holder_component
 
         self.register_component(*datalake_component.register_component())
         self.register_component(*app_manager_component.register_component())
-        self.register_component(*widget_holder_component.register_component())
         self.register_component(*validation_manager_component.register_component())
         self.register_component(*query_manager_component.register_component())
         self.register_component(*fields_component.register_component())
@@ -85,7 +90,7 @@ class App(qc.QObject):
             self.set_config_folder_action,
         )
 
-        if self.app_options.get("debug", False):
+        if self.get_app_option("debug"):
             self.show_loaded_components_action = qg.QAction(
                 self.translate("Show loaded components")
             )
@@ -105,6 +110,9 @@ class App(qc.QObject):
             if instantiate_on == "setup" and instantiation_policy == "singleton":
                 self.instantiate_singleton(component_name)
 
+    def get_app_option(self, option: str, default=None) -> typing.Any:
+        return self.app_options.get(option, default)
+
     def set_app_options(self, options: dict):
         self.app_options = options
 
@@ -116,10 +124,10 @@ class App(qc.QObject):
                 print(f"  - {instance_name}")
 
     def instantiate_singleton(self, component_name: str):
-        if component_name not in self.components:
-            return
-        if len(self.components[component_name]["instances"]) != 0:
-            print("Cannot instantiate singleton!")
+        if len(self.components[component_name]["instances"]) > 0:
+            LOGGER.warning(
+                f"Cannot instantiate singleton <{component_name}>, already instantiated!"
+            )
             return
 
         new_instance: AppComponent = self.instantiate_component(
@@ -143,40 +151,26 @@ class App(qc.QObject):
                 "instances"
             ]
             if instance_name in instances:
-                import gc
-
                 instance: AppComponent = instances.pop(instance_name)
                 del instance
-                gc.collect()
 
     def instantiate_component(
         self,
         component_name: str,
         instance_name: str,
-        parent_component: "AppComponent" = None,
     ):
         if component_name not in self.components:
-            print(
-                "Cannot instantiate component <",
-                component_name,
-                ">, component is not registered!",
-                sep="",
+            LOGGER.warning(
+                f"Cannot instantiate component <{component_name}>, component is not registered!"
             )
-            # TODO: Maybe this should raise?
             return
         definition = self.components[component_name]["definition"]
 
         instances: dict[str, AppComponent] = self.components[component_name][
             "instances"
         ]
-        if definition["instantiation_policy"] == "singleton":
-            if len(instances) == 1:
-                # Dirty way to ensure a singleton. TODO: when debugging will be implemented, this should be notified
-                return
 
-        new_instance: AppComponent = definition["class"](
-            self, instance_name, parent_component
-        )
+        new_instance: AppComponent = definition["class"](self, instance_name)
         new_instance.broadcast.connect(self.dispatch_broadcast)
         self.broadcast_dispatcher.connect(new_instance.generic_receiver)
         instances[instance_name] = new_instance
@@ -237,7 +231,7 @@ class App(qc.QObject):
             return False, None
 
     def get_config_folder(self) -> typing.Tuple[bool, typing.Union[Path | None]]:
-        user_prefs = self.load_user_prefs()
+        user_prefs = self.get_user_prefs()
         if "config_folder" in user_prefs:
             config_folder = Path(user_prefs["config_folder"])
             return True, config_folder
@@ -251,7 +245,7 @@ class App(qc.QObject):
             )
             return self.set_config_folder()
 
-    def load_user_prefs(self):
+    def get_user_prefs(self):
         user_prefs = self.get_user_prefs_file()
         prefs = {}
         if user_prefs.exists():
@@ -290,13 +284,10 @@ class App(qc.QObject):
         with open(user_prefs, "w", encoding="utf-8") as f:
             json.dump(old_prefs, f, ensure_ascii=False)
 
-    def get_user_prefs(self):
-        pass
-
     # TRANSLATIONS
 
     def load_translations(self):
-        user_prefs: dict = self.load_user_prefs()
+        user_prefs: dict = self.get_user_prefs()
         lang = user_prefs.get("language", "fr_FR")
         self.translations = {}
         if lang:
@@ -346,7 +337,7 @@ class App(qc.QObject):
             json.dump(session, f)
 
     def get_last_session_path(self):
-        user_prefs: dict = self.load_user_prefs()
+        user_prefs: dict = self.get_user_prefs()
         last_sesssion_path: str = user_prefs.get("last_session")
         if last_sesssion_path:
             return Path(last_sesssion_path)
@@ -360,18 +351,22 @@ class App(qc.QObject):
         if last_sesssion_path:
             self.save_session(last_sesssion_path)
 
+        for component_name, component in self.components.items():
+            for instance_name, instance in component["instances"].items():
+                instance: AppComponent
+                instance.close()
+
 
 class AppComponent(qc.QObject):
 
     broadcast = qc.Signal(str, str, str, dict)
+    closing = qc.Signal()
 
-    def __init__(self, app: App, instance_name: str, parent_component: "AppComponent"):
-        super().__init__(parent=parent_component)
-        self.app: App = weakref.proxy(app)
+    def __init__(self, app: App, instance_name: str):
+        super().__init__(parent=app)
+        self.app: App = app
         self.instance_name = instance_name
-        self.parent_component: AppComponent = (
-            weakref.proxy(parent_component) if parent_component else None
-        )
+        self.component_name = self.__class__.__name__
 
     def get_instance_name(self) -> str:
         return self.instance_name
@@ -382,8 +377,8 @@ class AppComponent(qc.QObject):
         Args:
             session (dict): The serialized representation of this `AppComponent` from saved session.
         """
-        print(self.__class__.__name__, "did not implement load_from_session")
-        raise NotImplementedError()
+        LOGGER.debug(f"{self.__class__.__name__} did not implement load_from_session")
+        pass
 
     def save_to_session(self) -> dict:
         """Get serialized representation of this `AppComponent`
@@ -391,23 +386,18 @@ class AppComponent(qc.QObject):
         Returns:
             dict: The serialized representation of this `AppComponent`
         """
-        print(self.__class__.__name__, "did not implement save_to_session")
-        raise NotImplementedError()
+        LOGGER.debug(f"{self.__class__.__name__} did not implement save_to_session")
+        return {}
 
     def on_start(self):
         """Here is the place to connect to required components. If they were instantiated on setup, they should all exist at this point"""
-        print(self.__class__.__name__, "did not implement on_start")
-        raise NotImplementedError()
+        LOGGER.debug(f"{self.__class__.__name__} did not implement on_start")
+        pass
 
     def widget(self) -> Union[None, qw.QWidget]:
         """Return this component's associated widget, if applicable (i.e. WIDGET is in component_type)"""
-        print(self.__class__.__name__, "did not implement widget")
-        raise NotImplementedError()
-
-    def get_signal(self, signal_name: str) -> Union[qc.SignalInstance, None]:
-        """Return the signal instance associated with `signal_name` if applicable"""
-        print(self.__class__.__name__, "did not implement get_signal")
-        raise NotImplementedError()
+        LOGGER.debug(f"{self.__class__.__name__} did not implement widget")
+        return None
 
     def get_menubar_entries(self) -> list[tuple[str, qg.QAction]]:
         """Returns a list of actions that should be available from the main window's menu bar.
@@ -415,8 +405,8 @@ class AppComponent(qc.QObject):
         Returns:
             list[tuple[str, qg.QAction]]: Each tuple of the list should be of the form `("Path/to/last/parent/menu",QAction("My action"))`. It is the responsibility of the implementer to connect the returned actions' `triggered` signals.
         """
-        print(self.__class__.__name__, "did not implement get_menubar_entries")
-        raise NotImplementedError()
+        LOGGER.debug(f"{self.__class__.__name__} did not implement get_menubar_entries")
+        return []
 
     def get_contextmenu_entries(self, local_info: dict) -> list[tuple[str, qg.QAction]]:
         """Returns a list of actions that should be available from a context menu, that this AppComponent would be able to run.
@@ -428,8 +418,16 @@ class AppComponent(qc.QObject):
         Returns:
             list[tuple[str, qg.QAction]]: Each tuple of the list should be of the form `("Path/to/last/parent/menu",QAction("My action"))`. It is the responsibility of the implementer to connect the returned actions' signals.
         """
-        print(self.__class__.__name__, "did not implement get_contextmenu_entries")
-        raise NotImplementedError()
+        LOGGER.debug(
+            f"{self.__class__.__name__} did not implement get_contextmenu_entries"
+        )
+        return []
+
+    def close(self):
+        self.app.remove_instance(self.component_name, self.instance_name)
+        self.app = None
+        self.closing.emit()
+        self.deleteLater()
 
     def generic_receiver(
         self,
@@ -452,7 +450,20 @@ if __name__ == "__main__":
         action="store_true",
         help="Enable debug mode",
     )
+    parser.add_argument(
+        "--log-level",
+        "-l",
+        type=str,
+        default="INFO",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        help="Set the logging level",
+    )
     args = parser.parse_args()
+
+    logging.basicConfig(
+        level=args.log_level,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    )
 
     pyside_app = qw.QApplication(sys.argv)
 

@@ -18,11 +18,8 @@ from validation_manager.validation_widget import ValidationWidget
 
 class ValidationManagerComponent(ap.AppComponent):
 
-    def __init__(
-        self, app: ap.App, instance_name: str, parent_component: ap.AppComponent
-    ):
-        super().__init__(app, instance_name, parent_component)
-
+    def __init__(self, app: ap.App, instance_name: str):
+        super().__init__(app, instance_name)
         # Query Manager Component
         query_manager_component: qm.QueryManagerComponent = (
             self.app.instantiate_singleton("query_manager")
@@ -143,7 +140,7 @@ class ValidationManagerComponent(ap.AppComponent):
         if not self.validation_method:
             return
 
-        user_prefs = self.app.load_user_prefs()
+        user_prefs = self.app.get_user_prefs()
         if "genno_export_folder" not in user_prefs:
             qw.QMessageBox.warning(
                 self.widget(),

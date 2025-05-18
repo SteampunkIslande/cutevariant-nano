@@ -5,7 +5,6 @@ import PySide6.QtWidgets as qw
 import app as ap
 import mainwindow as mw
 import query.query_component as q
-from widget_holder.widget_holder_component import WidgetHolderComponent
 
 
 class QueryManagerWidget(qw.QWidget):
@@ -42,10 +41,8 @@ class QueryManagerWidget(qw.QWidget):
 
 class QueryManagerComponent(ap.AppComponent):
 
-    def __init__(
-        self, app: ap.App, instance_name: str, parent_component: ap.AppComponent
-    ):
-        super().__init__(app, instance_name, parent_component)
+    def __init__(self, app: ap.App, instance_name: str):
+        super().__init__(app, instance_name)
 
         self.queries: dict[str, q.QueryComponent] = {}
 
@@ -86,19 +83,6 @@ class QueryManagerComponent(ap.AppComponent):
         )
 
         # COMPONENT HOLDERS INSTALLATION
-        fields_holder: WidgetHolderComponent = self.app.get_component(
-            "widget_holder", "fields_widget_holder"
-        )
-        filters_holder: WidgetHolderComponent = self.app.get_component(
-            "widget_holder", "filters_widget_holder"
-        )
-        order_by_holder: WidgetHolderComponent = self.app.get_component(
-            "widget_holder", "order_by_widget_holder"
-        )
-
-        fields_holder.add_component(fields_component)
-        filters_holder.add_component(filters_component)
-        order_by_holder.add_component(order_by_component)
 
         self.queries_tab_widget.blockSignals(True)
         self.app.window().add_component_to_window(query, mw.WindowRegion.UPPER)
@@ -132,21 +116,6 @@ class QueryManagerComponent(ap.AppComponent):
         if tab_index >= 0:
             # Remove all the components that the specified query has installed
             self.queries_tab_widget.removeTab(tab_index)
-
-        # COMPONENT HOLDERS UNINSTALLATION
-        fields_holder: WidgetHolderComponent = self.app.get_component(
-            "widget_holder", "fields_widget_holder"
-        )
-        filters_holder: WidgetHolderComponent = self.app.get_component(
-            "widget_holder", "filters_widget_holder"
-        )
-        order_by_holder: WidgetHolderComponent = self.app.get_component(
-            "widget_holder", "order_by_widget_holder"
-        )
-
-        fields_holder.remove_component(f"{query.get_instance_name()}/fields")
-        filters_holder.remove_component(f"{query.get_instance_name()}/filters")
-        order_by_holder.remove_component(f"{query.get_instance_name()}/order_by")
 
         # self.app.remove_instance("fields", f"{query.get_instance_name()}/fields")
         # self.app.remove_instance("filters", f"{query.get_instance_name()}/filters")

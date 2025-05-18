@@ -32,7 +32,7 @@ class DatabaseConnection:
     def __exit__(self, exc_type, exc_val, exc_tb):
         if exc_type is not None:
             info = (exc_type, exc_val, exc_tb)
-            LOGGER.log(logging.ERROR, "Database connection error", exc_info=info)
+            LOGGER.error("Database connection error", exc_info=info)
             return False
 
     def init_conn(self):
@@ -50,25 +50,26 @@ class DatalakeComponent(app.AppComponent):
         self,
         app: app.App,
         instance_name: str,
-        parent_component: app.AppComponent = None,
     ):
-        super().__init__(app, instance_name, parent_component)
+        super().__init__(app, instance_name)
 
         self.datalake_path = None
 
-    def get_instance_name(self):
-        return self.instance_name
-
     def load_from_session(self, session: dict):
-        if "datalake_path" not in session:
+
+        self.datalake_path = session.get("datalake_path", None)
+        if self.datalake_path is None:
+            LOGGER.warning(
+                "No datalake path found in session. Please set the datalake path."
+            )
             return
-        self.datalake_path = session["datalake_path"]
         if not os.path.isdir(self.datalake_path):
             self.datalake_path = None
 
         self.emit_datalake_path_changed()
 
     def emit_datalake_path_changed(self):
+        # TODO: This signal should be sent by the app
         self.broadcast.emit(
             "datalake_path_changed",
             "datalake",
@@ -78,12 +79,6 @@ class DatalakeComponent(app.AppComponent):
 
     def save_to_session(self):
         return {"datalake_path": self.datalake_path}
-
-    def on_start(self):
-        pass
-
-    def widget(self):
-        return None
 
     def get_menubar_entries(self):
         self.set_datalake_path_action = qg.QAction(self.app.translate("Open datalake"))
@@ -98,9 +93,6 @@ class DatalakeComponent(app.AppComponent):
             (self.app.translate("File"), self.set_datalake_path_action),
             (self.app.translate("File"), self.update_datalake_action),
         ]
-
-    def get_contextmenu_entries(self, local_info: dict):
-        return []
 
     def genno_list_runs(self):
         return [
@@ -117,7 +109,7 @@ class DatalakeComponent(app.AppComponent):
             self.app.window(),
             self.app.translate("Select incoming parquet file"),
             "",
-            "Parquet files (*.parquet)",
+            self.app.translate("Parquet files (*.parquet)"),
         )[0]
         if not incoming_parquet_file or not os.path.isfile(incoming_parquet_file):
             qw.QMessageBox.warning(

@@ -5,15 +5,12 @@ import PySide6.QtWidgets as qw
 import app as ap
 import order_by.order_by_model as obm
 import order_by.order_by_widget as obw
-import query.query_component as q
 
 
 class OrderByComponent(ap.AppComponent):
 
-    def __init__(
-        self, app: ap.App, instance_name: str, parent_component: "ap.AppComponent"
-    ):
-        super().__init__(app, instance_name, parent_component)
+    def __init__(self, app: ap.App, instance_name: str):
+        super().__init__(app, instance_name)
         self.model = obm.OrderByModel(self)
         self.order_by_widget = obw.OrderByWidget(self.app, self)
 
@@ -31,10 +28,10 @@ class OrderByComponent(ap.AppComponent):
         return {}
 
     def on_start(self):
-        query_component_name = self.parent_component.get_instance_name()
-        query: q.QueryComponent = self.app.get_component("query", query_component_name)
+        # query: q.QueryComponent = self.app.get_component("query", query_component_name)
 
-        self.field_names = query.get_all_fields()
+        # self.field_names = query.get_all_fields()
+        pass
 
     def widget(self) -> qw.QWidget:
         return self.order_by_widget
@@ -63,12 +60,12 @@ class OrderByComponent(ap.AppComponent):
         sender_instance_name: str,
         payload: dict,
     ):
-        if action == "query:order_by_changed":
-            if sender_instance_name == self.parent_component.get_instance_name():
-                self.model.load(payload["order_by"])
-        if action == "query_field_names_changed":
-            if sender_instance_name == self.parent_component.get_instance_name():
-                self.field_names = payload["field_names"]
+        # if action == "query:order_by_changed":
+        #     if sender_instance_name == self.parent_component.get_instance_name():
+        #         self.model.load(payload["order_by"])
+        # if action == "query_field_names_changed":
+        #     if sender_instance_name == self.parent_component.get_instance_name():
+        #         self.field_names = payload["field_names"]
         return
 
     def get_field_names(self):

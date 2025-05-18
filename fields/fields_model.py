@@ -49,5 +49,8 @@ class FieldsModel(qg.QStandardItemModel):
             if self.item(i).checkState() == qc.Qt.CheckState.Checked
         ]
 
+    def close(self):
+        self.deleteLater()
+
     def __del__(self):
         print("FieldsModel deleted")

@@ -1,5 +1,4 @@
 import json
-import weakref
 
 import PySide6.QtCore as qc
 import PySide6.QtWidgets as qw
@@ -119,6 +118,16 @@ class FieldsWidget(qw.QWidget):
         layout.addWidget(self.searchable_list)
         layout.addWidget(self.presets_widget)
         self.setLayout(layout)
+
+    def close(self):
+        self.app = None
+        self.component = None
+        self.model = None
+        self.proxy_model = None
+        self.searchable_list = None
+        self.presets_widget = None
+        self.deleteLater()
+        super().close()
 
     def __del__(self):
         print("FieldsWidget deleted")

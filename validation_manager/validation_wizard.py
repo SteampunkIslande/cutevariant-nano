@@ -273,7 +273,7 @@ class GeneListSelectPage(qw.QWizardPage):
         if "validation_method" in self.data:
 
             validation_method: dict[str, dict] = yaml_load(
-                Path(self.app.load_user_prefs()["config_folder"])
+                Path(self.app.get_user_prefs()["config_folder"])
                 / Path("validation_methods")
                 / Path(self.data["validation_method"] + ".yaml")
             )
