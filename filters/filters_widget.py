@@ -173,9 +173,8 @@ class FiltersWidget(qw.QWidget):
         app: ap.App,
         parent_component: "fltc.FiltersComponent",
         model: fltm.FilterModel,
-        parent=None,
     ):
-        super().__init__(parent)
+        super().__init__()
 
         self.app = app
         self.parent_component = parent_component

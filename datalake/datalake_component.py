@@ -46,12 +46,22 @@ class DatabaseConnection:
 
 class DatalakeComponent(app.AppComponent):
 
+    component_name = "datalake"
+
     def __init__(
         self,
         app: app.App,
         instance_name: str,
     ):
         super().__init__(app, instance_name)
+
+        self.set_datalake_path_action = qg.QAction(self.app.translate("Open datalake"))
+        self.set_datalake_path_action.triggered.connect(self.set_datalake_path)
+
+        self.update_datalake_action = qg.QAction(
+            self.app.translate("Update datalake (genno)")
+        )
+        self.update_datalake_action.triggered.connect(self.genno_update_datalake)
 
         self.datalake_path = None
 
@@ -81,13 +91,6 @@ class DatalakeComponent(app.AppComponent):
         return {"datalake_path": self.datalake_path}
 
     def get_menubar_entries(self):
-        self.set_datalake_path_action = qg.QAction(self.app.translate("Open datalake"))
-        self.set_datalake_path_action.triggered.connect(self.set_datalake_path)
-
-        self.update_datalake_action = qg.QAction(
-            self.app.translate("Update datalake (genno)")
-        )
-        self.update_datalake_action.triggered.connect(self.genno_update_datalake)
 
         return [
             (self.app.translate("File"), self.set_datalake_path_action),
@@ -197,7 +200,7 @@ class DatalakeComponent(app.AppComponent):
 
 
 def register_component():
-    return "datalake", {
+    return DatalakeComponent.component_name, {
         "instantiation_policy": "singleton",
         "instantiate_on": "setup",
         "class": DatalakeComponent,

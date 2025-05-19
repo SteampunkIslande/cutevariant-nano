@@ -1,4 +1,5 @@
 import json
+import logging
 import typing
 from pathlib import Path
 from typing import Union
@@ -10,8 +11,6 @@ import PySide6.QtWidgets as qw
 import mainwindow as mw
 from commons import add_action_to_menubar, default_prefs
 
-import logging
-
 LOGGER = logging.getLogger(__name__)
 
 
@@ -22,6 +21,7 @@ class App(qc.QObject):
     current_datalake_changed = qc.Signal()
 
     application_started = qc.Signal()
+    application_closing = qc.Signal()
 
     broadcast_dispatcher = qc.Signal(str, str, str, dict)
 
@@ -152,6 +152,8 @@ class App(qc.QObject):
             ]
             if instance_name in instances:
                 instance: AppComponent = instances.pop(instance_name)
+                # print reference count
+                print(instance_name, component_name, sys.getrefcount(instance))
                 del instance
 
     def instantiate_component(
@@ -173,6 +175,7 @@ class App(qc.QObject):
         new_instance: AppComponent = definition["class"](self, instance_name)
         new_instance.broadcast.connect(self.dispatch_broadcast)
         self.broadcast_dispatcher.connect(new_instance.generic_receiver)
+        self.application_closing.connect(new_instance.close)
         instances[instance_name] = new_instance
 
         return new_instance
@@ -351,10 +354,7 @@ class App(qc.QObject):
         if last_sesssion_path:
             self.save_session(last_sesssion_path)
 
-        for component_name, component in self.components.items():
-            for instance_name, instance in component["instances"].items():
-                instance: AppComponent
-                instance.close()
+        self.application_closing.emit()
 
 
 class AppComponent(qc.QObject):
@@ -362,11 +362,12 @@ class AppComponent(qc.QObject):
     broadcast = qc.Signal(str, str, str, dict)
     closing = qc.Signal()
 
+    component_name: str = None
+
     def __init__(self, app: App, instance_name: str):
         super().__init__(parent=app)
         self.app: App = app
         self.instance_name = instance_name
-        self.component_name = self.__class__.__name__
 
     def get_instance_name(self) -> str:
         return self.instance_name
@@ -424,9 +425,9 @@ class AppComponent(qc.QObject):
         return []
 
     def close(self):
+        self.closing.emit()
         self.app.remove_instance(self.component_name, self.instance_name)
         self.app = None
-        self.closing.emit()
         self.deleteLater()
 
     def generic_receiver(

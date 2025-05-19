@@ -41,6 +41,8 @@ class QueryManagerWidget(qw.QWidget):
 
 class QueryManagerComponent(ap.AppComponent):
 
+    component_name = "query-manager"
+
     def __init__(self, app: ap.App, instance_name: str):
         super().__init__(app, instance_name)
 
@@ -60,7 +62,7 @@ class QueryManagerComponent(ap.AppComponent):
     def new_query(self, query_name: str, data_prep: dict, query_options: dict):
 
         query: q.QueryComponent = self.app.instantiate_component(
-            "query", f"{self.instance_name}/{query_name}", self
+            "query", f"{self.instance_name}/{query_name}"
         )
 
         query.setup_query(
@@ -71,16 +73,6 @@ class QueryManagerComponent(ap.AppComponent):
             query_options["sample_names"],
         )
         self.query_model.appendRow(qg.QStandardItem(query_name))
-
-        fields_component = self.app.instantiate_component(
-            "fields", f"{self.instance_name}/{query_name}/fields", query
-        )
-        filters_component = self.app.instantiate_component(
-            "filters", f"{self.instance_name}/{query_name}/filters", query
-        )
-        order_by_component = self.app.instantiate_component(
-            "order_by", f"{self.instance_name}/{query_name}/order_by", query
-        )
 
         # COMPONENT HOLDERS INSTALLATION
 
@@ -110,18 +102,7 @@ class QueryManagerComponent(ap.AppComponent):
 
         if query is self.current_query:
             self.current_query = None
-
-        tab_index = self.queries_tab_widget.indexOf(query.widget())
-
-        if tab_index >= 0:
-            # Remove all the components that the specified query has installed
-            self.queries_tab_widget.removeTab(tab_index)
-
-        # self.app.remove_instance("fields", f"{query.get_instance_name()}/fields")
-        # self.app.remove_instance("filters", f"{query.get_instance_name()}/filters")
-        # self.app.remove_instance("order_by", f"{query.get_instance_name()}/order_by")
-
-        self.app.remove_instance("query", query.get_instance_name())
+        query.close()
 
     def on_query_tab_changed(self, tab_index: int):
         if tab_index < 0:
@@ -146,42 +127,23 @@ class QueryManagerComponent(ap.AppComponent):
             {"current_query": self.current_query.get_instance_name()},
         )
 
-    def load_from_session(self, session: dict):
-        # Implement loading logic here
-        pass
-
-    def save_to_session(self) -> dict:
-        # Implement saving logic here
-        return {}
-
-    def on_start(self):
-        # Implement startup logic here
-        pass
-
     def widget(self) -> qw.QWidget:
         return self.query_manager_widget
-
-    def get_menubar_entries(self) -> list[tuple[str, qg.QAction]]:
-        # Implement menu bar entries here
-        return []
-
-    def get_contextmenu_entries(self, local_info: dict) -> list[tuple[str, qg.QAction]]:
-        # Implement context menu entries here
-        return []
 
     def on_datalake_changed(self):
         return
 
     def clear(self):
         # Close all
-        for _, query in self.queries.items():
+        queries = list(self.queries.values())
+        self.queries = dict()
+        for query in queries:
             self.close_query(query)
-        self.queries.clear()
         self.query_model.clear()
 
 
 def register_component():
-    return "query_manager", {
+    return QueryManagerComponent.component_name, {
         "instantiation_policy": "singleton",
         "instantiate_on": "demand",
         "class": QueryManagerComponent,

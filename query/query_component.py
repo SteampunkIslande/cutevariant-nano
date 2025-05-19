@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-import weakref
 from math import ceil
 from typing import List, Union
 
@@ -78,6 +77,8 @@ def run_sql(query: str, conn: db.DuckDBPyConnection = None) -> Union[List[dict],
 
 class QueryComponent(ap.AppComponent):
 
+    component_name = "query"
+
     RESERVED_VARIABLES = [
         "main_table",
         "user_table",
@@ -89,17 +90,14 @@ class QueryComponent(ap.AppComponent):
     # Signal for external use (tell the UI to update)
     query_changed = qc.Signal()
 
-    def __init__(
-        self, app: ap.App, instance_name: str, parent_component: ap.AppComponent
-    ):
-        super().__init__(app, instance_name, parent_component)
+    def __init__(self, app: ap.App, instance_name: str):
+        super().__init__(app, instance_name)
 
         # Safer to init state before setting up the view
         self.init_state()
 
-        self.view = query.query_table_widget.QueryTableWidget(
-            self.app, weakref.proxy(self)
-        )
+        self.view = query.query_table_widget.QueryTableWidget(self.app, self)
+        self.closing.connect(self.view.close)
         self.view.setWindowTitle(self.instance_name.split("/")[-1])
 
         self.changes_list = []
@@ -412,17 +410,6 @@ class QueryComponent(ap.AppComponent):
             }
         )
 
-    # def list_exposed_fields(self):
-    #     q = self.select_query(paginated=True, columns="COLUMNS('^[^.].+$')")
-    #     if not q:
-    #         return []
-
-    #     cols = self.get_datalake().run_with_connection(
-    #         "validation",
-    #         lambda conn: conn.sql(q).columns,
-    #     )
-    # return cols
-
     def __del__(self):
         print("QueryComponent deleted")
 
@@ -527,29 +514,8 @@ class QueryComponent(ap.AppComponent):
         self.changes_list.clear()
         self.update_data()
 
-    def get_variant_info_component(self) -> ap.AppComponent:
-        return
-
     def widget(self):
         return self.view
-
-    def save_to_session(self):
-        return {}
-
-    def load_from_session(self, session: dict):
-        return
-
-    def get_menubar_entries(self):
-        return []
-
-    def get_contextmenu_entries(self, local_info: dict):
-        return []
-
-    def on_start(self):
-        return
-
-    def get_instance_name(self) -> str:
-        return self.instance_name
 
     def filter_tree_to_string(self, f: dict) -> str:
         return str(flt.FilterItem.from_json(f))
@@ -574,9 +540,13 @@ class QueryComponent(ap.AppComponent):
             if sender_instance_name == f"validation_manager":
                 self.commit()
 
+    def close(self):
+        super().close()
+        self.view = None
+
 
 def register_component():
-    return "query", {
+    return QueryComponent.component_name, {
         "instantiation_policy": "multi",
         "instantiate_on": "demand",
         "class": QueryComponent,

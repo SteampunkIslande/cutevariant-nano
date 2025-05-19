@@ -1,4 +1,5 @@
 from enum import Enum
+from functools import partial
 
 import PySide6.QtCore as qc
 import PySide6.QtWidgets as qw
@@ -84,9 +85,16 @@ class MainWindow(qw.QMainWindow):
                 tab_widget.indexOf(component.widget()), title
             )
         )
-        component.closing.connect(
-            lambda: tab_widget.removeTab(tab_widget.indexOf(component.widget()))
+        component_closing_handler = partial(
+            self.on_component_closing, component, region
         )
+        component.closing.connect(component_closing_handler)
+
+    def on_component_closing(self, component: ap.AppComponent, region: WindowRegion):
+        tab_widget = self.widget_regions[region]
+        tab_index = tab_widget.indexOf(component.widget())
+        if tab_index != -1:
+            tab_widget.removeTab(tab_index)
 
     def get_window_panel(self, region: WindowRegion):
         return self.widget_regions[region]

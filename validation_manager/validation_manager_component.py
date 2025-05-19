@@ -18,11 +18,13 @@ from validation_manager.validation_widget import ValidationWidget
 
 class ValidationManagerComponent(ap.AppComponent):
 
+    component_name = "validation_manager"
+
     def __init__(self, app: ap.App, instance_name: str):
         super().__init__(app, instance_name)
         # Query Manager Component
         query_manager_component: qm.QueryManagerComponent = (
-            self.app.instantiate_singleton("query_manager")
+            self.app.instantiate_singleton("query-manager")
         )
 
         self.widget_holder = MultiWidgetHolder()
@@ -84,7 +86,7 @@ class ValidationManagerComponent(ap.AppComponent):
     def set_validation(self, validation_info: dict):
         # Completely new validation, forget all the queries we may have
         query_manager_component: qm.QueryManagerComponent = self.app.get_component(
-            "query_manager"
+            "query-manager"
         )
         query_manager_component.clear()
         self.init_validation(validation_info)
@@ -167,7 +169,7 @@ class ValidationManagerComponent(ap.AppComponent):
         genno_export_folder = Path(genno_export_folder)
 
         query_manager_component: qm.QueryManagerComponent = self.app.get_component(
-            "query_manager"
+            "query-manager"
         )
         query = query_manager_component.get_final_query()
         if not query:
@@ -188,7 +190,7 @@ class ValidationManagerComponent(ap.AppComponent):
 
     def on_back_to_validation_selection(self):
         query_manager_component: qm.QueryManagerComponent = self.app.get_component(
-            "query_manager"
+            "query-manager"
         )
         # Close all queries, replace with the final one
         query_manager_component.clear()
@@ -260,7 +262,7 @@ class ValidationManagerComponent(ap.AppComponent):
 
 
 def register_component():
-    return "validation_manager", {
+    return ValidationManagerComponent.component_name, {
         "instantiation_policy": "singleton",
         "instantiate_on": "demand",
         "class": ValidationManagerComponent,
