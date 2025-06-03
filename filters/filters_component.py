@@ -1,8 +1,10 @@
 import app
 import filters.filters_model as fltm
 import filters.filters_widget as fltw
+from component_registry import register_app_component
 
 
+@register_app_component("filters", policy="multi", instantiation_time="demand")
 class FiltersComponent(app.AppComponent):
 
     component_name = "filters"
@@ -41,18 +43,9 @@ class FiltersComponent(app.AppComponent):
     ):
         pass
 
-    def close(self):
-        super().close()
+    def cleanup(self):
         self.model = None
         self.filters_widget = None
 
     def __del__(self):
         print("FiltersComponent deleted")
-
-
-def register_component():
-    return FiltersComponent.component_name, {
-        "instantiation_policy": "multi",
-        "instantiate_on": "demand",
-        "class": FiltersComponent,
-    }

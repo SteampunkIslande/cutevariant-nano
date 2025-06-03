@@ -1,10 +1,16 @@
 import json
 
+# Import différé pour résoudre la dépendance circulaire
+from typing import TYPE_CHECKING
+
 import PySide6.QtCore as qc
 import PySide6.QtWidgets as qw
 
 import app as ap
-import fields.fields_component as fld_cmp
+
+if TYPE_CHECKING:
+    from fields.fields_component import FieldsComponent
+
 import fields.fields_model as fldm
 from common_widgets.searchable_list import SearchableList
 
@@ -91,7 +97,7 @@ class PresetsWidget(qw.QWidget):
 
 
 class FieldsWidget(qw.QWidget):
-    def __init__(self, app: ap.App, component: "fld_cmp.FieldsComponent"):
+    def __init__(self, app: ap.App, component: "FieldsComponent"):
         super().__init__()
 
         self.app = app

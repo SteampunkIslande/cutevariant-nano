@@ -10,6 +10,7 @@ import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
 
 import app
+from component_registry import register_app_component
 
 LOGGER = logging.getLogger(__name__)
 
@@ -44,6 +45,7 @@ class DatabaseConnection:
         )
 
 
+@register_app_component("datalake", policy="singleton", instantiation_time="setup")
 class DatalakeComponent(app.AppComponent):
 
     component_name = "datalake"
@@ -198,10 +200,9 @@ class DatalakeComponent(app.AppComponent):
         with DatabaseConnection(self, database_name) as conn:
             return func(conn, *args, **kwargs)
 
-
-def register_component():
-    return DatalakeComponent.component_name, {
-        "instantiation_policy": "singleton",
-        "instantiate_on": "setup",
-        "class": DatalakeComponent,
-    }
+    def cleanup(self):
+        # Clean up resources
+        self.set_datalake_path_action = None
+        self.update_datalake_action = None
+        # Call parent cleanup
+        super().cleanup()

@@ -1,12 +1,20 @@
 import logging
 
+# Import différé pour résoudre la dépendance circulaire
+from typing import TYPE_CHECKING
+
 import app
 from fields import fields_model as fldm
-from fields.fields_widget import FieldsWidget
+
+if TYPE_CHECKING:
+    from fields.fields_widget import FieldsWidget
+
+from component_registry import register_app_component
 
 LOGGER = logging.getLogger(__name__)
 
 
+@register_app_component("fields", policy="multi", instantiation_time="demand")
 class FieldsComponent(app.AppComponent):
 
     component_name = "fields"
@@ -16,6 +24,9 @@ class FieldsComponent(app.AppComponent):
 
         self.model = fldm.FieldsModel(self)
         self.model.dataChanged.connect(self.emit_fields_changed)
+
+        # Import local différé
+        from fields.fields_widget import FieldsWidget
 
         self.fields_widget = FieldsWidget(self.app, self)
         self.fields_widget.setWindowTitle(self.app.translate("Fields selection"))
@@ -43,18 +54,9 @@ class FieldsComponent(app.AppComponent):
     def update_fields(self, fields: list[str]):
         self.model.update_fields(fields)
 
-    def close(self):
-        super().close()
+    def cleanup(self):
         self.model = None
         self.fields_widget = None
 
     def __del__(self):
         print("FieldsComponent deleted")
-
-
-def register_component():
-    return FieldsComponent.component_name, {
-        "instantiation_policy": "multi",
-        "instantiate_on": "demand",
-        "class": FieldsComponent,
-    }

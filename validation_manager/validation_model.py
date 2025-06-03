@@ -1,14 +1,21 @@
 import datetime
 import os
 from pathlib import Path
-from typing import List
+
+# Import différé pour résoudre la dépendance circulaire
+from typing import TYPE_CHECKING, List
 
 import duckdb as db
 import polars as pl
 import PySide6.QtCore as qc
 
 import app as ap
-import validation_manager.validation_manager_component as vmc
+
+if TYPE_CHECKING:
+    from validation_manager.validation_manager_component import (
+        ValidationManagerComponent,
+    )
+
 from commons import duck_db_literal_string_list
 
 VALIDATION_TABLE_COLUMNS = {
@@ -175,7 +182,7 @@ class ValidationModel(qc.QAbstractTableModel):
     def __init__(self, app: ap.App, parent_component: ap.AppComponent) -> None:
         super().__init__(parent_component)
         self.app = app
-        self.parent_component: vmc.ValidationManagerComponent = parent_component
+        self.parent_component: "ValidationManagerComponent" = parent_component
         self.headers = []
         self._data = []
 

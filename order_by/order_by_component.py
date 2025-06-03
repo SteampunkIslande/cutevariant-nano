@@ -3,8 +3,10 @@ import PySide6.QtWidgets as qw
 import app as ap
 import order_by.order_by_model as obm
 import order_by.order_by_widget as obw
+from component_registry import register_app_component
 
 
+@register_app_component("order_by", policy="multi", instantiation_time="demand")
 class OrderByComponent(ap.AppComponent):
 
     component_name = "order_by"
@@ -54,15 +56,6 @@ class OrderByComponent(ap.AppComponent):
     def get_field_names(self):
         return self.field_names
 
-    def close(self):
-        super().close()
+    def cleanup(self):
         self.model = None
         self.order_by_widget = None
-
-
-def register_component():
-    return OrderByComponent.component_name, {
-        "instantiation_policy": "multi",
-        "instantiate_on": "demand",
-        "class": OrderByComponent,
-    }

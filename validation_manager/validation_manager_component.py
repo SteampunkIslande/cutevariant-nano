@@ -1,6 +1,8 @@
 import os
 from pathlib import Path
-from typing import Union
+
+# Import différé pour résoudre la dépendance circulaire
+from typing import TYPE_CHECKING, Union
 
 import PySide6.QtCore as qc
 import PySide6.QtGui as qg
@@ -11,11 +13,15 @@ import datalake.datalake_component as dl
 import query_manager.query_manager_component as qm
 from common_widgets.multiwidget_holder import MultiWidgetHolder
 from commons import yaml_load
-from validation_manager.validation_model import ValidationModel
-from validation_manager.validation_selection_widget import ValidationSelectionWidget
-from validation_manager.validation_widget import ValidationWidget
+from component_registry import register_app_component
+
+if TYPE_CHECKING:
+    from validation_manager.validation_model import ValidationModel
 
 
+@register_app_component(
+    "validation_manager", policy="singleton", instantiation_time="demand"
+)
 class ValidationManagerComponent(ap.AppComponent):
 
     component_name = "validation_manager"
@@ -28,7 +34,15 @@ class ValidationManagerComponent(ap.AppComponent):
         )
 
         self.widget_holder = MultiWidgetHolder()
+        # Import local différé
+        from validation_manager.validation_model import ValidationModel
+
         self.validation_model = ValidationModel(self.app, self)
+
+        from validation_manager.validation_selection_widget import (
+            ValidationSelectionWidget,
+        )
+        from validation_manager.validation_widget import ValidationWidget
 
         self.validation_selection_widget = ValidationSelectionWidget(
             self.app, self.validation_model, self
@@ -257,13 +271,16 @@ class ValidationManagerComponent(ap.AppComponent):
         # Implement context menu entries here
         return []
 
-    def on_datalake_changed(self):
-        return
+
+def on_datalake_changed(self):
+    return
 
 
-def register_component():
-    return ValidationManagerComponent.component_name, {
-        "instantiation_policy": "singleton",
-        "instantiate_on": "demand",
-        "class": ValidationManagerComponent,
-    }
+def cleanup(self):
+    # Clean up resources
+    self.widget_holder = None
+    self.validation_model = None
+    self.validation_selection_widget = None
+    self.validation_widget = None
+    # Call parent cleanup
+    super().cleanup()

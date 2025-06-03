@@ -75,6 +75,10 @@ def run_sql(query: str, conn: db.DuckDBPyConnection = None) -> Union[List[dict],
             return res.pl().to_dicts()
 
 
+from component_registry import register_app_component
+
+
+@register_app_component(name="query", policy="multi", instantiation_time="demand")
 class QueryComponent(ap.AppComponent):
 
     component_name = "query"
@@ -89,6 +93,9 @@ class QueryComponent(ap.AppComponent):
 
     # Signal for external use (tell the UI to update)
     query_changed = qc.Signal()
+
+    # Signal emitted when the component is being destroyed
+    beingDestroyed = qc.Signal(object)  # Emits the component instance
 
     def __init__(self, app: ap.App, instance_name: str):
         super().__init__(app, instance_name)
@@ -540,17 +547,11 @@ class QueryComponent(ap.AppComponent):
             if sender_instance_name == f"validation_manager":
                 self.commit()
 
-    def close(self):
-        super().close()
+    def cleanup(self):
+        # Emit signal before cleaning up
+        self.beingDestroyed.emit(self)
+        super().cleanup()  # Call base class cleanup
         self.view = None
-
-
-def register_component():
-    return QueryComponent.component_name, {
-        "instantiation_policy": "multi",
-        "instantiate_on": "demand",
-        "class": QueryComponent,
-    }
 
 
 if __name__ == "__main__":

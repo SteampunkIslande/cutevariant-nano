@@ -1,3 +1,5 @@
+import weakref
+
 import PySide6.QtCore as qc
 import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
@@ -5,6 +7,7 @@ import PySide6.QtWidgets as qw
 import app as ap
 import mainwindow as mw
 import query.query_component as q
+from component_registry import register_app_component
 
 
 class QueryManagerWidget(qw.QWidget):
@@ -39,6 +42,9 @@ class QueryManagerWidget(qw.QWidget):
         self.current_query_changed.emit(current.data(qc.Qt.ItemDataRole.DisplayRole))
 
 
+@register_app_component(
+    name="query-manager", policy="singleton", instantiation_time="demand"
+)
 class QueryManagerComponent(ap.AppComponent):
 
     component_name = "query-manager"
@@ -46,7 +52,8 @@ class QueryManagerComponent(ap.AppComponent):
     def __init__(self, app: ap.App, instance_name: str):
         super().__init__(app, instance_name)
 
-        self.queries: dict[str, q.QueryComponent] = {}
+        # Use WeakValueDictionary to store QueryComponent references
+        self.queries = weakref.WeakValueDictionary()
 
         self.current_query = None
 
@@ -74,6 +81,11 @@ class QueryManagerComponent(ap.AppComponent):
         )
         self.query_model.appendRow(qg.QStandardItem(query_name))
 
+        # Connect to the beingDestroyed signal
+        query.beingDestroyed.connect(
+            lambda query_name=query_name: self._on_query_destroyed(query_name)
+        )
+
         # COMPONENT HOLDERS INSTALLATION
 
         self.queries_tab_widget.blockSignals(True)
@@ -85,6 +97,17 @@ class QueryManagerComponent(ap.AppComponent):
         self.set_current_query(query_name)
         return query
 
+    def _on_query_destroyed(self, query_name: str):
+        """Callback when a QueryComponent is being destroyed"""
+        # Remove from model
+        items = self.query_model.findItems(query_name)
+        if items:
+            self.query_model.removeRow(items[0].row())
+
+        # Remove from queries dictionary
+        if query_name in self.queries:
+            del self.queries[query_name]
+
     def get_final_query(self):
         return self.queries.get(self.app.translate("Final validation"))
 
@@ -92,6 +115,8 @@ class QueryManagerComponent(ap.AppComponent):
         return self.query_model
 
     def set_current_query(self, query_name: str):
+        if query_name not in self.queries:
+            return
 
         self.queries_tab_widget.setCurrentIndex(
             self.queries_tab_widget.indexOf(self.queries[query_name].widget())
@@ -99,10 +124,20 @@ class QueryManagerComponent(ap.AppComponent):
         self.current_query = self.queries[query_name]
 
     def close_query(self, query: q.QueryComponent):
-
         if query is self.current_query:
             self.current_query = None
-        query.close()
+
+        query_name = query.get_instance_name().split("/")[-1]
+        # Remove from model
+        items = self.query_model.findItems(query_name)
+        if items:
+            self.query_model.removeRow(items[0].row())
+
+        # Remove from queries dictionary
+        if query_name in self.queries:
+            del self.queries[query_name]
+
+        query.close_component()
 
     def on_query_tab_changed(self, tab_index: int):
         if tab_index < 0:
@@ -136,15 +171,14 @@ class QueryManagerComponent(ap.AppComponent):
     def clear(self):
         # Close all
         queries = list(self.queries.values())
-        self.queries = dict()
         for query in queries:
             self.close_query(query)
         self.query_model.clear()
 
-
-def register_component():
-    return QueryManagerComponent.component_name, {
-        "instantiation_policy": "singleton",
-        "instantiate_on": "demand",
-        "class": QueryManagerComponent,
-    }
+    def cleanup(self):
+        # Clean up resources
+        self.clear()
+        self.query_manager_widget = None
+        self.query_model = None
+        # Call parent cleanup
+        super().cleanup()

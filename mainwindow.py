@@ -80,21 +80,31 @@ class MainWindow(qw.QMainWindow):
 
         tab_widget = self.widget_regions[region]
         tab_widget.addTab(component.widget(), component.widget().windowTitle())
-        component.widget().windowTitleChanged.connect(
-            lambda title: tab_widget.setTabText(
-                tab_widget.indexOf(component.widget()), title
-            )
-        )
+        component.widget().windowTitleChanged.connect(self.update_component_title)
         component_closing_handler = partial(
             self.on_component_closing, component, region
         )
         component.closing.connect(component_closing_handler)
 
     def on_component_closing(self, component: ap.AppComponent, region: WindowRegion):
+        print(f"Closing component {component.instance_name} in region {region.name}")
         tab_widget = self.widget_regions[region]
         tab_index = tab_widget.indexOf(component.widget())
         if tab_index != -1:
             tab_widget.removeTab(tab_index)
+        else:
+            print(
+                f"Component {component.instance_name} not found in region {region.name} tab widget."
+            )
+
+    def update_component_title(
+        self, component: ap.AppComponent, new_title: str, region: WindowRegion
+    ):
+        tab_widget = self.widget_regions[region]
+        tab_index = tab_widget.indexOf(component.widget())
+        if tab_index != -1:
+            tab_widget.setTabText(tab_index, new_title)
+            component.widget().setWindowTitle(new_title)
 
     def get_window_panel(self, region: WindowRegion):
         return self.widget_regions[region]

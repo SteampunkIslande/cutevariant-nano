@@ -4,8 +4,12 @@ import filters.filters_component as flt_cmp
 import mainwindow
 import order_by.order_by_component as ob_cmp
 import validation_manager.validation_manager_component as validation_manager_component
+from component_registry import register_app_component
 
 
+@register_app_component(
+    name="app-manager", policy="singleton", instantiation_time="setup"
+)
 class AppManager(app.AppComponent):
 
     component_name = "app-manager"
@@ -54,10 +58,8 @@ class AppManager(app.AppComponent):
                 generic_explorer_component, mainwindow.WindowRegion.LEFT
             )
 
-
-def register_component():
-    return AppManager.component_name, {
-        "instantiation_policy": "singleton",
-        "instantiate_on": "setup",
-        "class": AppManager,
-    }
+    def cleanup(self):
+        # Clean up resources
+        # AppManager ne contient pas de ressources spécifiques à nettoyer
+        # Appeler le cleanup du parent
+        super().cleanup()

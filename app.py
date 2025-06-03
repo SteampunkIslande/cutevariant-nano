@@ -1,3 +1,4 @@
+import importlib
 import json
 import logging
 import typing
@@ -10,6 +11,7 @@ import PySide6.QtWidgets as qw
 
 import mainwindow as mw
 from commons import add_action_to_menubar, default_prefs
+from component_registry import APP_COMPONENT_REGISTRY
 
 LOGGER = logging.getLogger(__name__)
 
@@ -51,32 +53,33 @@ class App(qc.QObject):
     # COMPONENT REGISTRATION
 
     def register_components(self):
-        # To be able to compile with nuitka, manually import all the components in the project.
-        # If you'd like your own component to be included, just add it to the source folder and import it here
+        # Chemin de base du projet
+        base_path = Path(__file__).parent
 
-        from app_manager import app_manager_component
-        from datalake import datalake_component
-        from fields import fields_component
-        from filters import filters_component
-        from order_by import order_by_component
-        from query import query_component
-        from query_manager import query_manager_component
-        from validation_manager import validation_manager_component
+        # Trouver récursivement tous les fichiers *_component.py
+        component_files = []
+        for path in base_path.rglob("*_component.py"):
+            if path.is_file():
+                component_files.append(path)
 
-        self.register_component(*datalake_component.register_component())
-        self.register_component(*app_manager_component.register_component())
-        self.register_component(*validation_manager_component.register_component())
-        self.register_component(*query_manager_component.register_component())
-        self.register_component(*fields_component.register_component())
-        self.register_component(*filters_component.register_component())
-        self.register_component(*query_component.register_component())
-        self.register_component(*order_by_component.register_component())
+        # Importer dynamiquement chaque fichier
+        for file_path in component_files:
+            try:
+                # Créer un nom de module basé sur le chemin
+                module_name = file_path.stem
+                spec = importlib.util.spec_from_file_location(module_name, file_path)
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+                LOGGER.debug(f"Successfully imported component: {file_path}")
+            except Exception as e:
+                LOGGER.error(f"Failed to import component {file_path}: {str(e)}")
 
-    def register_component(self, component_name: str, component_definition: dict):
-        self.components[component_name] = {
-            "definition": component_definition,
-            "instances": {},
-        }
+        # Enregistrer les composants depuis le registre global
+        for name, component_def in APP_COMPONENT_REGISTRY.items():
+            self.components[name] = {
+                "definition": component_def,
+                "instances": {},
+            }
 
     # COMPONENTS INSTANTIATION
 
@@ -110,6 +113,8 @@ class App(qc.QObject):
             if instantiate_on == "setup" and instantiation_policy == "singleton":
                 self.instantiate_singleton(component_name)
 
+        LOGGER.info(f"Registered components: {list(self.components.keys())}")
+
     def get_app_option(self, option: str, default=None) -> typing.Any:
         return self.app_options.get(option, default)
 
@@ -138,6 +143,9 @@ class App(qc.QObject):
             new_instance.get_menubar_entries()
         )
 
+        if not new_instance_menu_entries:
+            LOGGER.warning(f"Component {component_name} returned no menu entries")
+
         # Populate the mainwindow's menubar. If there are no menu entries for this component, this does nothing
         for menu_entry in new_instance_menu_entries:
             entry_path, entry_action = menu_entry
@@ -145,15 +153,40 @@ class App(qc.QObject):
 
         return new_instance
 
-    def remove_instance(self, component_name: str, instance_name: str):
+    def remove_instance(self, instance: "AppComponent"):
+
+        import objgraph
+
+        instance_name: str = instance.get_instance_name()
+        component_name: str = instance.component_name
+        if not instance_name or not component_name:
+            LOGGER.warning(
+                "Cannot remove instance, instance_name or component_name is not set!"
+            )
+            return
+
         if component_name in self.components:
             instances: dict[str, AppComponent] = self.components[component_name][
                 "instances"
             ]
             if instance_name in instances:
-                instance: AppComponent = instances.pop(instance_name)
+                popped_instance = instances.pop(instance_name)
+                if popped_instance is not instance:
+                    LOGGER.warning(
+                        f"Logical error: instance {instance_name} of component {component_name} is not the one being removed!"
+                    )
                 # print reference count
-                print(instance_name, component_name, sys.getrefcount(instance))
+                LOGGER.debug(
+                    " ".join(
+                        [instance_name, component_name, str(sys.getrefcount(instance))]
+                    )
+                )
+                objgraph.show_backrefs(
+                    [instance],
+                    filename=f"{component_name}-{instance_name}-references.png".replace(
+                        "/", "_"
+                    ).replace(" ", "_"),
+                )
                 del instance
 
     def instantiate_component(
@@ -172,13 +205,14 @@ class App(qc.QObject):
             "instances"
         ]
 
-        new_instance: AppComponent = definition["class"](self, instance_name)
-        new_instance.broadcast.connect(self.dispatch_broadcast)
-        self.broadcast_dispatcher.connect(new_instance.generic_receiver)
-        self.application_closing.connect(new_instance.close)
-        instances[instance_name] = new_instance
+        instance: AppComponent = definition["class"](self, instance_name)
+        instance.broadcast.connect(self.dispatch_broadcast)
+        self.broadcast_dispatcher.connect(instance.generic_receiver)
+        self.application_closing.connect(instance.close_component)
 
-        return new_instance
+        instances[instance_name] = instance
+
+        return instance
 
     def dispatch_broadcast(
         self,
@@ -368,9 +402,63 @@ class AppComponent(qc.QObject):
         super().__init__(parent=app)
         self.app: App = app
         self.instance_name = instance_name
+        self.destroyed.connect(self.on_destroy)
+        # Liste pour stocker les connexions (émetteur, nom_signal_str, handler)
+        self._managed_connections = []
 
     def get_instance_name(self) -> str:
         return self.instance_name
+
+    def connect_signal(self, signal_emitter, signal_name_str, slot_handler):
+        """Connecte un signal et enregistre la connexion pour un cleanup automatique."""
+        try:
+            signal = getattr(signal_emitter, signal_name_str)
+            # Tenter de déconnecter d'abord pour éviter les connexions multiples du même slot
+            try:
+                signal.disconnect(slot_handler)
+            except (
+                TypeError,
+                RuntimeError,
+            ):  # TypeError si jamais connecté, RuntimeError si objet C++ détruit
+                pass
+            signal.connect(slot_handler)
+            self._managed_connections.append(
+                (signal_emitter, signal_name_str, slot_handler)
+            )
+            LOGGER.debug(
+                f"Connected {signal_name_str} from {signal_emitter} to {slot_handler} for {self.instance_name}"
+            )
+        except AttributeError:
+            LOGGER.error(
+                f"Signal {signal_name_str} not found on {signal_emitter} for {self.instance_name}"
+            )
+        except Exception as e:
+            LOGGER.error(
+                f"Error connecting signal {signal_name_str} for {self.instance_name}: {e}"
+            )
+
+    def disconnect_signal(self, signal_emitter, signal_name_str, slot_handler):
+        """Déconnecte un signal spécifique et le retire de la gestion si présent."""
+        try:
+            signal = getattr(signal_emitter, signal_name_str)
+            signal.disconnect(slot_handler)
+            LOGGER.debug(
+                f"Disconnected {signal_name_str} from {slot_handler} for {self.instance_name}"
+            )
+        except (
+            TypeError,
+            RuntimeError,
+        ):  # TypeError si pas connecté, RuntimeError si objet C++ détruit
+            pass  # Pas grave si on essaie de déconnecter quelque chose qui ne l'est pas/plus
+        except Exception as e:
+            LOGGER.error(
+                f"Error disconnecting signal {signal_name_str} for {self.instance_name}: {e}"
+            )
+        finally:
+            # Retirer de la liste de gestion si la tentative de déconnexion a été faite
+            connection_tuple = (signal_emitter, signal_name_str, slot_handler)
+            if connection_tuple in self._managed_connections:
+                self._managed_connections.remove(connection_tuple)
 
     def load_from_session(self, session: dict):
         """Load this AppComponent from `session` dict.
@@ -424,11 +512,47 @@ class AppComponent(qc.QObject):
         )
         return []
 
-    def close(self):
-        self.closing.emit()
-        self.app.remove_instance(self.component_name, self.instance_name)
-        self.app = None
-        self.deleteLater()
+    def cleanup(self):
+        """Cleanup this AppComponent. Déconnecte tous les signaux et nettoie les ressources."""
+        LOGGER.debug(
+            f"Base cleanup for {self.instance_name} ({self.__class__.__name__})"
+        )
+        # Déconnecter dans l'ordre inverse de connexion pourrait être plus sûr dans certains cas, mais simple itération ici
+        for emitter, signal_name, handler in list(
+            self._managed_connections
+        ):  # list() pour copier car on modifie
+            try:
+                signal_instance = getattr(emitter, signal_name)
+                signal_instance.disconnect(handler)
+                LOGGER.debug(
+                    f"Managed disconnect of {signal_name} from {handler} for {self.instance_name}"
+                )
+            except RuntimeError:
+                LOGGER.warning(
+                    f"Error during managed disconnect of {signal_name} for {self.instance_name}: emitter/receiver likely deleted."
+                )
+            except AttributeError:
+                LOGGER.warning(
+                    f"Error during managed disconnect of {signal_name} for {self.instance_name}: signal attribute not found (object changed?)."
+                )
+            except Exception as e:
+                LOGGER.error(
+                    f"Unexpected error during managed disconnect of {signal_name} for {self.instance_name}: {e}"
+                )
+        self._managed_connections.clear()
+        # Les classes filles doivent appeler super().cleanup()
+
+    def close_component(self):
+        LOGGER.debug(f"Closing component {self.instance_name}...")
+        self.closing.emit()  # Permet aux dépendants de se nettoyer d'abord
+        self.cleanup()
+        self.deleteLater()  # Crucial pour la destruction Qt
+
+    def on_destroy(self):
+        LOGGER.debug(f"Component {self.instance_name} destroyed. Removing from App.")
+        if self.app:  # self.app peut être None si déjà nettoyé
+            self.app.remove_instance(self)
+            self.app = None  # Rompre le cycle de référence
 
     def generic_receiver(
         self,
