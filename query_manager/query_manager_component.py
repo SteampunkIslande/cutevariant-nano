@@ -83,7 +83,7 @@ class QueryManagerComponent(ap.AppComponent):
 
         # Connect to the beingDestroyed signal
         query.beingDestroyed.connect(
-            lambda query_name=query_name: self._on_query_destroyed(query_name)
+            lambda _, query_name=query_name: self._on_query_destroyed(query_name)
         )
 
         # COMPONENT HOLDERS INSTALLATION
