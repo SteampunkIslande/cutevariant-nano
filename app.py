@@ -579,7 +579,7 @@ if __name__ == "__main__":
         "--log-level",
         "-l",
         type=str,
-        default="INFO",
+        default="WARNING",
         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
         help="Set the logging level",
     )

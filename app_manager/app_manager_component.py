@@ -12,8 +12,6 @@ from component_registry import register_app_component
 )
 class AppManager(app.AppComponent):
 
-    component_name = "app-manager"
-
     def __init__(self, app: app.App, instance_name: str):
         super().__init__(app, instance_name)
 

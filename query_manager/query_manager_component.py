@@ -99,6 +99,10 @@ class QueryManagerComponent(ap.AppComponent):
 
     def _on_query_destroyed(self, query_name: str):
         """Callback when a QueryComponent is being destroyed"""
+        # Skip if model has been cleaned up
+        if self.query_model is None:
+            return
+
         # Remove from model
         items = self.query_model.findItems(query_name)
         if items:
@@ -128,10 +132,12 @@ class QueryManagerComponent(ap.AppComponent):
             self.current_query = None
 
         query_name = query.get_instance_name().split("/")[-1]
-        # Remove from model
-        items = self.query_model.findItems(query_name)
-        if items:
-            self.query_model.removeRow(items[0].row())
+        # Skip if model has been cleaned up
+        if self.query_model is not None:
+            # Remove from model
+            items = self.query_model.findItems(query_name)
+            if items:
+                self.query_model.removeRow(items[0].row())
 
         # Remove from queries dictionary
         if query_name in self.queries:
