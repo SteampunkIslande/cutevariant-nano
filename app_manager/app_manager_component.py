@@ -1,9 +1,5 @@
 import app
-import fields.fields_component as fld_cmp
-import filters.filters_component as flt_cmp
 import mainwindow
-import order_by.order_by_component as ob_cmp
-import validation_manager.validation_manager_component as validation_manager_component
 from component_registry import register_app_component
 
 
@@ -24,36 +20,31 @@ class AppManager(app.AppComponent):
     def on_start(self):
         window = self.app.window()
 
-        fields_component: fld_cmp.FieldsComponent = self.app.instantiate_singleton(
-            "fields"
-        )
-        filters_component: flt_cmp.FiltersComponent = self.app.instantiate_singleton(
-            "filters"
-        )
-        order_by_component: ob_cmp.OrderByComponent = self.app.instantiate_singleton(
-            "order_by"
-        )
+        # Instancier les composants principaux
+        fields_component = self.app.instantiate_singleton("fields")
+        filters_component = self.app.instantiate_singleton("filters")
+        order_by_component = self.app.instantiate_singleton("order_by")
+        query_manager_component = self.app.instantiate_singleton("query_manager")
 
+        # Ajouter les composants aux régions de la fenêtre
         window.add_component_to_window(fields_component, mainwindow.WindowRegion.LOWER)
         window.add_component_to_window(filters_component, mainwindow.WindowRegion.LOWER)
         window.add_component_to_window(
             order_by_component, mainwindow.WindowRegion.LOWER
         )
+        window.add_component_to_window(
+            query_manager_component, mainwindow.WindowRegion.UPPER
+        )
 
+        # Gestion conditionnelle du composant de validation
+        validation_component = self.app.instantiate_singleton("validation_manager")
         if self.app.get_app_option("validation", "genno") == "genno":
-            # Instantiate validation component itself
-            validation_component: (
-                validation_manager_component.ValidationManagerComponent
-            ) = self.app.instantiate_singleton("validation_manager")
             window.add_component_to_window(
                 validation_component, mainwindow.WindowRegion.RIGHT
             )
         else:
-            generic_explorer_component: (
-                validation_manager_component.ValidationManagerComponent
-            ) = self.app.instantiate_singleton("validation_manager")
             window.add_component_to_window(
-                generic_explorer_component, mainwindow.WindowRegion.LEFT
+                validation_component, mainwindow.WindowRegion.LEFT
             )
 
     def cleanup(self):

@@ -25,7 +25,7 @@ class ValidationWidget(qw.QWidget):
         self.app = app
 
         query_manager: qmc.QueryManagerComponent = self.app.get_component(
-            "query-manager"
+            "query_manager"
         )
 
         self.validate_button = qw.QPushButton(self.app.translate("Validate cart"), self)

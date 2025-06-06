@@ -75,7 +75,7 @@ class App(qc.QObject):
                 LOGGER.error(f"Failed to import component {file_path}: {str(e)}")
 
         # Enregistrer les composants depuis le registre global
-        for name, component_def in APP_COMPONENT_REGISTRY.items():
+        for name, component_def in APP_COMPONENT_REGISTRY.registry.items():
             self.components[name] = {
                 "definition": component_def,
                 "instances": {},
@@ -106,6 +106,16 @@ class App(qc.QObject):
                 self.show_loaded_components_action,
             )
 
+            self.show_reference_tree_action = qg.QAction(
+                self.translate("Show python reference tree")
+            )
+            self.show_reference_tree_action.triggered.connect(self.show_reference_tree)
+            add_action_to_menubar(
+                self.main_window.menuBar(),
+                self.translate("File/Debug"),
+                self.show_reference_tree_action,
+            )
+
         for component_name, component in self.components.items():
             definition = component["definition"]
             instantiate_on = definition["instantiate_on"]
@@ -114,6 +124,9 @@ class App(qc.QObject):
                 self.instantiate_singleton(component_name)
 
         LOGGER.info(f"Registered components: {list(self.components.keys())}")
+
+    def show_reference_tree(self):
+        pass
 
     def get_app_option(self, option: str, default=None) -> typing.Any:
         return self.app_options.get(option, default)
@@ -129,12 +142,18 @@ class App(qc.QObject):
                 print(f"  - {instance_name}")
 
     def instantiate_singleton(self, component_name: str):
-        if len(self.components[component_name]["instances"]) > 0:
-            LOGGER.warning(
-                f"Cannot instantiate singleton <{component_name}>, already instantiated!"
+        # Vérifier si une instance existe déjà et la retourner
+        if (
+            component_name in self.components
+            and self.components[component_name]["instances"]
+        ):
+            existing_instance = next(
+                iter(self.components[component_name]["instances"].values())
             )
-            return
+            LOGGER.debug(f"Returning existing singleton instance of {component_name}")
+            return existing_instance
 
+        LOGGER.debug(f"Creating new singleton instance for {component_name}")
         new_instance: AppComponent = self.instantiate_component(
             component_name, component_name
         )
@@ -200,6 +219,23 @@ class App(qc.QObject):
             )
             return
         definition = self.components[component_name]["definition"]
+        instantiation_policy = definition["instantiation_policy"]
+
+        # For singleton policy, enforce single instance
+        if instantiation_policy == "singleton":
+            instance_name = component_name  # Use component name as instance name
+            # Vérifier dans toutes les instances existantes
+            if (
+                component_name in self.components
+                and instance_name in self.components[component_name]["instances"]
+            ):
+                existing_instance = self.components[component_name]["instances"][
+                    instance_name
+                ]
+                LOGGER.debug(
+                    f"Singleton instance found for {component_name}, returning existing instance"
+                )
+                return existing_instance
 
         instances: dict[str, AppComponent] = self.components[component_name][
             "instances"
@@ -211,6 +247,7 @@ class App(qc.QObject):
         self.application_closing.connect(instance.close_component)
 
         instances[instance_name] = instance
+        LOGGER.debug(f"Instantiated {component_name} instance: {instance_name}")
 
         return instance
 

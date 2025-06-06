@@ -30,7 +30,7 @@ class ValidationManagerComponent(ap.AppComponent):
         super().__init__(app, instance_name)
         # Query Manager Component
         query_manager_component: qm.QueryManagerComponent = (
-            self.app.instantiate_singleton("query-manager")
+            self.app.instantiate_singleton("query_manager")
         )
 
         self.widget_holder = MultiWidgetHolder()
@@ -100,8 +100,14 @@ class ValidationManagerComponent(ap.AppComponent):
     def set_validation(self, validation_info: dict):
         # Completely new validation, forget all the queries we may have
         query_manager_component: qm.QueryManagerComponent = self.app.get_component(
-            "query-manager"
+            "query_manager"
         )
+        if not query_manager_component:
+            LOGGER.error(
+                "QueryManagerComponent is not available, cannot set validation"
+            )
+            return
+
         query_manager_component.clear()
         self.init_validation(validation_info)
 
@@ -138,6 +144,10 @@ class ValidationManagerComponent(ap.AppComponent):
         query_manager_component: qm.QueryManagerComponent = self.app.get_component(
             "query_manager"
         )
+        if not query_manager_component:
+            LOGGER.error("QueryManagerComponent is not available, cannot validate")
+            return
+
         # Close all queries, replace with the final one
         query_manager_component.clear()
         query_manager_component.new_query(
@@ -183,31 +193,41 @@ class ValidationManagerComponent(ap.AppComponent):
         genno_export_folder = Path(genno_export_folder)
 
         query_manager_component: qm.QueryManagerComponent = self.app.get_component(
-            "query-manager"
+            "query_manager"
         )
+        if not query_manager_component:
+            LOGGER.error(
+                "QueryManagerComponent is not available, cannot export to genno"
+            )
+            return
+
         query = query_manager_component.get_final_query()
         if not query:
-            print("No query to export")
+            LOGGER.warning("No query to export")
             return
         sql_query = query.select_query(paginated=False, columns="COLUMNS('^[^.]')")
         datalake = self.get_datalake()
         if not datalake:
+            LOGGER.error("Datalake component is not available, cannot export to genno")
             return
-        else:
-            base_filename = self.validation_name or "validation"
-            datalake.run_with_connection(
-                "validation",
-                lambda conn: conn.sql(
-                    f""" COPY ({sql_query}) TO '{genno_export_folder / f'{base_filename}.csv'}' (DELIMITER ';') """
-                ),
-            )
+
+        base_filename = self.validation_name or "validation"
+        datalake.run_with_connection(
+            "validation",
+            lambda conn: conn.sql(
+                f""" COPY ({sql_query}) TO '{genno_export_folder / f'{base_filename}.csv'}' (DELIMITER ';') """
+            ),
+        )
 
     def on_back_to_validation_selection(self):
         query_manager_component: qm.QueryManagerComponent = self.app.get_component(
-            "query-manager"
+            "query_manager"
         )
-        # Close all queries, replace with the final one
-        query_manager_component.clear()
+        if not query_manager_component:
+            LOGGER.error("QueryManagerComponent is not available, cannot clear queries")
+        else:
+            # Close all queries, replace with the final one
+            query_manager_component.clear()
 
         self.widget_holder.set_current_widget("validation_selection")
 

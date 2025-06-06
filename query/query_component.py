@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import weakref
 from math import ceil
 from typing import List, Union
 
@@ -103,9 +104,11 @@ class QueryComponent(ap.AppComponent):
         # Safer to init state before setting up the view
         self.init_state()
 
-        self.view = query.query_table_widget.QueryTableWidget(self.app, self)
-        self.closing.connect(self.view.close)
-        self.view.setWindowTitle(self.instance_name.split("/")[-1])
+        # Use weak reference to break circular dependency
+        view = query.query_table_widget.QueryTableWidget(self.app, self)
+        self.view_ref = weakref.ref(view)
+        self.closing.connect(view.close)
+        view.setWindowTitle(self.instance_name.split("/")[-1])
 
         self.changes_list = []
 
@@ -417,8 +420,7 @@ class QueryComponent(ap.AppComponent):
             }
         )
 
-    def __del__(self):
-        print("QueryComponent deleted")
+    # Remove __del__ to rely on Qt's object tree and cleanup signals
 
     def add_order_by(self, colname: str, order: str):
         if not self.order_by:
@@ -522,7 +524,7 @@ class QueryComponent(ap.AppComponent):
         self.update_data()
 
     def widget(self):
-        return self.view
+        return self.view_ref() if self.view_ref else None
 
     def filter_tree_to_string(self, f: dict) -> str:
         return str(flt.FilterItem.from_json(f))
@@ -548,10 +550,29 @@ class QueryComponent(ap.AppComponent):
                 self.commit()
 
     def cleanup(self):
-        # Emit signal before cleaning up
-        self.beingDestroyed.emit(self)
-        super().cleanup()  # Call base class cleanup
-        self.view = None
+        """
+        Méthode de nettoyage qui remplace le destructeur.
+        Le destructeur a été supprimé car il causait des récursions infinies lors de la destruction des composants.
+
+        Cette méthode :
+        1. Émet le signal beingDestroyed pour notifier les autres composants de la destruction
+        2. Appelle le cleanup de la classe parente
+        3. Rompt explicitement les références circulaires en mettant à None les attributs clés
+        4. Ferme la vue via une référence faible pour éviter les références circulaires
+
+        Le système de signaux utilise maintenant des connexions faibles dans QueryManagerComponent
+        pour éviter que le signal ne maintienne en vie l'instance de QueryComponent.
+        """
+        self.beingDestroyed.emit(self.instance_name)
+        super().cleanup()  # Appel du nettoyage de la classe de base
+
+        # Rupture des références circulaires
+        self._datalake = None
+        self._app = None
+
+        # Fermeture de la vue via référence faible - évite les références circulaires
+        if self.view_ref and self.view_ref():
+            self.view_ref().close()
 
 
 if __name__ == "__main__":
