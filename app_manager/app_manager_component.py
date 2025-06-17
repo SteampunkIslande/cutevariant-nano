@@ -4,7 +4,7 @@ from component_registry import register_app_component
 
 
 @register_app_component(
-    name="app-manager", policy="singleton", instantiation_time="setup"
+    name="app_manager", policy="singleton", instantiation_time="setup"
 )
 class AppManager(app.AppComponent):
 
@@ -21,9 +21,9 @@ class AppManager(app.AppComponent):
         window = self.app.window()
 
         # Instancier les composants principaux
-        fields_component = self.app.instantiate_singleton("fields")
-        filters_component = self.app.instantiate_singleton("filters")
-        order_by_component = self.app.instantiate_singleton("order_by")
+        fields_component = self.app.instantiate_component("fields", "main_fields")
+        filters_component = self.app.instantiate_component("filters", "main_filters")
+        order_by_component = self.app.instantiate_component("order_by", "main_order_by")
         query_manager_component = self.app.instantiate_singleton("query_manager")
 
         # Ajouter les composants aux régions de la fenêtre

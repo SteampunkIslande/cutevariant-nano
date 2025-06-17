@@ -14,7 +14,7 @@ from component_registry import register_app_component
 LOGGER = logging.getLogger(__name__)
 
 
-@register_app_component("fields", policy="multi", instantiation_time="demand")
+@register_app_component(name="fields", policy="multi", instantiation_time="demand")
 class FieldsComponent(app.AppComponent):
 
     component_name = "fields"

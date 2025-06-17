@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-import weakref
 from math import ceil
 from typing import List, Union
 
@@ -104,11 +103,9 @@ class QueryComponent(ap.AppComponent):
         # Safer to init state before setting up the view
         self.init_state()
 
-        # Use weak reference to break circular dependency
-        view = query.query_table_widget.QueryTableWidget(self.app, self)
-        self.view_ref = weakref.ref(view)
-        self.closing.connect(view.close)
-        view.setWindowTitle(self.instance_name.split("/")[-1])
+        self.view = query.query_table_widget.QueryTableWidget(self.app, self)
+        self.closing.connect(self.view.close)
+        self.view.setWindowTitle(self.instance_name.split("/")[-1])
 
         self.changes_list = []
 
@@ -524,7 +521,7 @@ class QueryComponent(ap.AppComponent):
         self.update_data()
 
     def widget(self):
-        return self.view_ref() if self.view_ref else None
+        return self.view
 
     def filter_tree_to_string(self, f: dict) -> str:
         return str(flt.FilterItem.from_json(f))
@@ -571,8 +568,9 @@ class QueryComponent(ap.AppComponent):
         self._app = None
 
         # Fermeture de la vue via référence faible - évite les références circulaires
-        if self.view_ref and self.view_ref():
-            self.view_ref().close()
+        if self.view:
+            self.view.close()
+        self.view = None
 
 
 if __name__ == "__main__":

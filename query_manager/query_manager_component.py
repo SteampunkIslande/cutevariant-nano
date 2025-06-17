@@ -7,7 +7,7 @@ import PySide6.QtWidgets as qw
 import app as ap
 import mainwindow as mw
 import query.query_component as q
-from component_registry import APP_COMPONENT_REGISTRY, register_app_component
+from component_registry import register_app_component
 
 LOGGER = logging.getLogger(__name__)
 
@@ -71,8 +71,8 @@ class QueryManagerComponent(ap.AppComponent):
         if self.queries_tab_widget:
             self.queries_tab_widget.currentChanged.connect(self.on_query_tab_changed)
 
-        # Connect component registry signal
-        APP_COMPONENT_REGISTRY.componentDestroyed.connect(self._on_component_destroyed)
+        # Note: ComponentRegistry n'a pas de signal componentDestroyed
+        # La gestion de la destruction des composants se fait via le signal beingDestroyed des QueryComponent
 
     def new_query(self, query_name: str, data_prep: dict, query_options: dict):
 
@@ -133,12 +133,6 @@ class QueryManagerComponent(ap.AppComponent):
         # Update dictionary
         query = self.queries.pop(old_name)
         self.queries[new_name] = query
-
-    def _on_component_destroyed(self, component):
-        """Handle component destruction from registry"""
-        if isinstance(component, q.QueryComponent):
-            query_name = component.get_instance_name().split("/")[-1]
-            self._on_query_destroyed(query_name)
 
     def _on_query_destroyed(self, query_name: str):
         """Callback when a QueryComponent is being destroyed"""

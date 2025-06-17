@@ -1,7 +1,7 @@
-import importlib
 import json
 import logging
 import typing
+import weakref
 from pathlib import Path
 from typing import Union
 
@@ -27,22 +27,24 @@ class App(qc.QObject):
 
     broadcast_dispatcher = qc.Signal(str, str, str, dict)
 
-    def __init__(self):
+    def __init__(self, app_options: dict = None):
         super().__init__()
         self.main_window = mw.MainWindow(self)
         self.main_window.closing.connect(self.on_close)
 
-        self.app_options: dict = {}
+        self.app_options: dict = app_options or {}
 
         self.missing_translations = set()
 
         # Very first thing to do, translations are needed to setup menus and actions (among others)
         self.load_translations()
 
-        self.components: dict[str, dict[str, Union[dict, AppComponent]]] = {}
+        # Chargement et enregistrement automatique des composants
+        self.load_component_modules()
 
-        # Find and register all components
-        self.register_components()
+        # Vérification que les composants sont bien enregistrés
+        if APP_COMPONENT_REGISTRY.get_component_count() == 0:
+            LOGGER.warning("Aucun composant enregistré dans le registre")
 
         # Instantiate components that should be instantiated on setup
         self.setup_app()
@@ -52,34 +54,45 @@ class App(qc.QObject):
 
     # COMPONENT REGISTRATION
 
-    def register_components(self):
-        # Chemin de base du projet
-        base_path = Path(__file__).parent
+    def load_component_modules(self):
+        """
+        Charge tous les modules de composants de manière explicite.
+        Compatible avec Nuitka car utilise des imports statiques.
+        """
+        # Liste explicite pour la compatibilité Nuitka
+        import app_manager.app_manager_component
+        import datalake.datalake_component
+        import fields.fields_component
+        import filters.filters_component
+        import order_by.order_by_component
+        import query.query_component
+        import query_manager.query_manager_component
+        import validation_manager.validation_manager_component
 
-        # Trouver récursivement tous les fichiers *_component.py
-        component_files = []
-        for path in base_path.rglob("*_component.py"):
-            if path.is_file():
-                component_files.append(path)
+        component_count = APP_COMPONENT_REGISTRY.get_component_count()
+        LOGGER.info(
+            f"Modules de composants chargés: {component_count} composants enregistrés"
+        )
 
-        # Importer dynamiquement chaque fichier
-        for file_path in component_files:
-            try:
-                # Créer un nom de module basé sur le chemin
-                module_name = file_path.stem
-                spec = importlib.util.spec_from_file_location(module_name, file_path)
-                module = importlib.util.module_from_spec(spec)
-                spec.loader.exec_module(module)
-                LOGGER.debug(f"Successfully imported component: {file_path}")
-            except Exception as e:
-                LOGGER.error(f"Failed to import component {file_path}: {str(e)}")
+        # Validation que tous les modules attendus sont bien chargés
+        expected_components = {
+            "app_manager",
+            "datalake",
+            "fields",
+            "filters",
+            "order_by",
+            "query",
+            "query_manager",
+            "validation_manager",
+        }
 
-        # Enregistrer les composants depuis le registre global
-        for name, component_def in APP_COMPONENT_REGISTRY.registry.items():
-            self.components[name] = {
-                "definition": component_def,
-                "instances": {},
-            }
+        registered_components = set(APP_COMPONENT_REGISTRY.get_all_components().keys())
+        missing_components = expected_components - registered_components
+
+        if missing_components:
+            LOGGER.warning(
+                f"Composants attendus mais non enregistrés: {missing_components}"
+            )
 
     # COMPONENTS INSTANTIATION
 
@@ -94,6 +107,7 @@ class App(qc.QObject):
         )
 
         if self.get_app_option("debug"):
+            print("Debug mode enabled. Registering debug actions in the main window.")
             self.show_loaded_components_action = qg.QAction(
                 self.translate("Show loaded components")
             )
@@ -116,61 +130,270 @@ class App(qc.QObject):
                 self.show_reference_tree_action,
             )
 
-        for component_name, component in self.components.items():
-            definition = component["definition"]
+        # Instanciation automatique des composants "setup"
+        all_components = APP_COMPONENT_REGISTRY.get_all_components()
+        for component_name, component_data in all_components.items():
+            definition = component_data["definition"]
             instantiate_on = definition["instantiate_on"]
             instantiation_policy = definition["instantiation_policy"]
             if instantiate_on == "setup" and instantiation_policy == "singleton":
-                self.instantiate_singleton(component_name)
+                instance = self.instantiate_component(component_name)
+                if instance:
+                    self._setup_component_menu(instance)
 
-        LOGGER.info(f"Registered components: {list(self.components.keys())}")
-
-    def show_reference_tree(self):
-        pass
-
-    def get_app_option(self, option: str, default=None) -> typing.Any:
-        return self.app_options.get(option, default)
-
-    def set_app_options(self, options: dict):
-        self.app_options = options
-
-    def show_loaded_components(self):
-        print("Loaded components:")
-        for component_name in self.components:
-            print(component_name)
-            for instance_name in self.components[component_name]["instances"]:
-                print(f"  - {instance_name}")
-
-    def instantiate_singleton(self, component_name: str):
-        # Vérifier si une instance existe déjà et la retourner
-        if (
-            component_name in self.components
-            and self.components[component_name]["instances"]
-        ):
-            existing_instance = next(
-                iter(self.components[component_name]["instances"].values())
-            )
-            LOGGER.debug(f"Returning existing singleton instance of {component_name}")
-            return existing_instance
-
-        LOGGER.debug(f"Creating new singleton instance for {component_name}")
-        new_instance: AppComponent = self.instantiate_component(
-            component_name, component_name
+        LOGGER.info(
+            f"Setup terminé: {APP_COMPONENT_REGISTRY.get_component_count()} composants enregistrés"
         )
 
+    def _setup_component_menu(self, instance: "AppComponent"):
+        """Configure les entrées de menu pour un composant."""
         new_instance_menu_entries: list[tuple[str, qg.QAction]] = (
-            new_instance.get_menubar_entries()
+            instance.get_menubar_entries()
         )
 
         if not new_instance_menu_entries:
-            LOGGER.warning(f"Component {component_name} returned no menu entries")
+            LOGGER.debug(
+                f"Component {instance.component_name} returned no menu entries"
+            )
 
-        # Populate the mainwindow's menubar. If there are no menu entries for this component, this does nothing
+        # Populate the mainwindow's menubar
         for menu_entry in new_instance_menu_entries:
             entry_path, entry_action = menu_entry
             add_action_to_menubar(self.main_window.menuBar(), entry_path, entry_action)
 
-        return new_instance
+    def show_reference_tree(self):
+        """Génère un fichier DOT montrant l'arbre des références à partir de self (App)."""
+        dot_content = []
+        dot_content.append("digraph reference_tree {")
+        dot_content.append("    splines=false;")
+        dot_content.append("    rankdir=LR;")
+        dot_content.append("    node [shape=box];")
+
+        # Garder trace des nœuds ajoutés pour éviter les doublons dans le DOT
+        added_nodes = set()
+        # Garder trace des arêtes ajoutées pour éviter les doublons
+        added_edges = set()
+
+        def is_weak_reference(obj):
+            """Vérifie si obj est une référence faible."""
+            return isinstance(
+                obj, (weakref.ref, weakref.ProxyType, weakref.CallableProxyType)
+            )
+
+        def should_skip_member(name, value):
+            """Détermine si un membre doit être ignoré."""
+            # Ignorer les méthodes, les dunders, et certains types built-in
+            if name.startswith("__") and name.endswith("__"):
+                return True
+            if callable(value) and not hasattr(value, "__dict__"):
+                return True
+            if isinstance(value, (type, type(None), bool, int, float, str, bytes)):
+                return True
+            return False
+
+        def get_safe_node_name(name: str):
+            """Retourne un nom de nœud sûr pour DOT."""
+            return (
+                name.replace("-", "_")
+                .replace(" ", "_")
+                .replace("/", "_")
+                .replace("[", "_")
+                .replace("]", "_")
+                .replace("(", "_")
+                .replace(")", "_")
+                .replace('"', "")
+                .replace("'", "")
+                .replace(".", "_")
+            )
+
+        def explore_object(
+            obj,
+            obj_name,
+            parent_name=None,
+            is_weak=False,
+            current_path=None,
+        ):
+            """Explore récursivement un objet et ajoute ses références au graphe DOT.
+
+            Args:
+                obj: L'objet à explorer
+                obj_name: Le nom à donner au nœud
+                parent_name: Le nom du parent (pour l'arête)
+                is_weak: True si la référence est faible
+                current_path: Ensemble des ID d'objets dans le chemin de récursion actuel
+            """
+            if current_path is None:
+                current_path = set()
+
+            obj_id = id(obj)
+            safe_obj_name = get_safe_node_name(obj_name)
+            no_quote_obj_name = obj_name.replace('"', "")
+
+            # Éviter les cycles dans le chemin de récursion actuel
+            if obj_id in current_path:
+                # Créer un nœud pour le cycle si pas encore fait
+                if safe_obj_name not in added_nodes:
+                    dot_content.append(
+                        f'    {safe_obj_name}_{obj_id} [label="{no_quote_obj_name} (cycle)", style=filled, fillcolor=yellow];'
+                    )
+                    added_nodes.add(safe_obj_name)
+
+                # Ajouter l'arête vers le cycle si nécessaire
+                if parent_name:
+                    safe_parent_name = get_safe_node_name(parent_name)
+                    line_style = "dotted" if is_weak else "solid"
+                    edge_key = (safe_parent_name, safe_obj_name, line_style)
+                    if edge_key not in added_edges:
+                        dot_content.append(
+                            f"    {safe_parent_name} -> {safe_obj_name} [style={line_style}, color=red];"
+                        )
+                        added_edges.add(edge_key)
+                return
+
+            # Ajouter l'objet au chemin de récursion actuel
+            new_path = current_path | {obj_id}
+
+            # Ajouter le nœud s'il n'existe pas encore
+            if safe_obj_name not in added_nodes:
+                dot_content.append(
+                    f'    {safe_obj_name} [label="{no_quote_obj_name}"];'
+                )
+                added_nodes.add(safe_obj_name)
+
+            # Ajouter l'arête depuis le parent si nécessaire
+            if parent_name:
+                safe_parent_name = get_safe_node_name(parent_name)
+                line_style = "dotted" if is_weak else "solid"
+                edge_key = (safe_parent_name, safe_obj_name, line_style)
+                if edge_key not in added_edges:
+                    dot_content.append(
+                        f"    {safe_parent_name} -> {safe_obj_name} [style={line_style}];"
+                    )
+                    added_edges.add(edge_key)
+
+            # Explorer les membres de l'objet
+            if hasattr(obj, "__dict__"):
+                for attr_name, attr_value in obj.__dict__.items():
+                    if should_skip_member(attr_name, attr_value):
+                        continue
+
+                    # Vérifier si c'est une référence faible
+                    attr_is_weak = is_weak_reference(attr_value)
+
+                    # Si c'est une référence faible, essayer de la déréférencer
+                    if attr_is_weak:
+                        try:
+                            if isinstance(attr_value, weakref.ref):
+                                dereferenced = attr_value()
+                                if dereferenced is not None:
+                                    explore_object(
+                                        dereferenced,
+                                        attr_name,
+                                        obj_name,
+                                        True,
+                                        new_path,
+                                    )
+                            # Pour les autres types de weak references, on les traite comme des références normales
+                            # mais on marque la connexion comme faible
+                            else:
+                                explore_object(
+                                    attr_value,
+                                    attr_name,
+                                    obj_name,
+                                    True,
+                                    new_path,
+                                )
+                        except (ReferenceError, TypeError):
+                            # La référence faible est morte ou inaccessible
+                            continue
+                    else:
+                        # Référence forte normale
+                        explore_object(attr_value, attr_name, obj_name, False, new_path)
+
+            # Explorer les éléments si c'est un conteneur
+            if isinstance(obj, dict):
+                for key, value in obj.items():
+                    if should_skip_member(str(key), value):
+                        continue
+                    key_name = f"{obj_name}[{key}]"
+                    explore_object(
+                        value,
+                        key_name,
+                        obj_name,
+                        is_weak_reference(value),
+                        new_path,
+                    )
+
+            elif isinstance(obj, (list, tuple, set)):
+                for i, value in enumerate(obj):
+                    if should_skip_member(f"item_{i}", value):
+                        continue
+                    item_name = f"{obj_name}[{i}]"
+                    explore_object(
+                        value,
+                        item_name,
+                        obj_name,
+                        is_weak_reference(value),
+                        new_path,
+                    )
+
+        # Commencer l'exploration à partir de self (App)
+        explore_object(self, "app")
+
+        dot_content.append("}")
+
+        # Écrire le fichier DOT
+        dot_file_path = Path("reference_tree.dot")
+        try:
+            with open(dot_file_path, "w", encoding="utf-8") as f:
+                f.write("\n".join(dot_content))
+
+            LOGGER.info(f"Arbre des références généré dans {dot_file_path}")
+
+            # Afficher un message à l'utilisateur
+            qw.QMessageBox.information(
+                self.window(),
+                self.translate("Reference Tree Generated"),
+                self.translate(
+                    "Reference tree has been generated in {dot_file_path}<br><br>"
+                    "You can visualize it using:<br>"
+                    "<code>dot -Tpng {dot_file_path} -o reference_tree.png</code><br>"
+                    "or<br>"
+                    "<code>dot -Tsvg {dot_file_path} -o reference_tree.svg</code>".format(
+                        dot_file_path=dot_file_path.name
+                    )
+                ),
+            )
+
+        except Exception as e:
+            LOGGER.error(f"Erreur lors de la génération du fichier DOT: {e}")
+            qw.QMessageBox.critical(
+                self.window(),
+                self.translate("Error"),
+                self.translate(
+                    "Error generating reference tree:\n{e}".format(e=str(e))
+                ),
+            )
+
+    def get_app_option(self, option: str, default=None) -> typing.Any:
+        return self.app_options.get(option, default)
+
+    def show_loaded_components(self):
+        print("Loaded components:")
+        all_components = APP_COMPONENT_REGISTRY.get_all_components()
+        for component_name in all_components:
+            print(component_name)
+            for instance_name in all_components[component_name]["instances"]:
+                print(f"  - {instance_name}")
+
+    def instantiate_singleton(self, component_name: str):
+        """
+        Instancie un singleton (méthode legacy - utilise la nouvelle logique).
+        """
+        instance = self.instantiate_component(component_name)
+        if instance:
+            self._setup_component_menu(instance)
+        return instance
 
     def remove_instance(self, instance: "AppComponent"):
 
@@ -184,10 +407,9 @@ class App(qc.QObject):
             )
             return
 
-        if component_name in self.components:
-            instances: dict[str, AppComponent] = self.components[component_name][
-                "instances"
-            ]
+        component_data = APP_COMPONENT_REGISTRY.get_component_data(component_name)
+        if component_data:
+            instances: dict[str, AppComponent] = component_data["instances"]
             if instance_name in instances:
                 popped_instance = instances.pop(instance_name)
                 if popped_instance is not instance:
@@ -211,43 +433,64 @@ class App(qc.QObject):
     def instantiate_component(
         self,
         component_name: str,
-        instance_name: str,
-    ):
-        if component_name not in self.components:
-            LOGGER.warning(
-                f"Cannot instantiate component <{component_name}>, component is not registered!"
+        instance_name: str = None,
+    ) -> "AppComponent":
+        """
+        Instancie un composant selon sa politique définie.
+
+        Args:
+            component_name: Nom du composant à instancier
+            instance_name: Nom de l'instance (optionnel pour les singletons)
+
+        Returns:
+            AppComponent: Instance créée ou existante
+        """
+        if not APP_COMPONENT_REGISTRY.is_component_registered(component_name):
+            LOGGER.error(
+                f"Composant '{component_name}' non enregistré dans le registre global"
             )
-            return
-        definition = self.components[component_name]["definition"]
-        instantiation_policy = definition["instantiation_policy"]
+            return None
 
-        # For singleton policy, enforce single instance
-        if instantiation_policy == "singleton":
-            instance_name = component_name  # Use component name as instance name
-            # Vérifier dans toutes les instances existantes
-            if (
-                component_name in self.components
-                and instance_name in self.components[component_name]["instances"]
-            ):
-                existing_instance = self.components[component_name]["instances"][
-                    instance_name
-                ]
+        component_data = APP_COMPONENT_REGISTRY.get_component_data(component_name)
+        if not component_data:
+            LOGGER.error(f"Composant '{component_name}' absent du registre")
+            return None
+        definition = component_data["definition"]
+        instances = component_data["instances"]
+        policy = definition["instantiation_policy"]
+
+        # Gestion des politiques
+        if policy == "singleton":
+            instance_name = component_name  # Nom fixe pour les singletons
+            if instance_name in instances:
                 LOGGER.debug(
-                    f"Singleton instance found for {component_name}, returning existing instance"
+                    f"Retour de l'instance singleton existante: {component_name}"
                 )
-                return existing_instance
+                return instances[instance_name]
 
-        instances: dict[str, AppComponent] = self.components[component_name][
-            "instances"
-        ]
+        elif policy == "multi":
+            if not instance_name:
+                raise ValueError(
+                    f"Instance name requis pour le composant multi '{component_name}'"
+                )
+            if instance_name in instances:
+                LOGGER.debug(f"Retour de l'instance existante: {instance_name}")
+                return instances[instance_name]
 
-        instance: AppComponent = definition["class"](self, instance_name)
+        # Création de la nouvelle instance
+        component_class = definition["class"]
+        instance = component_class(self, instance_name or component_name)
+
+        # Connexions automatiques
         instance.broadcast.connect(self.dispatch_broadcast)
         self.broadcast_dispatcher.connect(instance.generic_receiver)
         self.application_closing.connect(instance.close_component)
 
-        instances[instance_name] = instance
-        LOGGER.debug(f"Instantiated {component_name} instance: {instance_name}")
+        # Enregistrement
+        instances[instance_name or component_name] = instance
+        LOGGER.info(
+            f"Instance créée: {component_name}/{instance_name or component_name}"
+        )
 
         return instance
 
@@ -265,8 +508,9 @@ class App(qc.QObject):
     # APP START
 
     def start(self):
-        for component_name in self.components:
-            for _, instance in self.components[component_name]["instances"].items():
+        all_components = APP_COMPONENT_REGISTRY.get_all_components()
+        for component_name in all_components:
+            for _, instance in all_components[component_name]["instances"].items():
                 instance: AppComponent
                 instance.on_start()
 
@@ -280,13 +524,14 @@ class App(qc.QObject):
     def get_component(
         self, component_name: str, instance_name: str = None
     ) -> Union["AppComponent", None]:
-        if component_name not in self.components:
-            return
+        component_data = APP_COMPONENT_REGISTRY.get_component_data(component_name)
+        if not component_data:
+            return None
 
         # If we don't specify instance name, then this means it's a singleton
         instance_name = instance_name or component_name
 
-        return self.components[component_name]["instances"].get(instance_name)
+        return component_data["instances"].get(instance_name)
 
     def window(self):
         return self.main_window
@@ -387,11 +632,14 @@ class App(qc.QObject):
             session = json.load(f)
             for comp_name in session:
                 for instance_name in session[comp_name]:
-                    if comp_name in self.components:
-                        if instance_name in self.components[comp_name]["instances"]:
-                            component: AppComponent = self.components[comp_name][
-                                "instances"
-                            ][instance_name]
+                    component_data = APP_COMPONENT_REGISTRY.get_component_data(
+                        comp_name
+                    )
+                    if component_data:
+                        if instance_name in component_data["instances"]:
+                            component: AppComponent = component_data["instances"][
+                                instance_name
+                            ]
                             component.load_from_session(
                                 session[comp_name][instance_name]
                             )
@@ -401,7 +649,8 @@ class App(qc.QObject):
             path.parent.mkdir(parents=True, exist_ok=True)
 
         session = {}
-        for comp_name, comp_info in self.components.items():
+        all_components = APP_COMPONENT_REGISTRY.get_all_components()
+        for comp_name, comp_info in all_components.items():
             session[comp_name] = {}
             for instance_name, instance in comp_info["instances"].items():
                 instance: AppComponent
@@ -632,8 +881,7 @@ if __name__ == "__main__":
     pyside_app.setApplicationName("cutevariant-nano")
     pyside_app.setOrganizationName("CharlesMB")
 
-    app = App()
-    app.set_app_options(vars(args))
+    app = App(app_options=vars(args))
 
     app.main_window.show()
 

@@ -1,3 +1,4 @@
+import logging
 import os
 from pathlib import Path
 
@@ -15,12 +16,14 @@ from common_widgets.multiwidget_holder import MultiWidgetHolder
 from commons import yaml_load
 from component_registry import register_app_component
 
+LOGGER = logging.getLogger(__name__)
+
 if TYPE_CHECKING:
     from validation_manager.validation_model import ValidationModel
 
 
 @register_app_component(
-    "validation_manager", policy="singleton", instantiation_time="demand"
+    name="validation_manager", policy="singleton", instantiation_time="demand"
 )
 class ValidationManagerComponent(ap.AppComponent):
 
@@ -291,16 +294,11 @@ class ValidationManagerComponent(ap.AppComponent):
         # Implement context menu entries here
         return []
 
-
-def on_datalake_changed(self):
-    return
-
-
-def cleanup(self):
-    # Clean up resources
-    self.widget_holder = None
-    self.validation_model = None
-    self.validation_selection_widget = None
-    self.validation_widget = None
-    # Call parent cleanup
-    super().cleanup()
+    def cleanup(self):
+        # Clean up resources
+        self.widget_holder = None
+        self.validation_model = None
+        self.validation_selection_widget = None
+        self.validation_widget = None
+        # Call parent cleanup
+        super().cleanup()

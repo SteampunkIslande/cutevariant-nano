@@ -45,7 +45,7 @@ class DatabaseConnection:
         )
 
 
-@register_app_component("datalake", policy="singleton", instantiation_time="setup")
+@register_app_component(name="datalake", policy="singleton", instantiation_time="setup")
 class DatalakeComponent(app.AppComponent):
 
     component_name = "datalake"
