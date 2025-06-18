@@ -1,3 +1,4 @@
+import weakref
 from enum import Enum
 from functools import partial
 
@@ -80,9 +81,9 @@ class MainWindow(qw.QMainWindow):
 
         tab_widget = self.widget_regions[region]
         tab_widget.addTab(component.widget(), component.widget().windowTitle())
-        component.widget().windowTitleChanged.connect(self.update_component_title)
+
         component_closing_handler = partial(
-            self.on_component_closing, component, region
+            self.on_component_closing, weakref.proxy(component), region
         )
         component.closing.connect(component_closing_handler)
 

@@ -429,6 +429,14 @@ class App(qc.QObject):
                     ).replace(" ", "_"),
                 )
                 del instance
+            else:
+                LOGGER.warning(
+                    f"Instance {instance_name} of component {component_name} not found in registry"
+                )
+        else:
+            LOGGER.warning(
+                f"Component {component_name} not found in registry, cannot remove instance {instance_name}"
+            )
 
     def instantiate_component(
         self,
@@ -477,7 +485,9 @@ class App(qc.QObject):
 
         # Create the new instance
         component_class = definition["class"]
-        instance = component_class(self, instance_name or component_name)
+        instance: "AppComponent" = component_class(
+            self, instance_name or component_name
+        )
 
         # Automatic connections
         instance.broadcast.connect(self.dispatch_broadcast)
@@ -687,62 +697,9 @@ class AppComponent(qc.QObject):
         self.app: App = app
         self.instance_name = instance_name
         self.destroyed.connect(self.on_destroy)
-        # List to store connections (emitter, signal_name_str, handler)
-        self._managed_connections = []
 
     def get_instance_name(self) -> str:
         return self.instance_name
-
-    def connect_signal(self, signal_emitter, signal_name_str, slot_handler):
-        """Connecte un signal et enregistre la connexion pour un cleanup automatique."""
-        try:
-            signal = getattr(signal_emitter, signal_name_str)
-            # Try to disconnect first to avoid multiple connections of the same slot
-            try:
-                signal.disconnect(slot_handler)
-            except (
-                TypeError,
-                RuntimeError,
-            ):  # TypeError if never connected, RuntimeError if C++ object destroyed
-                pass
-            signal.connect(slot_handler)
-            self._managed_connections.append(
-                (signal_emitter, signal_name_str, slot_handler)
-            )
-            LOGGER.debug(
-                f"Connected {signal_name_str} from {signal_emitter} to {slot_handler} for {self.instance_name}"
-            )
-        except AttributeError:
-            LOGGER.error(
-                f"Signal {signal_name_str} not found on {signal_emitter} for {self.instance_name}"
-            )
-        except Exception as e:
-            LOGGER.error(
-                f"Error connecting signal {signal_name_str} for {self.instance_name}: {e}"
-            )
-
-    def disconnect_signal(self, signal_emitter, signal_name_str, slot_handler):
-        """Disconnect a specific signal and remove it from management if present."""
-        try:
-            signal = getattr(signal_emitter, signal_name_str)
-            signal.disconnect(slot_handler)
-            LOGGER.debug(
-                f"Disconnected {signal_name_str} from {slot_handler} for {self.instance_name}"
-            )
-        except (
-            TypeError,
-            RuntimeError,
-        ):  # TypeError if not connected, RuntimeError if C++ object destroyed
-            pass  # No problem if we try to disconnect something that isn't/anymore
-        except Exception as e:
-            LOGGER.error(
-                f"Error disconnecting signal {signal_name_str} for {self.instance_name}: {e}"
-            )
-        finally:
-            # Remove from management list if disconnection attempt was made
-            connection_tuple = (signal_emitter, signal_name_str, slot_handler)
-            if connection_tuple in self._managed_connections:
-                self._managed_connections.remove(connection_tuple)
 
     def load_from_session(self, session: dict):
         """Load this AppComponent from `session` dict.
@@ -801,29 +758,6 @@ class AppComponent(qc.QObject):
         LOGGER.debug(
             f"Base cleanup for {self.instance_name} ({self.__class__.__name__})"
         )
-        # Disconnecting in reverse connection order might be safer in some cases, but simple iteration here
-        for emitter, signal_name, handler in list(
-            self._managed_connections
-        ):  # list() to copy since we modify
-            try:
-                signal_instance = getattr(emitter, signal_name)
-                signal_instance.disconnect(handler)
-                LOGGER.debug(
-                    f"Managed disconnect of {signal_name} from {handler} for {self.instance_name}"
-                )
-            except RuntimeError:
-                LOGGER.warning(
-                    f"Error during managed disconnect of {signal_name} for {self.instance_name}: emitter/receiver likely deleted."
-                )
-            except AttributeError:
-                LOGGER.warning(
-                    f"Error during managed disconnect of {signal_name} for {self.instance_name}: signal attribute not found (object changed?)."
-                )
-            except Exception as e:
-                LOGGER.error(
-                    f"Unexpected error during managed disconnect of {signal_name} for {self.instance_name}: {e}"
-                )
-        self._managed_connections.clear()
         # Child classes must call super().cleanup()
 
     def close_component(self):

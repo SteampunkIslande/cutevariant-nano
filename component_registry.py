@@ -1,12 +1,10 @@
 import logging
 from typing import Callable, Dict, Optional
 
-from PySide6.QtCore import QObject
-
 LOGGER = logging.getLogger(__name__)
 
 
-class ComponentRegistry(QObject):
+class ComponentRegistry:
 
     def __init__(self):
         super().__init__()
