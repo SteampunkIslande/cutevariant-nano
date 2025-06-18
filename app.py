@@ -60,6 +60,7 @@ class App(qc.QObject):
         Nuitka compatible as it uses static imports.
         """
         # Explicit list for Nuitka compatibility
+        # By importing these modules, we ensure they are registered in the global component registry
         import app_manager.app_manager_component
         import datalake.datalake_component
         import fields.fields_component
@@ -107,7 +108,9 @@ class App(qc.QObject):
         )
 
         if self.get_app_option("debug"):
-            print("Debug mode enabled. Registering debug actions in the main window.")
+            LOGGER.info(
+                "Debug mode enabled. Registering debug actions in the main window."
+            )
             self.show_loaded_components_action = qg.QAction(
                 self.translate("Show loaded components")
             )
@@ -204,6 +207,8 @@ class App(qc.QObject):
                 .replace('"', "")
                 .replace("'", "")
                 .replace(".", "_")
+                .replace("*", "_")
+                .replace("?", "")
             )
 
         def explore_object(
@@ -338,7 +343,8 @@ class App(qc.QObject):
                     )
 
         # Start exploration from self (App)
-        explore_object(self, "app")
+        # explore_object(self, "app")
+        explore_object(APP_COMPONENT_REGISTRY, "APP_COMPONENT_REGISTRY")
 
         dot_content.append("}")
 
@@ -443,82 +449,6 @@ class App(qc.QObject):
             f"Successfully removed instance {instance_name} from component {component_name}"
         )
         return True
-
-    def _force_cleanup_all_components(self):
-        """
-        Force cleanup of all remaining components during application shutdown.
-        This is a safety mechanism to prevent memory leaks when normal cleanup fails.
-        """
-        LOGGER.info("Starting forced cleanup of all components...")
-
-        all_components = APP_COMPONENT_REGISTRY.get_all_components()
-        total_instances = 0
-        cleaned_instances = 0
-
-        for component_name, component_data in all_components.items():
-            instances: dict[str, "AppComponent"] = component_data["instances"]
-            component_instance_count = len(instances)
-            total_instances += component_instance_count
-
-            if component_instance_count > 0:
-                LOGGER.info(
-                    f"Force cleaning {component_instance_count} instances of {component_name}"
-                )
-
-                # Create a copy of the instances dict to avoid modification during iteration
-                instances_to_cleanup = list(instances.values())
-
-                for instance in instances_to_cleanup:
-                    try:
-                        if (
-                            hasattr(instance, "_is_being_destroyed")
-                            and instance._is_being_destroyed
-                        ):
-                            LOGGER.debug(
-                                f"Instance {instance.get_instance_name()} already being destroyed"
-                            )
-                            continue
-
-                        LOGGER.debug(
-                            f"Force closing component {instance.get_instance_name()}"
-                        )
-                        instance.close_component()
-                        cleaned_instances += 1
-
-                    except Exception as e:
-                        LOGGER.error(
-                            f"Error during forced cleanup of {instance.get_instance_name()}: {e}"
-                        )
-                        # Force remove from registry even if cleanup failed
-                        try:
-                            self.remove_instance(instance)
-                            cleaned_instances += 1
-                        except Exception as cleanup_error:
-                            LOGGER.error(
-                                f"Failed to force remove {instance.get_instance_name()}: {cleanup_error}"
-                            )
-
-        LOGGER.info(
-            f"Forced cleanup completed: {cleaned_instances}/{total_instances} instances cleaned"
-        )
-
-        # Final registry validation
-        remaining_components = APP_COMPONENT_REGISTRY.get_all_components()
-        remaining_count = sum(
-            len(comp_data["instances"]) for comp_data in remaining_components.values()
-        )
-
-        if remaining_count > 0:
-            LOGGER.warning(
-                f"WARNING: {remaining_count} component instances still remain in registry after forced cleanup"
-            )
-            for component_name, component_data in remaining_components.items():
-                if component_data["instances"]:
-                    LOGGER.warning(
-                        f"  - {component_name}: {list(component_data['instances'].keys())}"
-                    )
-        else:
-            LOGGER.info("All components successfully removed from registry")
 
     def instantiate_component(
         self,
@@ -767,9 +697,6 @@ class App(qc.QObject):
 
         # Emit application closing signal first
         self.application_closing.emit()
-
-        # Force cleanup all remaining components to prevent memory leaks
-        self._force_cleanup_all_components()
 
 
 class AppComponent(qc.QObject):
