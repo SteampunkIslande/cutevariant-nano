@@ -21,9 +21,9 @@ class AppManager(app.AppComponent):
         window = self.app.window()
 
         # Instantiate main components
-        fields_component = self.app.instantiate_component("fields", "main_fields")
-        filters_component = self.app.instantiate_component("filters", "main_filters")
-        order_by_component = self.app.instantiate_component("order_by", "main_order_by")
+        fields_component = self.app.instantiate_singleton("fields")
+        filters_component = self.app.instantiate_singleton("filters")
+        order_by_component = self.app.instantiate_singleton("order_by")
         query_manager_component = self.app.instantiate_singleton("query_manager")
 
         # Add components to window regions

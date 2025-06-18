@@ -4,7 +4,7 @@ import filters.filters_widget as fltw
 from component_registry import register_app_component
 
 
-@register_app_component(name="filters", policy="multi", instantiation_time="demand")
+@register_app_component(name="filters", policy="singleton", instantiation_time="demand")
 class FiltersComponent(app.AppComponent):
 
     component_name = "filters"
