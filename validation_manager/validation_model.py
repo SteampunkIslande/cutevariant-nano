@@ -2,7 +2,7 @@ import datetime
 import os
 from pathlib import Path
 
-# Import différé pour résoudre la dépendance circulaire
+# Deferred import to resolve circular dependency
 from typing import TYPE_CHECKING, List
 
 import duckdb as db

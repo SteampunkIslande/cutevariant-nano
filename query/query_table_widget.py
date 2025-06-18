@@ -370,8 +370,8 @@ class QueryTableWidget(qw.QWidget):
         row_data: dict[str] = index.data(qc.Qt.ItemDataRole.UserRole)
         nc = row_data.get(".NC", None)
         position = row_data.get(".Position", None)
-        reference = row_data.get(".Allèle de référence", None)
-        alternate = row_data.get(".Allèle alternatif", None)
+        reference = row_data.get(".Reference allele", None)
+        alternate = row_data.get(".Alternate allele", None)
         if all((nc, position, reference, alternate)):
             res = mobidetails_get(nc, position, reference, alternate)
             if "mobidetails_id" in res:

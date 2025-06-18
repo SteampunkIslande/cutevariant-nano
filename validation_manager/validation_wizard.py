@@ -292,7 +292,7 @@ class GeneListSelectPage(qw.QWizardPage):
             CR = "\n"
             self.selected_genes_label.setText(
                 qc.QCoreApplication.tr(
-                    "Panel(s): {0}{CR}Gène(s) sélectionné(s):{CR}{1}".format(
+                    "Panel(s): {0}{CR}Selected gene(s):{CR}{1}".format(
                         ", ".join(selected_gene_sets),
                         CR.join(self.data["gene_names"]),
                         CR=CR,

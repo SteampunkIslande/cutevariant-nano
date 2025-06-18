@@ -2,7 +2,7 @@ import logging
 import os
 from pathlib import Path
 
-# Import différé pour résoudre la dépendance circulaire
+# Deferred import to resolve circular dependency
 from typing import TYPE_CHECKING, Union
 
 import PySide6.QtCore as qc
@@ -37,7 +37,7 @@ class ValidationManagerComponent(ap.AppComponent):
         )
 
         self.widget_holder = MultiWidgetHolder()
-        # Import local différé
+        # Deferred local import
         from validation_manager.validation_model import ValidationModel
 
         self.validation_model = ValidationModel(self.app, self)

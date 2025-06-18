@@ -71,8 +71,8 @@ class QueryManagerComponent(ap.AppComponent):
         if self.queries_tab_widget:
             self.queries_tab_widget.currentChanged.connect(self.on_query_tab_changed)
 
-        # Note: ComponentRegistry n'a pas de signal componentDestroyed
-        # La gestion de la destruction des composants se fait via le signal beingDestroyed des QueryComponent
+        # Note: ComponentRegistry doesn't have componentDestroyed signal
+        # Component destruction management is done via the beingDestroyed signal of QueryComponent
 
     def new_query(self, query_name: str, data_prep: dict, query_options: dict):
 
@@ -97,7 +97,7 @@ class QueryManagerComponent(ap.AppComponent):
         self.queries_tab_widget.blockSignals(False)
 
         # Connect destruction signal - use weak connection to avoid circular references
-        # Utilisation d'une connexion faible pour éviter les références circulaires
+        # Using weak connection to avoid circular references
         query.beingDestroyed.connect(
             lambda instance_name: self._on_query_destroyed(
                 instance_name.split("/")[-1]

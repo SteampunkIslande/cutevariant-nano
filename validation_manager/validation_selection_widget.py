@@ -116,7 +116,7 @@ class ValidationSelectionWidget(qw.QWidget):
         self._layout.addWidget(self.new_validation_button)
         self._layout.addWidget(self.start_validation_button)
         self.setLayout(self._layout)
-        # Charger les données initiales
+        # Load initial data
         if self.parent_component.get_datalake():
             self.model.update()
 

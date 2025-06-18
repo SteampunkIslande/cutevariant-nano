@@ -1,6 +1,6 @@
 import json
 
-# Import différé pour résoudre la dépendance circulaire
+# Deferred import to resolve circular dependency
 from typing import TYPE_CHECKING
 
 import PySide6.QtCore as qc

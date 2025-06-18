@@ -20,13 +20,13 @@ class AppManager(app.AppComponent):
     def on_start(self):
         window = self.app.window()
 
-        # Instancier les composants principaux
+        # Instantiate main components
         fields_component = self.app.instantiate_component("fields", "main_fields")
         filters_component = self.app.instantiate_component("filters", "main_filters")
         order_by_component = self.app.instantiate_component("order_by", "main_order_by")
         query_manager_component = self.app.instantiate_singleton("query_manager")
 
-        # Ajouter les composants aux régions de la fenêtre
+        # Add components to window regions
         window.add_component_to_window(fields_component, mainwindow.WindowRegion.LOWER)
         window.add_component_to_window(filters_component, mainwindow.WindowRegion.LOWER)
         window.add_component_to_window(
@@ -36,7 +36,7 @@ class AppManager(app.AppComponent):
             query_manager_component, mainwindow.WindowRegion.UPPER
         )
 
-        # Gestion conditionnelle du composant de validation
+        # Conditional management of validation component
         validation_component = self.app.instantiate_singleton("validation_manager")
         if self.app.get_app_option("validation", "genno") == "genno":
             window.add_component_to_window(
@@ -49,6 +49,6 @@ class AppManager(app.AppComponent):
 
     def cleanup(self):
         # Clean up resources
-        # AppManager ne contient pas de ressources spécifiques à nettoyer
-        # Appeler le cleanup du parent
+        # AppManager doesn't contain specific resources to clean up
+        # Call parent cleanup
         super().cleanup()

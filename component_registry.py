@@ -14,120 +14,118 @@ class ComponentRegistry(QObject):
 
     def register_component(self, name: str, component_data: dict) -> None:
         """
-        Enregistre un composant avec la structure attendue par App.
+        Register a component with the structure expected by App.
 
         Args:
-            name: Nom du composant
-            component_data: Structure complète avec definition et instances
+            name: Component name
+            component_data: Complete structure with definition and instances
 
         Raises:
-            ValueError: Si le nom est vide ou si la structure est invalide
+            ValueError: If name is empty or if structure is invalid
         """
         if not name or not isinstance(name, str):
-            raise ValueError("Le nom du composant doit être une chaîne non vide")
+            raise ValueError("Component name must be a non-empty string")
 
         if not isinstance(component_data, dict):
-            raise ValueError("Les données du composant doivent être un dictionnaire")
+            raise ValueError("Component data must be a dictionary")
 
-        # Validation de la structure des données
+        # Validate data structure
         self._validate_component_data(component_data)
 
         if name in self.registry:
-            LOGGER.warning(f"Composant '{name}' déjà enregistré, remplacement...")
+            LOGGER.warning(f"Component '{name}' already registered, replacing...")
 
         self.registry[name] = component_data
-        LOGGER.debug(f"Composant '{name}' enregistré avec succès")
+        LOGGER.debug(f"Component '{name}' registered successfully")
 
     def _validate_component_data(self, component_data: dict) -> None:
         """
-        Valide la structure des données d'un composant.
+        Validate the structure of component data.
 
         Args:
-            component_data: Données à valider
+            component_data: Data to validate
 
         Raises:
-            ValueError: Si la structure est invalide
+            ValueError: If structure is invalid
         """
         required_keys = {"definition", "instances"}
         if not all(key in component_data for key in required_keys):
-            raise ValueError(f"La structure doit contenir les clés: {required_keys}")
+            raise ValueError(f"Structure must contain keys: {required_keys}")
 
         definition = component_data["definition"]
         if not isinstance(definition, dict):
-            raise ValueError("'definition' doit être un dictionnaire")
+            raise ValueError("'definition' must be a dictionary")
 
         required_def_keys = {"class", "instantiation_policy", "instantiate_on"}
         if not all(key in definition for key in required_def_keys):
-            raise ValueError(
-                f"'definition' doit contenir les clés: {required_def_keys}"
-            )
+            raise ValueError(f"'definition' must contain keys: {required_def_keys}")
 
     def get_component_def(self, name: str) -> Optional[dict]:
         """
-        Récupère la définition d'un composant.
+        Get the definition of a component.
 
         Args:
-            name: Nom du composant
+            name: Component name
 
         Returns:
-            Optional[dict]: Définition du composant ou None si non trouvé
+            Optional[dict]: Component definition or None if not found
         """
         component_data = self.registry.get(name)
         return component_data["definition"] if component_data else None
 
     def get_component_data(self, name: str) -> Optional[dict]:
         """
-        Récupère les données complètes d'un composant (définition + instances).
+        Get complete data for a component (definition + instances).
 
         Args:
-            name: Nom du composant
+            name: Component name
 
         Returns:
-            Optional[dict]: Données complètes du composant ou None si non trouvé
+            Optional[dict]: Complete component data or None if not found
         """
         return self.registry.get(name)
 
     def get_all_components(self) -> Dict[str, dict]:
         """
-        Retourne une vue en lecture seule de tous les composants enregistrés.
+        Return a read-only view of all registered components.
 
-        Note: Retourne une copie pour éviter les modifications externes.
+        Note: Returns a copy to avoid external modifications.
 
         Returns:
-            Dict[str, dict]: Vue du registre des composants
+            Dict[str, dict]: View of the component registry
         """
         return dict(self.registry)
 
     def is_component_registered(self, name: str) -> bool:
         """
-        Vérifie si un composant est enregistré.
+        Check if a component is registered.
 
         Args:
-            name: Nom du composant à vérifier
+            name: Name of the component to check
 
         Returns:
-            bool: True si le composant est enregistré
+            bool: True if the component is registered
         """
         return name in self.registry
 
     def get_component_count(self) -> int:
         """
-        Retourne le nombre de composants enregistrés.
+        Return the number of registered components.
 
         Returns:
-            int: Nombre de composants dans le registre
+            int: Number of components in the registry
         """
         return len(self.registry)
 
     def get_components_by_policy(self, policy: str) -> Dict[str, dict]:
         """
-        Retourne tous les composants ayant une politique d'instanciation donnée.
+        Return all components with a given instantiation policy.
 
         Args:
-            policy: Politique d'instanciation ("singleton" ou "multi")
+            policy: Instantiation policy ("singleton" or "multi")
 
         Returns:
-            Dict[str, dict]: Composants correspondant à la politique
+            Dict[str, dict]: Components matching the policy
         """
         return {
             name: component_data
@@ -137,38 +135,40 @@ class ComponentRegistry(QObject):
 
     def clear_registry(self) -> None:
         """
-        Vide complètement le registre des composants.
-        Utilisation recommandée uniquement pour les tests.
+        Completely clear the component registry.
+        Recommended use only for testing.
         """
-        LOGGER.warning("Vidage complet du registre des composants")
+        LOGGER.warning("Complete clearing of component registry")
         self.registry.clear()
 
 
-# Décorateur pour enregistrer les composants
+# Decorator to register components
 def register_app_component(
     name: str, policy: str = "singleton", instantiation_time: str = "setup"
 ) -> Callable:
     """
-    Enregistre un composant dans le registre global.
+    Register a component in the global registry.
 
     Args:
-        name: Nom unique du composant
-        policy: "singleton" | "multi" - Politique d'instanciation
-        instantiation_time: "setup" | "demand" - Moment d'instanciation
+        name: Unique component name
+        policy: "singleton" | "multi" - Instantiation policy
+        instantiation_time: "setup" | "demand" - Instantiation time
+    Returns:
+        Callable:
     """
-    # Validation des paramètres
+    # Parameter validation
     if policy not in ["singleton", "multi"]:
         raise ValueError(
-            f"Policy '{policy}' invalide. Valeurs autorisées: singleton, multi"
+            f"Policy '{policy}' invalid. Accepted values: singleton, multi"
         )
 
     if instantiation_time not in ["setup", "demand"]:
         raise ValueError(
-            f"Instantiation time '{instantiation_time}' invalide. Valeurs autorisées: setup, demand"
+            f"Instantiation time '{instantiation_time}' invalid. Accepted values: setup, demand"
         )
 
     def decorator(cls: type) -> type:
-        # Structure corrigée pour correspondre aux attentes d'App
+        # Corrected structure to match App expectations
         APP_COMPONENT_REGISTRY.register_component(
             name,
             {
@@ -185,5 +185,5 @@ def register_app_component(
     return decorator
 
 
-# Instance globale du registre
+# Global registry instance
 APP_COMPONENT_REGISTRY = ComponentRegistry()

@@ -39,12 +39,12 @@ class App(qc.QObject):
         # Very first thing to do, translations are needed to setup menus and actions (among others)
         self.load_translations()
 
-        # Chargement et enregistrement automatique des composants
+        # Automatic loading and registration of components
         self.load_component_modules()
 
-        # Vérification que les composants sont bien enregistrés
+        # Verify that components are properly registered
         if APP_COMPONENT_REGISTRY.get_component_count() == 0:
-            LOGGER.warning("Aucun composant enregistré dans le registre")
+            LOGGER.warning("No components registered in the registry")
 
         # Instantiate components that should be instantiated on setup
         self.setup_app()
@@ -56,10 +56,10 @@ class App(qc.QObject):
 
     def load_component_modules(self):
         """
-        Charge tous les modules de composants de manière explicite.
-        Compatible avec Nuitka car utilise des imports statiques.
+        Load all component modules explicitly.
+        Nuitka compatible as it uses static imports.
         """
-        # Liste explicite pour la compatibilité Nuitka
+        # Explicit list for Nuitka compatibility
         import app_manager.app_manager_component
         import datalake.datalake_component
         import fields.fields_component
@@ -71,10 +71,10 @@ class App(qc.QObject):
 
         component_count = APP_COMPONENT_REGISTRY.get_component_count()
         LOGGER.info(
-            f"Modules de composants chargés: {component_count} composants enregistrés"
+            f"Component modules loaded: {component_count} components registered"
         )
 
-        # Validation que tous les modules attendus sont bien chargés
+        # Validate that all expected modules are properly loaded
         expected_components = {
             "app_manager",
             "datalake",
@@ -91,7 +91,7 @@ class App(qc.QObject):
 
         if missing_components:
             LOGGER.warning(
-                f"Composants attendus mais non enregistrés: {missing_components}"
+                f"Expected but unregistered components: {missing_components}"
             )
 
     # COMPONENTS INSTANTIATION
@@ -130,7 +130,7 @@ class App(qc.QObject):
                 self.show_reference_tree_action,
             )
 
-        # Instanciation automatique des composants "setup"
+        # Automatic instantiation of "setup" components
         all_components = APP_COMPONENT_REGISTRY.get_all_components()
         for component_name, component_data in all_components.items():
             definition = component_data["definition"]
@@ -142,11 +142,11 @@ class App(qc.QObject):
                     self._setup_component_menu(instance)
 
         LOGGER.info(
-            f"Setup terminé: {APP_COMPONENT_REGISTRY.get_component_count()} composants enregistrés"
+            f"Setup completed: {APP_COMPONENT_REGISTRY.get_component_count()} components registered"
         )
 
     def _setup_component_menu(self, instance: "AppComponent"):
-        """Configure les entrées de menu pour un composant."""
+        """Configure menu entries for a component."""
         new_instance_menu_entries: list[tuple[str, qg.QAction]] = (
             instance.get_menubar_entries()
         )
@@ -162,27 +162,27 @@ class App(qc.QObject):
             add_action_to_menubar(self.main_window.menuBar(), entry_path, entry_action)
 
     def show_reference_tree(self):
-        """Génère un fichier DOT montrant l'arbre des références à partir de self (App)."""
+        """Generate a DOT file showing the reference tree from self (App)."""
         dot_content = []
         dot_content.append("digraph reference_tree {")
         dot_content.append("    splines=false;")
         dot_content.append("    rankdir=LR;")
         dot_content.append("    node [shape=box];")
 
-        # Garder trace des nœuds ajoutés pour éviter les doublons dans le DOT
+        # Keep track of added nodes to avoid duplicates in DOT
         added_nodes = set()
-        # Garder trace des arêtes ajoutées pour éviter les doublons
+        # Keep track of added edges to avoid duplicates
         added_edges = set()
 
         def is_weak_reference(obj):
-            """Vérifie si obj est une référence faible."""
+            """Check if obj is a weak reference."""
             return isinstance(
                 obj, (weakref.ref, weakref.ProxyType, weakref.CallableProxyType)
             )
 
         def should_skip_member(name, value):
-            """Détermine si un membre doit être ignoré."""
-            # Ignorer les méthodes, les dunders, et certains types built-in
+            """Determine if a member should be ignored."""
+            # Ignore methods, dunders, and certain built-in types
             if name.startswith("__") and name.endswith("__"):
                 return True
             if callable(value) and not hasattr(value, "__dict__"):
@@ -192,7 +192,7 @@ class App(qc.QObject):
             return False
 
         def get_safe_node_name(name: str):
-            """Retourne un nom de nœud sûr pour DOT."""
+            """Return a safe node name for DOT."""
             return (
                 name.replace("-", "_")
                 .replace(" ", "_")
@@ -213,14 +213,14 @@ class App(qc.QObject):
             is_weak=False,
             current_path=None,
         ):
-            """Explore récursivement un objet et ajoute ses références au graphe DOT.
+            """Recursively explore an object and add its references to the DOT graph.
 
             Args:
-                obj: L'objet à explorer
-                obj_name: Le nom à donner au nœud
-                parent_name: Le nom du parent (pour l'arête)
-                is_weak: True si la référence est faible
-                current_path: Ensemble des ID d'objets dans le chemin de récursion actuel
+                obj: The object to explore
+                obj_name: The name to give to the node
+                parent_name: The parent's name (for the edge)
+                is_weak: True if the reference is weak
+                current_path: Set of object IDs in the current recursion path
             """
             if current_path is None:
                 current_path = set()
@@ -229,16 +229,16 @@ class App(qc.QObject):
             safe_obj_name = get_safe_node_name(obj_name)
             no_quote_obj_name = obj_name.replace('"', "")
 
-            # Éviter les cycles dans le chemin de récursion actuel
+            # Avoid cycles in the current recursion path
             if obj_id in current_path:
-                # Créer un nœud pour le cycle si pas encore fait
+                # Create a node for the cycle if not already done
                 if safe_obj_name not in added_nodes:
                     dot_content.append(
                         f'    {safe_obj_name}_{obj_id} [label="{no_quote_obj_name} (cycle)", style=filled, fillcolor=yellow];'
                     )
                     added_nodes.add(safe_obj_name)
 
-                # Ajouter l'arête vers le cycle si nécessaire
+                # Add the edge to the cycle if necessary
                 if parent_name:
                     safe_parent_name = get_safe_node_name(parent_name)
                     line_style = "dotted" if is_weak else "solid"
@@ -250,17 +250,17 @@ class App(qc.QObject):
                         added_edges.add(edge_key)
                 return
 
-            # Ajouter l'objet au chemin de récursion actuel
+            # Add the object to the current recursion path
             new_path = current_path | {obj_id}
 
-            # Ajouter le nœud s'il n'existe pas encore
+            # Add the node if it doesn't exist yet
             if safe_obj_name not in added_nodes:
                 dot_content.append(
                     f'    {safe_obj_name} [label="{no_quote_obj_name}"];'
                 )
                 added_nodes.add(safe_obj_name)
 
-            # Ajouter l'arête depuis le parent si nécessaire
+            # Add the edge from the parent if necessary
             if parent_name:
                 safe_parent_name = get_safe_node_name(parent_name)
                 line_style = "dotted" if is_weak else "solid"
@@ -271,16 +271,16 @@ class App(qc.QObject):
                     )
                     added_edges.add(edge_key)
 
-            # Explorer les membres de l'objet
+            # Explore the object's members
             if hasattr(obj, "__dict__"):
                 for attr_name, attr_value in obj.__dict__.items():
                     if should_skip_member(attr_name, attr_value):
                         continue
 
-                    # Vérifier si c'est une référence faible
+                    # Check if it's a weak reference
                     attr_is_weak = is_weak_reference(attr_value)
 
-                    # Si c'est une référence faible, essayer de la déréférencer
+                    # If it's a weak reference, try to dereference it
                     if attr_is_weak:
                         try:
                             if isinstance(attr_value, weakref.ref):
@@ -293,8 +293,8 @@ class App(qc.QObject):
                                         True,
                                         new_path,
                                     )
-                            # Pour les autres types de weak references, on les traite comme des références normales
-                            # mais on marque la connexion comme faible
+                            # For other types of weak references, treat them as normal references
+                            # but mark the connection as weak
                             else:
                                 explore_object(
                                     attr_value,
@@ -304,13 +304,13 @@ class App(qc.QObject):
                                     new_path,
                                 )
                         except (ReferenceError, TypeError):
-                            # La référence faible est morte ou inaccessible
+                            # The weak reference is dead or inaccessible
                             continue
                     else:
-                        # Référence forte normale
+                        # Normal strong reference
                         explore_object(attr_value, attr_name, obj_name, False, new_path)
 
-            # Explorer les éléments si c'est un conteneur
+            # Explore elements if it's a container
             if isinstance(obj, dict):
                 for key, value in obj.items():
                     if should_skip_member(str(key), value):
@@ -337,20 +337,20 @@ class App(qc.QObject):
                         new_path,
                     )
 
-        # Commencer l'exploration à partir de self (App)
+        # Start exploration from self (App)
         explore_object(self, "app")
 
         dot_content.append("}")
 
-        # Écrire le fichier DOT
+        # Write the DOT file
         dot_file_path = Path("reference_tree.dot")
         try:
             with open(dot_file_path, "w", encoding="utf-8") as f:
                 f.write("\n".join(dot_content))
 
-            LOGGER.info(f"Arbre des références généré dans {dot_file_path}")
+            LOGGER.info(f"Reference tree generated in {dot_file_path}")
 
-            # Afficher un message à l'utilisateur
+            # Display a message to the user
             qw.QMessageBox.information(
                 self.window(),
                 self.translate("Reference Tree Generated"),
@@ -366,7 +366,7 @@ class App(qc.QObject):
             )
 
         except Exception as e:
-            LOGGER.error(f"Erreur lors de la génération du fichier DOT: {e}")
+            LOGGER.error(f"Error generating DOT file: {e}")
             qw.QMessageBox.critical(
                 self.window(),
                 self.translate("Error"),
@@ -388,7 +388,7 @@ class App(qc.QObject):
 
     def instantiate_singleton(self, component_name: str):
         """
-        Instancie un singleton (méthode legacy - utilise la nouvelle logique).
+        Instantiate a singleton (legacy method - uses the new logic).
         """
         instance = self.instantiate_component(component_name)
         if instance:
@@ -436,60 +436,58 @@ class App(qc.QObject):
         instance_name: str = None,
     ) -> "AppComponent":
         """
-        Instancie un composant selon sa politique définie.
+        Instantiate a component according to its defined policy.
 
         Args:
-            component_name: Nom du composant à instancier
-            instance_name: Nom de l'instance (optionnel pour les singletons)
+            component_name: Name of the component to instantiate
+            instance_name: Instance name (optional for singletons)
 
         Returns:
-            AppComponent: Instance créée ou existante
+            AppComponent: Created or existing instance
         """
         if not APP_COMPONENT_REGISTRY.is_component_registered(component_name):
             LOGGER.error(
-                f"Composant '{component_name}' non enregistré dans le registre global"
+                f"Component '{component_name}' not registered in the global registry"
             )
             return None
 
         component_data = APP_COMPONENT_REGISTRY.get_component_data(component_name)
         if not component_data:
-            LOGGER.error(f"Composant '{component_name}' absent du registre")
+            LOGGER.error(f"Component '{component_name}' missing from registry")
             return None
         definition = component_data["definition"]
         instances = component_data["instances"]
         policy = definition["instantiation_policy"]
 
-        # Gestion des politiques
+        # Policy management
         if policy == "singleton":
-            instance_name = component_name  # Nom fixe pour les singletons
+            instance_name = component_name  # Fixed name for singletons
             if instance_name in instances:
-                LOGGER.debug(
-                    f"Retour de l'instance singleton existante: {component_name}"
-                )
+                LOGGER.debug(f"Returning existing singleton instance: {component_name}")
                 return instances[instance_name]
 
         elif policy == "multi":
             if not instance_name:
                 raise ValueError(
-                    f"Instance name requis pour le composant multi '{component_name}'"
+                    f"Instance name required for multi component '{component_name}'"
                 )
             if instance_name in instances:
-                LOGGER.debug(f"Retour de l'instance existante: {instance_name}")
+                LOGGER.debug(f"Returning existing instance: {instance_name}")
                 return instances[instance_name]
 
-        # Création de la nouvelle instance
+        # Create the new instance
         component_class = definition["class"]
         instance = component_class(self, instance_name or component_name)
 
-        # Connexions automatiques
+        # Automatic connections
         instance.broadcast.connect(self.dispatch_broadcast)
         self.broadcast_dispatcher.connect(instance.generic_receiver)
         self.application_closing.connect(instance.close_component)
 
-        # Enregistrement
+        # Registration
         instances[instance_name or component_name] = instance
         LOGGER.info(
-            f"Instance créée: {component_name}/{instance_name or component_name}"
+            f"Instance created: {component_name}/{instance_name or component_name}"
         )
 
         return instance
@@ -689,7 +687,7 @@ class AppComponent(qc.QObject):
         self.app: App = app
         self.instance_name = instance_name
         self.destroyed.connect(self.on_destroy)
-        # Liste pour stocker les connexions (émetteur, nom_signal_str, handler)
+        # List to store connections (emitter, signal_name_str, handler)
         self._managed_connections = []
 
     def get_instance_name(self) -> str:
@@ -699,13 +697,13 @@ class AppComponent(qc.QObject):
         """Connecte un signal et enregistre la connexion pour un cleanup automatique."""
         try:
             signal = getattr(signal_emitter, signal_name_str)
-            # Tenter de déconnecter d'abord pour éviter les connexions multiples du même slot
+            # Try to disconnect first to avoid multiple connections of the same slot
             try:
                 signal.disconnect(slot_handler)
             except (
                 TypeError,
                 RuntimeError,
-            ):  # TypeError si jamais connecté, RuntimeError si objet C++ détruit
+            ):  # TypeError if never connected, RuntimeError if C++ object destroyed
                 pass
             signal.connect(slot_handler)
             self._managed_connections.append(
@@ -724,7 +722,7 @@ class AppComponent(qc.QObject):
             )
 
     def disconnect_signal(self, signal_emitter, signal_name_str, slot_handler):
-        """Déconnecte un signal spécifique et le retire de la gestion si présent."""
+        """Disconnect a specific signal and remove it from management if present."""
         try:
             signal = getattr(signal_emitter, signal_name_str)
             signal.disconnect(slot_handler)
@@ -734,14 +732,14 @@ class AppComponent(qc.QObject):
         except (
             TypeError,
             RuntimeError,
-        ):  # TypeError si pas connecté, RuntimeError si objet C++ détruit
-            pass  # Pas grave si on essaie de déconnecter quelque chose qui ne l'est pas/plus
+        ):  # TypeError if not connected, RuntimeError if C++ object destroyed
+            pass  # No problem if we try to disconnect something that isn't/anymore
         except Exception as e:
             LOGGER.error(
                 f"Error disconnecting signal {signal_name_str} for {self.instance_name}: {e}"
             )
         finally:
-            # Retirer de la liste de gestion si la tentative de déconnexion a été faite
+            # Remove from management list if disconnection attempt was made
             connection_tuple = (signal_emitter, signal_name_str, slot_handler)
             if connection_tuple in self._managed_connections:
                 self._managed_connections.remove(connection_tuple)
@@ -799,14 +797,14 @@ class AppComponent(qc.QObject):
         return []
 
     def cleanup(self):
-        """Cleanup this AppComponent. Déconnecte tous les signaux et nettoie les ressources."""
+        """Cleanup this AppComponent. Disconnect all signals and clean up resources."""
         LOGGER.debug(
             f"Base cleanup for {self.instance_name} ({self.__class__.__name__})"
         )
-        # Déconnecter dans l'ordre inverse de connexion pourrait être plus sûr dans certains cas, mais simple itération ici
+        # Disconnecting in reverse connection order might be safer in some cases, but simple iteration here
         for emitter, signal_name, handler in list(
             self._managed_connections
-        ):  # list() pour copier car on modifie
+        ):  # list() to copy since we modify
             try:
                 signal_instance = getattr(emitter, signal_name)
                 signal_instance.disconnect(handler)
@@ -826,19 +824,19 @@ class AppComponent(qc.QObject):
                     f"Unexpected error during managed disconnect of {signal_name} for {self.instance_name}: {e}"
                 )
         self._managed_connections.clear()
-        # Les classes filles doivent appeler super().cleanup()
+        # Child classes must call super().cleanup()
 
     def close_component(self):
         LOGGER.debug(f"Closing component {self.instance_name}...")
-        self.closing.emit()  # Permet aux dépendants de se nettoyer d'abord
+        self.closing.emit()  # Allow dependents to clean up first
         self.cleanup()
-        self.deleteLater()  # Crucial pour la destruction Qt
+        self.deleteLater()  # Crucial for Qt destruction
 
     def on_destroy(self):
         LOGGER.debug(f"Component {self.instance_name} destroyed. Removing from App.")
-        if self.app:  # self.app peut être None si déjà nettoyé
+        if self.app:  # self.app can be None if already cleaned up
             self.app.remove_instance(self)
-            self.app = None  # Rompre le cycle de référence
+            self.app = None  # Break the reference cycle
 
     def generic_receiver(
         self,

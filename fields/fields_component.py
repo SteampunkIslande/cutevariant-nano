@@ -1,6 +1,6 @@
 import logging
 
-# Import différé pour résoudre la dépendance circulaire
+# Deferred import to resolve circular dependency
 from typing import TYPE_CHECKING
 
 import app
@@ -25,7 +25,7 @@ class FieldsComponent(app.AppComponent):
         self.model = fldm.FieldsModel(self)
         self.model.dataChanged.connect(self.emit_fields_changed)
 
-        # Import local différé
+        # Deferred local import
         from fields.fields_widget import FieldsWidget
 
         self.fields_widget = FieldsWidget(self.app, self)

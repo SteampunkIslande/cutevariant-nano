@@ -548,26 +548,26 @@ class QueryComponent(ap.AppComponent):
 
     def cleanup(self):
         """
-        Méthode de nettoyage qui remplace le destructeur.
-        Le destructeur a été supprimé car il causait des récursions infinies lors de la destruction des composants.
+        Cleanup method that replaces the destructor.
+        The destructor was removed as it caused infinite recursions during component destruction.
 
-        Cette méthode :
-        1. Émet le signal beingDestroyed pour notifier les autres composants de la destruction
-        2. Appelle le cleanup de la classe parente
-        3. Rompt explicitement les références circulaires en mettant à None les attributs clés
-        4. Ferme la vue via une référence faible pour éviter les références circulaires
+        This method:
+        1. Emits the beingDestroyed signal to notify other components of destruction
+        2. Calls the parent class cleanup
+        3. Explicitly breaks circular references by setting key attributes to None
+        4. Closes the view via weak reference to avoid circular references
 
-        Le système de signaux utilise maintenant des connexions faibles dans QueryManagerComponent
-        pour éviter que le signal ne maintienne en vie l'instance de QueryComponent.
+        The signal system now uses weak connections in QueryManagerComponent
+        to prevent the signal from keeping the QueryComponent instance alive.
         """
         self.beingDestroyed.emit(self.instance_name)
-        super().cleanup()  # Appel du nettoyage de la classe de base
+        super().cleanup()  # Call base class cleanup
 
-        # Rupture des références circulaires
+        # Break circular references
         self._datalake = None
         self._app = None
 
-        # Fermeture de la vue via référence faible - évite les références circulaires
+        # Close view via weak reference - avoids circular references
         if self.view:
             self.view.close()
         self.view = None
