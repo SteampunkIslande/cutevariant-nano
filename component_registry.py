@@ -139,6 +139,107 @@ class ComponentRegistry:
         LOGGER.warning("Complete clearing of component registry")
         self.registry.clear()
 
+    def remove_component_instance(
+        self, component_name: str, instance_name: str
+    ) -> bool:
+        """
+        Remove a specific instance from a component.
+
+        Args:
+            component_name: Name of the component
+            instance_name: Name of the instance to remove
+
+        Returns:
+            bool: True if successfully removed, False otherwise
+        """
+        if component_name not in self.registry:
+            LOGGER.warning(f"Component '{component_name}' not found in registry")
+            return False
+
+        component_data = self.registry[component_name]
+        instances = component_data["instances"]
+
+        if instance_name not in instances:
+            LOGGER.debug(
+                f"Instance '{instance_name}' not found in component '{component_name}'"
+            )
+            return True  # Already removed, consider success
+
+        del instances[instance_name]
+        LOGGER.debug(
+            f"Removed instance '{instance_name}' from component '{component_name}'"
+        )
+        return True
+
+    def get_active_instances(self) -> Dict[str, list]:
+        """
+        Get all active instances grouped by component.
+
+        Returns:
+            Dict[str, list]: Dictionary mapping component names to lists of instance names
+        """
+        return {
+            component_name: list(component_data["instances"].keys())
+            for component_name, component_data in self.registry.items()
+            if component_data["instances"]
+        }
+
+    def get_total_instance_count(self) -> int:
+        """
+        Get the total number of active component instances.
+
+        Returns:
+            int: Total number of instances across all components
+        """
+        return sum(
+            len(component_data["instances"])
+            for component_data in self.registry.values()
+        )
+
+    def validate_registry_integrity(self) -> list:
+        """
+        Validate the integrity of the component registry.
+
+        Returns:
+            list: List of issues found (empty if no issues)
+        """
+        issues = []
+
+        for component_name, component_data in self.registry.items():
+            if not isinstance(component_data, dict):
+                issues.append(f"Component '{component_name}' data is not a dictionary")
+                continue
+
+            if "definition" not in component_data:
+                issues.append(f"Component '{component_name}' missing definition")
+
+            if "instances" not in component_data:
+                issues.append(f"Component '{component_name}' missing instances")
+                continue
+
+            instances = component_data["instances"]
+            if not isinstance(instances, dict):
+                issues.append(
+                    f"Component '{component_name}' instances is not a dictionary"
+                )
+                continue
+
+            for instance_name, instance in instances.items():
+                if instance is None:
+                    issues.append(
+                        f"Component '{component_name}' has None instance '{instance_name}'"
+                    )
+                elif not hasattr(instance, "component_name"):
+                    issues.append(
+                        f"Instance '{instance_name}' of '{component_name}' missing component_name attribute"
+                    )
+                elif instance.component_name != component_name:
+                    issues.append(
+                        f"Instance '{instance_name}' component_name mismatch: expected '{component_name}', got '{instance.component_name}'"
+                    )
+
+        return issues
+
 
 # Decorator to register components
 def register_app_component(

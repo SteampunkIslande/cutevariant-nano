@@ -1,11 +1,13 @@
 import weakref
 from enum import Enum
 from functools import partial
+from typing import TYPE_CHECKING
 
 import PySide6.QtCore as qc
 import PySide6.QtWidgets as qw
 
-import app as ap
+if TYPE_CHECKING:
+    import app as ap
 
 
 class WindowRegion(Enum):
@@ -20,7 +22,7 @@ class MainWindow(qw.QMainWindow):
 
     closing = qc.Signal()
 
-    def __init__(self, app: ap.App):
+    def __init__(self, app: "ap.App"):
         super().__init__()
 
         self.horizontal_splitter = qw.QSplitter()
@@ -75,7 +77,9 @@ class MainWindow(qw.QMainWindow):
 
         self.app = app
 
-    def add_component_to_window(self, component: ap.AppComponent, region: WindowRegion):
+    def add_component_to_window(
+        self, component: "ap.AppComponent", region: WindowRegion
+    ):
         if component.widget() is None:
             return
 
@@ -87,7 +91,7 @@ class MainWindow(qw.QMainWindow):
         )
         component.closing.connect(component_closing_handler)
 
-    def on_component_closing(self, component: ap.AppComponent, region: WindowRegion):
+    def on_component_closing(self, component: "ap.AppComponent", region: WindowRegion):
         print(f"Closing component {component.instance_name} in region {region.name}")
         tab_widget = self.widget_regions[region]
         tab_index = tab_widget.indexOf(component.widget())
@@ -99,7 +103,7 @@ class MainWindow(qw.QMainWindow):
             )
 
     def update_component_title(
-        self, component: ap.AppComponent, new_title: str, region: WindowRegion
+        self, component: "ap.AppComponent", new_title: str, region: WindowRegion
     ):
         tab_widget = self.widget_regions[region]
         tab_index = tab_widget.indexOf(component.widget())

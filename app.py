@@ -396,47 +396,129 @@ class App(qc.QObject):
         return instance
 
     def remove_instance(self, instance: "AppComponent"):
+        """
+        Remove a component instance from the registry.
 
-        import objgraph
+        This method is now robust and works independently of Qt's destroyed signal.
+        It can be called explicitly during component shutdown.
+
+        Args:
+            instance: The AppComponent instance to remove
+        """
+        if not instance:
+            LOGGER.warning("Cannot remove None instance")
+            return False
 
         instance_name: str = instance.get_instance_name()
         component_name: str = instance.component_name
+
         if not instance_name or not component_name:
             LOGGER.warning(
-                "Cannot remove instance, instance_name or component_name is not set!"
+                f"Cannot remove instance, instance_name ({instance_name}) or component_name ({component_name}) is not set!"
             )
-            return
+            return False
 
         component_data = APP_COMPONENT_REGISTRY.get_component_data(component_name)
-        if component_data:
-            instances: dict[str, AppComponent] = component_data["instances"]
-            if instance_name in instances:
-                popped_instance = instances.pop(instance_name)
-                if popped_instance is not instance:
-                    LOGGER.warning(
-                        f"Logical error: instance {instance_name} of component {component_name} is not the one being removed!"
-                    )
-                # print reference count
-                LOGGER.debug(
-                    " ".join(
-                        [instance_name, component_name, str(sys.getrefcount(instance))]
-                    )
-                )
-                objgraph.show_backrefs(
-                    [instance],
-                    filename=f"{component_name}-{instance_name}-references.png".replace(
-                        "/", "_"
-                    ).replace(" ", "_"),
-                )
-                del instance
-            else:
-                LOGGER.warning(
-                    f"Instance {instance_name} of component {component_name} not found in registry"
-                )
-        else:
+        if not component_data:
             LOGGER.warning(
                 f"Component {component_name} not found in registry, cannot remove instance {instance_name}"
             )
+            return False
+
+        instances: dict[str, "AppComponent"] = component_data["instances"]
+        if instance_name not in instances:
+            LOGGER.debug(
+                f"Instance {instance_name} of component {component_name} already removed from registry"
+            )
+            return True  # Already removed, consider it success
+
+        stored_instance = instances.pop(instance_name)
+        if stored_instance is not instance:
+            LOGGER.warning(
+                f"Logical error: instance {instance_name} of component {component_name} "
+                f"is not the one being removed! Registry may be corrupted."
+            )
+
+        LOGGER.info(
+            f"Successfully removed instance {instance_name} from component {component_name}"
+        )
+        return True
+
+    def _force_cleanup_all_components(self):
+        """
+        Force cleanup of all remaining components during application shutdown.
+        This is a safety mechanism to prevent memory leaks when normal cleanup fails.
+        """
+        LOGGER.info("Starting forced cleanup of all components...")
+
+        all_components = APP_COMPONENT_REGISTRY.get_all_components()
+        total_instances = 0
+        cleaned_instances = 0
+
+        for component_name, component_data in all_components.items():
+            instances: dict[str, "AppComponent"] = component_data["instances"]
+            component_instance_count = len(instances)
+            total_instances += component_instance_count
+
+            if component_instance_count > 0:
+                LOGGER.info(
+                    f"Force cleaning {component_instance_count} instances of {component_name}"
+                )
+
+                # Create a copy of the instances dict to avoid modification during iteration
+                instances_to_cleanup = list(instances.values())
+
+                for instance in instances_to_cleanup:
+                    try:
+                        if (
+                            hasattr(instance, "_is_being_destroyed")
+                            and instance._is_being_destroyed
+                        ):
+                            LOGGER.debug(
+                                f"Instance {instance.get_instance_name()} already being destroyed"
+                            )
+                            continue
+
+                        LOGGER.debug(
+                            f"Force closing component {instance.get_instance_name()}"
+                        )
+                        instance.close_component()
+                        cleaned_instances += 1
+
+                    except Exception as e:
+                        LOGGER.error(
+                            f"Error during forced cleanup of {instance.get_instance_name()}: {e}"
+                        )
+                        # Force remove from registry even if cleanup failed
+                        try:
+                            self.remove_instance(instance)
+                            cleaned_instances += 1
+                        except Exception as cleanup_error:
+                            LOGGER.error(
+                                f"Failed to force remove {instance.get_instance_name()}: {cleanup_error}"
+                            )
+
+        LOGGER.info(
+            f"Forced cleanup completed: {cleaned_instances}/{total_instances} instances cleaned"
+        )
+
+        # Final registry validation
+        remaining_components = APP_COMPONENT_REGISTRY.get_all_components()
+        remaining_count = sum(
+            len(comp_data["instances"]) for comp_data in remaining_components.values()
+        )
+
+        if remaining_count > 0:
+            LOGGER.warning(
+                f"WARNING: {remaining_count} component instances still remain in registry after forced cleanup"
+            )
+            for component_name, component_data in remaining_components.items():
+                if component_data["instances"]:
+                    LOGGER.warning(
+                        f"  - {component_name}: {list(component_data['instances'].keys())}"
+                    )
+        else:
+            LOGGER.info("All components successfully removed from registry")
 
     def instantiate_component(
         self,
@@ -675,6 +757,7 @@ class App(qc.QObject):
         return None
 
     def on_close(self):
+        LOGGER.info("Application closing, starting cleanup process...")
 
         last_sesssion_path = self.get_last_session_path()
         if self.missing_translations:
@@ -682,13 +765,18 @@ class App(qc.QObject):
         if last_sesssion_path:
             self.save_session(last_sesssion_path)
 
+        # Emit application closing signal first
         self.application_closing.emit()
+
+        # Force cleanup all remaining components to prevent memory leaks
+        self._force_cleanup_all_components()
 
 
 class AppComponent(qc.QObject):
 
     broadcast = qc.Signal(str, str, str, dict)
     closing = qc.Signal()
+    componentBeingDestroyed = qc.Signal(str, str)  # component_name, instance_name
 
     component_name: str = None
 
@@ -696,6 +784,7 @@ class AppComponent(qc.QObject):
         super().__init__(parent=app)
         self.app: App = app
         self.instance_name = instance_name
+        self._is_being_destroyed = False
         self.destroyed.connect(self.on_destroy)
 
     def get_instance_name(self) -> str:
@@ -761,14 +850,31 @@ class AppComponent(qc.QObject):
         # Child classes must call super().cleanup()
 
     def close_component(self):
+        if self._is_being_destroyed:
+            LOGGER.debug(
+                f"Component {self.instance_name} already being destroyed, skipping..."
+            )
+            return
+
+        self._is_being_destroyed = True
         LOGGER.debug(f"Closing component {self.instance_name}...")
+
+        # Emit signal before cleanup to notify other components
+        self.componentBeingDestroyed.emit(self.component_name, self.instance_name)
+
         self.closing.emit()  # Allow dependents to clean up first
+
+        # Explicitly remove from registry before Qt cleanup
+        if self.app:
+            self.app.remove_instance(self)
+
         self.cleanup()
         self.deleteLater()  # Crucial for Qt destruction
 
     def on_destroy(self):
-        LOGGER.debug(f"Component {self.instance_name} destroyed. Removing from App.")
+        LOGGER.debug(f"Component {self.instance_name} destroyed (Qt destroyed signal).")
         if self.app:  # self.app can be None if already cleaned up
+            # Try to remove from registry as a fallback (may already be removed in close_component)
             self.app.remove_instance(self)
             self.app = None  # Break the reference cycle
 
