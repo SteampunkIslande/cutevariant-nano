@@ -365,10 +365,18 @@ class App(qc.QObject):
                     "You can visualize it using:<br>"
                     "<code>dot -Tpng {dot_file_path} -o reference_tree.png</code><br>"
                     "or<br>"
-                    "<code>dot -Tsvg {dot_file_path} -o reference_tree.svg</code>".format(
+                    "<code>dot -Tsvg {dot_file_path} -o reference_tree.svg</code><br>"
+                    "A window will open in your default browser with the visualization.".format(
                         dot_file_path=dot_file_path.name
                     )
                 ),
+            )
+
+            from urllib.parse import quote
+
+            qg.QDesktopServices.openUrl(
+                "https://dreampuf.github.io/GraphvizOnline/?engine=dot#"
+                + quote("\n".join(dot_content))
             )
 
         except Exception as e:
