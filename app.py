@@ -504,6 +504,7 @@ class App(qc.QObject):
         # Automatic connections
         instance.broadcast.connect(self.dispatch_broadcast)
         self.broadcast_dispatcher.connect(instance.generic_receiver)
+
         self.application_closing.connect(instance.close_component)
 
         # Registration
@@ -703,7 +704,6 @@ class AppComponent(qc.QObject):
 
     broadcast = qc.Signal(str, str, str, dict)
     closing = qc.Signal()
-    componentBeingDestroyed = qc.Signal(str, str)  # component_name, instance_name
 
     component_name: str = None
 
@@ -711,8 +711,6 @@ class AppComponent(qc.QObject):
         super().__init__(parent=app)
         self.app: App = app
         self.instance_name = instance_name
-        self._is_being_destroyed = False
-        self.destroyed.connect(self.on_destroy)
 
     def get_instance_name(self) -> str:
         return self.instance_name
@@ -777,17 +775,8 @@ class AppComponent(qc.QObject):
         # Child classes must call super().cleanup()
 
     def close_component(self):
-        if self._is_being_destroyed:
-            LOGGER.debug(
-                f"Component {self.instance_name} already being destroyed, skipping..."
-            )
-            return
 
-        self._is_being_destroyed = True
         LOGGER.debug(f"Closing component {self.instance_name}...")
-
-        # Emit signal before cleanup to notify other components
-        self.componentBeingDestroyed.emit(self.component_name, self.instance_name)
 
         self.closing.emit()  # Allow dependents to clean up first
 
@@ -796,14 +785,6 @@ class AppComponent(qc.QObject):
             self.app.remove_instance(self)
 
         self.cleanup()
-        self.deleteLater()  # Crucial for Qt destruction
-
-    def on_destroy(self):
-        LOGGER.debug(f"Component {self.instance_name} destroyed (Qt destroyed signal).")
-        if self.app:  # self.app can be None if already cleaned up
-            # Try to remove from registry as a fallback (may already be removed in close_component)
-            self.app.remove_instance(self)
-            self.app = None  # Break the reference cycle
 
     def generic_receiver(
         self,

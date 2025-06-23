@@ -132,7 +132,6 @@ class FieldsWidget(qw.QWidget):
         self.proxy_model = None
         self.searchable_list = None
         self.presets_widget = None
-        self.deleteLater()
         super().close()
 
     def __del__(self):
