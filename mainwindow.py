@@ -1,13 +1,14 @@
+import logging
 import weakref
 from enum import Enum
 from functools import partial
-from typing import TYPE_CHECKING
 
 import PySide6.QtCore as qc
 import PySide6.QtWidgets as qw
 
-if TYPE_CHECKING:
-    import app as ap
+import app as ap
+
+LOGGER = logging.getLogger(__name__)
 
 
 class WindowRegion(Enum):
@@ -89,16 +90,23 @@ class MainWindow(qw.QMainWindow):
         component_closing_handler = partial(
             self.on_component_closing, weakref.proxy(component), region
         )
+        component_title_handler = partial(
+            self.update_component_title, weakref.proxy(component), region=region
+        )
+
         component.closing.connect(component_closing_handler)
+        component.widget().windowTitleChanged.connect(component_title_handler)
 
     def on_component_closing(self, component: "ap.AppComponent", region: WindowRegion):
-        print(f"Closing component {component.instance_name} in region {region.name}")
+        LOGGER.debug(
+            f"Closing component {component.instance_name} in region {region.name}"
+        )
         tab_widget = self.widget_regions[region]
         tab_index = tab_widget.indexOf(component.widget())
         if tab_index != -1:
             tab_widget.removeTab(tab_index)
         else:
-            print(
+            LOGGER.warning(
                 f"Component {component.instance_name} not found in region {region.name} tab widget."
             )
 

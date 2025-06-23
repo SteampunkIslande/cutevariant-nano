@@ -1,7 +1,11 @@
+import logging
+
 import app
 import filters.filters_model as fltm
 import filters.filters_widget as fltw
 from component_registry import register_app_component
+
+LOGGER = logging.getLogger(__name__)
 
 
 @register_app_component(name="filters", policy="singleton", instantiation_time="demand")
@@ -48,4 +52,4 @@ class FiltersComponent(app.AppComponent):
         self.filters_widget = None
 
     def __del__(self):
-        print("FiltersComponent deleted")
+        LOGGER.debug("FiltersComponent deleted")

@@ -136,7 +136,7 @@ class QueryManagerComponent(ap.AppComponent):
 
     def _on_query_destroyed(self, query_name: str):
         """Callback when a QueryComponent is being destroyed"""
-        print(f"QueryComponent {query_name} destroyed")
+        LOGGER.debug(f"QueryComponent {query_name} destroyed")
 
         # Skip if model has been cleaned up
         if self.query_model is None:

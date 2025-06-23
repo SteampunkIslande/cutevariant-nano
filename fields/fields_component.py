@@ -1,15 +1,8 @@
 import logging
 
-# Deferred import to resolve circular dependency
-from typing import TYPE_CHECKING
-
 import app
-from fields import fields_model as fldm
-
-if TYPE_CHECKING:
-    from fields.fields_widget import FieldsWidget
-
 from component_registry import register_app_component
+from fields import fields_model as fldm
 
 LOGGER = logging.getLogger(__name__)
 
@@ -59,4 +52,4 @@ class FieldsComponent(app.AppComponent):
         self.fields_widget = None
 
     def __del__(self):
-        print("FieldsComponent deleted")
+        LOGGER.debug("FieldsComponent deleted")

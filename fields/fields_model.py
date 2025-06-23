@@ -1,8 +1,12 @@
 # A model to selected fields using checkboxes
 
 
+import logging
+
 import PySide6.QtCore as qc
 import PySide6.QtGui as qg
+
+LOGGER = logging.getLogger(__name__)
 
 
 class FieldsModel(qg.QStandardItemModel):
@@ -50,4 +54,4 @@ class FieldsModel(qg.QStandardItemModel):
         ]
 
     def __del__(self):
-        print("FieldsModel deleted")
+        LOGGER.debug("FieldsModel deleted")

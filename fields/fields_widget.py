@@ -1,18 +1,19 @@
 import json
-
-# Deferred import to resolve circular dependency
-from typing import TYPE_CHECKING
+import logging
 
 import PySide6.QtCore as qc
 import PySide6.QtWidgets as qw
 
 import app as ap
 
-if TYPE_CHECKING:
-    from fields.fields_component import FieldsComponent
+# Deferred import to resolve circular dependency
+
+
+LOGGER = logging.getLogger(__name__)
 
 import fields.fields_model as fldm
 from common_widgets.searchable_list import SearchableList
+from fields.fields_component import FieldsComponent
 
 
 class PresetsWidget(qw.QWidget):
@@ -93,7 +94,7 @@ class PresetsWidget(qw.QWidget):
         self.presets_combobox.blockSignals(False)
 
     def __del__(self):
-        print("PresetsWidget deleted")
+        LOGGER.debug("PresetsWidget deleted")
 
 
 class FieldsWidget(qw.QWidget):
@@ -135,4 +136,4 @@ class FieldsWidget(qw.QWidget):
         super().close()
 
     def __del__(self):
-        print("FieldsWidget deleted")
+        LOGGER.debug("FieldsWidget deleted")
