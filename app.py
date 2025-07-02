@@ -50,7 +50,7 @@ class App(qc.QObject):
 
         # Verify that components are properly registered
         if APP_COMPONENT_REGISTRY.get_component_count() == 0:
-            LOGGER.warning("No components registered in the registry")
+            LOGGER.warning("No components registered")
 
         # Instantiate components that should be instantiated on setup
         self.setup_app()
@@ -147,8 +147,6 @@ class App(qc.QObject):
             instantiation_policy = definition["instantiation_policy"]
             if instantiate_on == "setup" and instantiation_policy == "singleton":
                 instance = self.instantiate_component(component_name)
-                if instance:
-                    self._setup_component_menu(instance)
 
         self.formatters = {
             "nice": NiceFormatter(self),
@@ -424,15 +422,6 @@ class App(qc.QObject):
             for instance_name in all_components[component_name]["instances"]:
                 print(f"  - {instance_name}")
 
-    def instantiate_singleton(self, component_name: str):
-        """
-        Instantiate a singleton (legacy method - uses the new logic).
-        """
-        instance = self.instantiate_component(component_name)
-        if instance:
-            self._setup_component_menu(instance)
-        return instance
-
     def remove_instance(self, instance: "AppComponent"):
         """
         Remove a component instance from the registry.
@@ -529,9 +518,13 @@ class App(qc.QObject):
 
         # Create the new instance
         component_class = definition["class"]
+
+        # Actual instantiation
         instance: "AppComponent" = component_class(
             self, instance_name or component_name
         )
+
+        self._setup_component_menu(instance)
 
         # Automatic connections
         instance.broadcast.connect(self.dispatch_broadcast)

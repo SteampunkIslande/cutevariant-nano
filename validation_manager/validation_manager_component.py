@@ -33,7 +33,7 @@ class ValidationManagerComponent(ap.AppComponent):
         super().__init__(app, instance_name)
         # Query Manager Component
         query_manager_component: qm.QueryManagerComponent = (
-            self.app.instantiate_singleton("query_manager")
+            self.app.instantiate_component("query_manager")
         )
 
         self.widget_holder = MultiWidgetHolder()

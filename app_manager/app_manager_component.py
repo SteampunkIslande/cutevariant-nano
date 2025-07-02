@@ -23,10 +23,10 @@ class AppManager(app.AppComponent):
         window = self.app.window()
 
         # Instantiate main components
-        fields_component = self.app.instantiate_singleton("fields")
-        filters_component = self.app.instantiate_singleton("filters")
-        order_by_component = self.app.instantiate_singleton("order_by")
-        query_manager_component = self.app.instantiate_singleton("query_manager")
+        fields_component = self.app.instantiate_component("fields")
+        filters_component = self.app.instantiate_component("filters")
+        order_by_component = self.app.instantiate_component("order_by")
+        query_manager_component = self.app.instantiate_component("query_manager")
 
         # Add components to window regions
         window.add_component_to_window(fields_component, mainwindow.WindowRegion.LOWER)
@@ -39,7 +39,7 @@ class AppManager(app.AppComponent):
         )
 
         # Conditional management of validation component
-        validation_component = self.app.instantiate_singleton("validation_manager")
+        validation_component = self.app.instantiate_component("validation_manager")
         if self.app.get_app_option("validation", "genno") == "genno":
             window.add_component_to_window(
                 validation_component, mainwindow.WindowRegion.RIGHT
