@@ -40,7 +40,8 @@ jobs:
           enable-plugins: pyside6
           include-module: polars,yaml,xlsxwriter,numpy
           nofollow-import-to: ipython
-          windows-icon-from-ico: icon.ico
+          windows-icon-from-ico: assets/icon.ico
+          include-data-dir: assets=assets
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4

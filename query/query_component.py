@@ -417,8 +417,6 @@ class QueryComponent(ap.AppComponent):
             }
         )
 
-    # Remove __del__ to rely on Qt's object tree and cleanup signals
-
     def add_order_by(self, colname: str, order: str):
         if not self.order_by:
             self.order_by = []

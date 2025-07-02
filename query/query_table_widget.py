@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import weakref
+from formatter import FormatterDelegate
 from functools import partial
 from typing import List, Union
 
@@ -163,13 +164,18 @@ class QueryTableWidget(qw.QWidget):
         self.proxy_model = QueryTableProxyModel()
         self.proxy_model.setSourceModel(self.query_model)
 
+        self.custom_delegate = FormatterDelegate(self)
+        self.custom_delegate.set_formatter(self.app.get_formatter())
+
         self.table_view = qw.QTableView()
+        # Set up custom delegate for styled rendering
+        self.table_view.setItemDelegate(self.custom_delegate)
+        self.table_view.setAlternatingRowColors(True)
+
         self.table_view.setSelectionBehavior(
             qw.QAbstractItemView.SelectionBehavior.SelectRows
         )
-        self.table_view.horizontalHeader().setStretchLastSection(
-            True
-        )  # Set last column to expand
+        self.table_view.horizontalHeader().setStretchLastSection(True)
         self.table_view.horizontalHeader().setContextMenuPolicy(
             qg.Qt.ContextMenuPolicy.CustomContextMenu
         )

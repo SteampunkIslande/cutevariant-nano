@@ -2,6 +2,7 @@ import json
 import logging
 import typing
 import weakref
+from formatter import Formatter
 from pathlib import Path
 from typing import Union
 
@@ -12,6 +13,7 @@ import PySide6.QtWidgets as qw
 import mainwindow as mw
 from commons import add_action_to_menubar, default_prefs
 from component_registry import APP_COMPONENT_REGISTRY
+from formatters.nice import NiceFormatter
 
 LOGGER = logging.getLogger(__name__)
 
@@ -22,6 +24,8 @@ class App(qc.QObject):
     current_variant_changed = qc.Signal()
     current_datalake_changed = qc.Signal()
 
+    current_formatter_changed = qc.Signal(str)
+
     application_started = qc.Signal()
     application_closing = qc.Signal()
 
@@ -31,6 +35,8 @@ class App(qc.QObject):
         super().__init__()
         self.main_window = mw.MainWindow(self)
         self.main_window.closing.connect(self.on_close)
+
+        self.formatters = {}
 
         self.app_options: dict = app_options or {}
 
@@ -144,9 +150,27 @@ class App(qc.QObject):
                 if instance:
                     self._setup_component_menu(instance)
 
+        self.formatters = {
+            "nice": NiceFormatter(self),
+        }
+
         LOGGER.info(
             f"Setup completed: {APP_COMPONENT_REGISTRY.get_component_count()} components registered"
         )
+
+    def setup_formatter(self):
+        import ficon
+
+        ficon.setFontPath("assets/materialdesignicons-webfont.ttf")
+
+        self.set_current_formatter("nice")
+
+    def get_formatter(self) -> "Formatter":
+        return self.formatters.get(self.current_formatter, self.formatters["nice"])
+
+    def set_current_formatter(self, formatter_name: str):
+        self.current_formatter = formatter_name
+        self.current_formatter_changed.emit(formatter_name)
 
     def _setup_component_menu(self, instance: "AppComponent"):
         """Configure menu entries for a component."""
@@ -548,6 +572,8 @@ class App(qc.QObject):
         if last_session_path is not None and last_session_path.is_file():
             self.load_session(last_session_path)
 
+        self.setup_formatter()
+
     # RUNNING APP LIFE CYCLE
 
     def get_component(
@@ -780,7 +806,6 @@ class AppComponent(qc.QObject):
         LOGGER.debug(
             f"Base cleanup for {self.instance_name} ({self.__class__.__name__})"
         )
-        # Child classes must call super().cleanup()
 
     def close_component(self):
 

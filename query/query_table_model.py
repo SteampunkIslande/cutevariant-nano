@@ -1,10 +1,6 @@
 #!/usr/bin/env python
 
-
-import json
-
 import PySide6.QtCore as qc
-import PySide6.QtGui as qg
 
 import query.query_component as q_cmp
 
@@ -20,8 +16,6 @@ class QueryTableModel(qc.QAbstractTableModel):
 
         self.query.query_changed.connect(self.update)
 
-        self.style = self.load_style()
-
     def rowCount(self, parent):
         if parent.isValid():
             return 0
@@ -34,95 +28,25 @@ class QueryTableModel(qc.QAbstractTableModel):
             return len(self._data[0])
         return 0
 
-    def load_style(self):
-        prefs = self.query.app.get_user_prefs()
-        style: str = prefs.get("column_styles", "style42.json")
-        success, config_folder = self.query.app.get_config_folder()
-        if not success:
-            return
-        style_file_path = (config_folder / "styles" / style).resolve()
-        if style_file_path.is_file():
-            with open(style_file_path, "r", encoding="utf-8") as f:
-                return json.load(f)
-
-    def style_from_index(self, style: dict, index: qc.QModelIndex):
-        # Read from config file
-        colname = index.model().headerData(index.column(), qc.Qt.Orientation.Horizontal)
-        row_data = index.data(qc.Qt.ItemDataRole.UserRole)
-
-        base_style = {}
-        base_style_def = style.get("*", {})
-        for style_key in base_style_def:
-            style_origin = list(base_style_def[style_key].keys())[0]
-            if style_origin == "from_column":
-                base_style[style_key] = row_data.get(
-                    base_style_def[style_key]["from_column"], ""
-                )
-            elif style_origin == "constant":
-                base_style[style_key] = base_style_def[style_key]["constant"]
-
-        style_def = style.get(colname, {})
-        if not style_def:
-            return base_style
-        for style_key in style_def:
-            style_origin = list(style_def[style_key].keys())[0]
-            if style_origin == "from_column":
-                base_style[style_key] = row_data.get(
-                    style_def[style_key]["from_column"], ""
-                )
-            elif style_origin == "constant":
-                base_style[style_key] = style_def[style_key]["constant"]
-
-        return base_style
-
     def data(self, index: qc.QModelIndex, role=qc.Qt.ItemDataRole.DisplayRole):
-        if role == qc.Qt.ItemDataRole.DisplayRole:
+        if role in (qc.Qt.ItemDataRole.DisplayRole, qc.Qt.ItemDataRole.ToolTipRole):
             if index.row() < 0 or index.row() >= len(self._data):
                 return None
             if index.column() < 0 or index.column() >= len(self._data[0]):
                 return None
 
-            return str(self._data[index.row()][index.column()])
+            res = self._data[index.row()][index.column()]
+
+            if res is None:
+                res = "NULL"
+            return str(res)
 
         if role == qc.Qt.ItemDataRole.UserRole:
             return {
                 str(colname): str(val)
                 for colname, val in zip(self.header, self._data[index.row()])
             }
-        draw_options = self.style_from_index(self.style, index)
-
-        if role == qc.Qt.ItemDataRole.ForegroundRole:
-            if (
-                "color" in draw_options
-                and draw_options["color"]
-                and draw_options["color"] != "None"
-            ):
-                return qg.QColor(draw_options["color"])
-            else:
-                return
-        if role == qc.Qt.ItemDataRole.BackgroundRole:
-            if (
-                "background" in draw_options
-                and draw_options["background"]
-                and draw_options["background"] != "None"
-            ):
-                return qg.QColor(draw_options["background"])
-        if role == qc.Qt.ItemDataRole.FontRole:
-            if "bold" in draw_options:
-                font = qg.QFont()
-                font.setBold(True)
-                return font
-
-        return
-
-    def set_style(self, style):
-        self.style = style
-        self.dataChanged.emit(
-            self.index(0, 0),
-            self.index(
-                self.rowCount(qc.QModelIndex()), self.columnCount(qc.QModelIndex())
-            ),
-        )
+        return None
 
     def headerData(self, section, orientation, role=qc.Qt.ItemDataRole.DisplayRole):
         if section >= len(self.header):
