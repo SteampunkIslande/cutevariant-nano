@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import logging
 from math import ceil
 from typing import List, Union
 
@@ -12,6 +13,8 @@ import filters.filters as flt
 import query
 import query.query_table_widget
 from commons import duck_db_literal_string_list, duck_db_literal_string_tuple
+
+LOGGER = logging.getLogger(__name__)
 
 
 def build_query_template(data: dict) -> str:
@@ -97,7 +100,7 @@ class QueryComponent(ap.AppComponent):
     # Signal emitted when the component is being destroyed
     beingDestroyed = qc.Signal(object)  # Emits the component instance
 
-    def __init__(self, app: ap.App, instance_name: str):
+    def __init__(self, app: "ap.App", instance_name: str):
         super().__init__(app, instance_name)
 
         # Safer to init state before setting up the view
@@ -124,7 +127,7 @@ class QueryComponent(ap.AppComponent):
         # Also includes fields that are not selected in the view. So that they can be filtered on.
         self.all_fields = []
 
-        self.selected_fields = None
+        self.selected_fields = []
 
         # Filter tree, updated by the filters_changed signal
         self.applied_filter = {}
@@ -164,6 +167,7 @@ class QueryComponent(ap.AppComponent):
         if key in QueryComponent.RESERVED_VARIABLES:
             raise ValueError(f"Variable name {key} is reserved")
         self.variables[key] = value
+        self.changes_list.append(("variable", {"key": key, "value": value}))
         return self
 
     def get_variable(self, key: str) -> str:
@@ -175,8 +179,14 @@ class QueryComponent(ap.AppComponent):
     def set_variable(self, key: str, value: str):
         if key in QueryComponent.RESERVED_VARIABLES:
             raise ValueError(f"Variable name {key} is reserved")
+        if key in self.variables and self.variables[key] == value:
+            return self
+
+        if key not in self.variables or self.variables[key] != value:
+            self.changes_list.append(("variable", {"key": key, "value": value}))
+
+        # Apply the change
         self.variables[key] = value
-        self.changes_list.append(("variable", {"key": key, "value": value}))
         return self
 
     def get_limit(self) -> int:
@@ -185,14 +195,7 @@ class QueryComponent(ap.AppComponent):
     def set_limit(self, limit: int):
         if limit != self.limit:
             self.changes_list.append(("limit", {"limit": limit}))
-        self.limit = limit
-        return self
-
-    def get_offset(self) -> int:
-        return self.offset
-
-    def set_offset(self, offset: int):
-        self.offset = offset
+            self.limit = limit
         return self
 
     def get_page(self) -> int:
@@ -201,9 +204,8 @@ class QueryComponent(ap.AppComponent):
     def set_page(self, page: int):
         if page != self.current_page:
             self.changes_list.append(("page", {"page": page}))
-
-        self.current_page = page
-        self.set_offset((page - 1) * self.limit)
+            self.current_page = page
+            self.offset = (page - 1) * self.limit
         return self
 
     def previous_page(self):
@@ -243,10 +245,13 @@ class QueryComponent(ap.AppComponent):
         if not datalake:
             return self
 
-        self.readonly_table = f"read_parquet({duck_db_literal_string_list(datalake.relative_to_absolute(f) for f in files)})"
-        self.changes_list.append(
-            ("readonly_table", {"readonly_table": self.readonly_table})
-        )
+        new_readonly_table = f"read_parquet({duck_db_literal_string_list(datalake.relative_to_absolute(f) for f in files)})"
+
+        if self.readonly_table != new_readonly_table:
+            self.readonly_table = new_readonly_table
+            self.changes_list.append(
+                ("readonly_table", {"readonly_table": self.readonly_table})
+            )
         return self
 
     def get_editable_table_human_readable_name(self) -> str:
@@ -337,10 +342,13 @@ class QueryComponent(ap.AppComponent):
         )
         return self
 
+    def get_selected_fields(self) -> List[str]:
+        return self.selected_fields
+
     def set_selected_fields(self, fields: List[str]):
         if fields != self.selected_fields:
             self.changes_list.append(("selected_fields", {"fields": fields}))
-        self.selected_fields = fields
+        self.selected_fields = [f for f in fields if f in self.all_fields]
         return self
 
     def setup_query(
@@ -544,31 +552,25 @@ class QueryComponent(ap.AppComponent):
             if sender_instance_name == f"validation_manager":
                 self.commit()
 
-    def cleanup(self):
-        """
-        Cleanup method that replaces the destructor.
-        The destructor was removed as it caused infinite recursions during component destruction.
+    def close_component(self):
 
-        This method:
-        1. Emits the beingDestroyed signal to notify other components of destruction
-        2. Calls the parent class cleanup
-        3. Explicitly breaks circular references by setting key attributes to None
-        4. Closes the view via weak reference to avoid circular references
-
-        The signal system now uses weak connections in QueryManagerComponent
-        to prevent the signal from keeping the QueryComponent instance alive.
-        """
-        self.beingDestroyed.emit(self.instance_name)
-        super().cleanup()  # Call base class cleanup
-
-        # Break circular references
-        self._datalake = None
-        self._app = None
+        super().close_component()
 
         # Close view via weak reference - avoids circular references
         if self.view:
             self.view.close()
         self.view = None
+
+        # List all referrers to self
+        import gc
+
+        referrers = gc.get_referrers(self)
+        print("I'm", self)
+        for referrer in referrers:
+            print(f"Referrer: {referrer}, type: {type(referrer)}, id: {id(referrer)}")
+
+    def __del__(self):
+        print(f"QueryComponent {self.instance_name} is being destroyed.!!!!;...")
 
 
 if __name__ == "__main__":

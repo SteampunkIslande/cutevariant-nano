@@ -4,13 +4,17 @@ import typing
 import weakref
 from formatter import Formatter
 from pathlib import Path
-from typing import Union
+from typing import TYPE_CHECKING, Union
 
 import PySide6.QtCore as qc
 import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
 
 import mainwindow as mw
+
+if TYPE_CHECKING:
+    import query.query_component as q
+
 from commons import add_action_to_menubar, default_prefs
 from component_registry import APP_COMPONENT_REGISTRY
 from formatters.nice import NiceFormatter
@@ -18,11 +22,102 @@ from formatters.nice import NiceFormatter
 LOGGER = logging.getLogger(__name__)
 
 
+class AppComponent(qc.QObject):
+
+    broadcast = qc.Signal(str, str, str, dict)
+    closing = qc.Signal()
+
+    component_name: str = None
+
+    def __init__(self, app: "App", instance_name: str):
+        super().__init__(parent=app)
+        self.app: "App" = app
+        self.instance_name = instance_name
+
+    def get_instance_name(self) -> str:
+        return self.instance_name
+
+    def load_from_session(self, session: dict):
+        """Load this AppComponent from `session` dict.
+
+        Args:
+            session (dict): The serialized representation of this `AppComponent` from saved session.
+        """
+        LOGGER.debug(f"{self.__class__.__name__} did not implement load_from_session")
+        pass
+
+    def save_to_session(self) -> dict:
+        """Get serialized representation of this `AppComponent`
+
+        Returns:
+            dict: The serialized representation of this `AppComponent`
+        """
+        LOGGER.debug(f"{self.__class__.__name__} did not implement save_to_session")
+        return {}
+
+    def on_start(self):
+        """Here is the place to connect to required components. If they were instantiated on setup, they should all exist at this point"""
+        LOGGER.debug(f"{self.__class__.__name__} did not implement on_start")
+        pass
+
+    def widget(self) -> Union[None, qw.QWidget]:
+        """Return this component's associated widget, if applicable (i.e. WIDGET is in component_type)"""
+        LOGGER.debug(f"{self.__class__.__name__} did not implement widget")
+        return None
+
+    def get_menubar_entries(self) -> list[tuple[str, qg.QAction]]:
+        """Returns a list of actions that should be available from the main window's menu bar.
+
+        Returns:
+            list[tuple[str, qg.QAction]]: Each tuple of the list should be of the form `("Path/to/last/parent/menu",QAction("My action"))`. It is the responsibility of the implementer to connect the returned actions' `triggered` signals.
+        """
+        LOGGER.debug(f"{self.__class__.__name__} did not implement get_menubar_entries")
+        return []
+
+    def get_contextmenu_entries(self, local_info: dict) -> list[tuple[str, qg.QAction]]:
+        """Returns a list of actions that should be available from a context menu, that this AppComponent would be able to run.
+        This method is invoked whenever `self`'s actions could be useful
+
+        Args:
+            local_info (dict): Dictionnary with all the (potentially) required information to prepare this AppComponent's actions execution
+
+        Returns:
+            list[tuple[str, qg.QAction]]: Each tuple of the list should be of the form `("Path/to/last/parent/menu",QAction("My action"))`. It is the responsibility of the implementer to connect the returned actions' signals.
+        """
+        LOGGER.debug(
+            f"{self.__class__.__name__} did not implement get_contextmenu_entries"
+        )
+        return []
+
+    def close_component(self):
+
+        LOGGER.debug(f"Closing component {self.instance_name}...")
+
+        self.closing.emit()  # Allow dependents to clean up first
+
+        # Explicitly remove from registry before Qt cleanup
+        if self.app:
+            self.app.remove_instance(self)
+        else:
+            print("No app!")
+        self.app = None  # Break reference to the app
+
+    def generic_receiver(
+        self,
+        action: str,
+        sender_component_name: str,
+        sender_instance_name: str,
+        payload: dict,
+    ):
+        pass
+
+
 class App(qc.QObject):
 
-    current_query_changed = qc.Signal()
-    current_variant_changed = qc.Signal()
-    current_datalake_changed = qc.Signal()
+    # Signal that the selected query has changed (the object itself).
+    selected_query_changed = qc.Signal()
+    selected_variant_changed = qc.Signal()
+    datalake_path_changed = qc.Signal()
 
     current_formatter_changed = qc.Signal(str)
 
@@ -35,6 +130,9 @@ class App(qc.QObject):
         super().__init__()
         self.main_window = mw.MainWindow(self)
         self.main_window.closing.connect(self.on_close)
+
+        self.current_selected_query: Union["q.QueryComponent", None] = None
+        self.current_selected_variant: Union[dict, None] = None
 
         self.formatters = {}
 
@@ -144,9 +242,8 @@ class App(qc.QObject):
         for component_name, component_data in all_components.items():
             definition = component_data["definition"]
             instantiate_on = definition["instantiate_on"]
-            instantiation_policy = definition["instantiation_policy"]
-            if instantiate_on == "setup" and instantiation_policy == "singleton":
-                instance = self.instantiate_component(component_name)
+            if instantiate_on == "setup":
+                self.instantiate_component(component_name)
 
         self.formatters = {
             "nice": NiceFormatter(self),
@@ -439,37 +536,7 @@ class App(qc.QObject):
         instance_name: str = instance.get_instance_name()
         component_name: str = instance.component_name
 
-        if not instance_name or not component_name:
-            LOGGER.warning(
-                f"Cannot remove instance, instance_name ({instance_name}) or component_name ({component_name}) is not set!"
-            )
-            return False
-
-        component_data = APP_COMPONENT_REGISTRY.get_component_data(component_name)
-        if not component_data:
-            LOGGER.warning(
-                f"Component {component_name} not found in registry, cannot remove instance {instance_name}"
-            )
-            return False
-
-        instances: dict[str, "AppComponent"] = component_data["instances"]
-        if instance_name not in instances:
-            LOGGER.debug(
-                f"Instance {instance_name} of component {component_name} already removed from registry"
-            )
-            return True  # Already removed, consider it success
-
-        stored_instance = instances.pop(instance_name)
-        if stored_instance is not instance:
-            LOGGER.warning(
-                f"Logical error: instance {instance_name} of component {component_name} "
-                f"is not the one being removed! Registry may be corrupted."
-            )
-
-        LOGGER.info(
-            f"Successfully removed instance {instance_name} from component {component_name}"
-        )
-        return True
+        APP_COMPONENT_REGISTRY.remove_component_instance(component_name, instance_name)
 
     def instantiate_component(
         self,
@@ -584,6 +651,59 @@ class App(qc.QObject):
     def window(self):
         return self.main_window
 
+    # COMPONENT MESSAGING
+    def update_app(self, payload: dict):
+        """
+        Payload schema:
+        {
+            "action": ${one of: "datalake_path_changed, "selected_query_changed", "selected_variant_changed"},
+            "sender_component_name": "component_name",
+            "sender_instance_name": "instance_name",
+            "data": {
+                ${relevant data for the action}
+            }
+        }
+        """
+        action = payload.get("action")
+        sender_component_name = payload.get("sender_component_name")
+        sender_instance_name = payload.get("sender_instance_name")
+        data: dict = payload.get("data", {})
+        if action == "datalake_path_changed":
+            self.datalake_path_changed.emit()
+        elif action == "selected_query_changed":
+            self.selected_query_changed.emit()
+        elif action == "selected_variant_changed":
+            self.current_selected_variant = data.get("variant", None)
+            self.selected_variant_changed.emit()
+
+    def get_current_query(self) -> Union["q.QueryComponent", None]:
+        """
+        Get the currently selected query.
+        If no query is selected, return None.
+        """
+        return self.current_selected_query
+
+    def set_current_query(self, query: "q.QueryComponent"):
+        """
+        Set the current query and emit the signal.
+        This will also update the main window title.
+        """
+
+        if query is self.current_selected_query:
+            return
+
+        self.current_selected_query = query
+        self.selected_query_changed.emit()
+
+        if query is not None:
+            self.window().setWindowTitle(
+                self.translate("CuteVariant Nano - Query: {query_name}").format(
+                    query_name=query.get_instance_name()
+                )
+            )
+        else:
+            self.window().setWindowTitle(self.translate("CuteVariant Nano"))
+
     # UTILS
 
     def set_config_folder(self) -> typing.Tuple[bool, typing.Union[Path | None]]:
@@ -675,6 +795,8 @@ class App(qc.QObject):
             self.missing_translations.add(from_str)
         return self.translations.get(from_str, from_str)
 
+    # SESSION MANAGEMENT
+
     def load_session(self, path: Path):
         with path.open() as f:
             session = json.load(f)
@@ -727,101 +849,6 @@ class App(qc.QObject):
         self.application_closing.emit()
 
 
-class AppComponent(qc.QObject):
-
-    broadcast = qc.Signal(str, str, str, dict)
-    closing = qc.Signal()
-
-    component_name: str = None
-
-    def __init__(self, app: App, instance_name: str):
-        super().__init__(parent=app)
-        self.app: App = app
-        self.instance_name = instance_name
-
-    def get_instance_name(self) -> str:
-        return self.instance_name
-
-    def load_from_session(self, session: dict):
-        """Load this AppComponent from `session` dict.
-
-        Args:
-            session (dict): The serialized representation of this `AppComponent` from saved session.
-        """
-        LOGGER.debug(f"{self.__class__.__name__} did not implement load_from_session")
-        pass
-
-    def save_to_session(self) -> dict:
-        """Get serialized representation of this `AppComponent`
-
-        Returns:
-            dict: The serialized representation of this `AppComponent`
-        """
-        LOGGER.debug(f"{self.__class__.__name__} did not implement save_to_session")
-        return {}
-
-    def on_start(self):
-        """Here is the place to connect to required components. If they were instantiated on setup, they should all exist at this point"""
-        LOGGER.debug(f"{self.__class__.__name__} did not implement on_start")
-        pass
-
-    def widget(self) -> Union[None, qw.QWidget]:
-        """Return this component's associated widget, if applicable (i.e. WIDGET is in component_type)"""
-        LOGGER.debug(f"{self.__class__.__name__} did not implement widget")
-        return None
-
-    def get_menubar_entries(self) -> list[tuple[str, qg.QAction]]:
-        """Returns a list of actions that should be available from the main window's menu bar.
-
-        Returns:
-            list[tuple[str, qg.QAction]]: Each tuple of the list should be of the form `("Path/to/last/parent/menu",QAction("My action"))`. It is the responsibility of the implementer to connect the returned actions' `triggered` signals.
-        """
-        LOGGER.debug(f"{self.__class__.__name__} did not implement get_menubar_entries")
-        return []
-
-    def get_contextmenu_entries(self, local_info: dict) -> list[tuple[str, qg.QAction]]:
-        """Returns a list of actions that should be available from a context menu, that this AppComponent would be able to run.
-        This method is invoked whenever `self`'s actions could be useful
-
-        Args:
-            local_info (dict): Dictionnary with all the (potentially) required information to prepare this AppComponent's actions execution
-
-        Returns:
-            list[tuple[str, qg.QAction]]: Each tuple of the list should be of the form `("Path/to/last/parent/menu",QAction("My action"))`. It is the responsibility of the implementer to connect the returned actions' signals.
-        """
-        LOGGER.debug(
-            f"{self.__class__.__name__} did not implement get_contextmenu_entries"
-        )
-        return []
-
-    def cleanup(self):
-        """Cleanup this AppComponent. Disconnect all signals and clean up resources."""
-        LOGGER.debug(
-            f"Base cleanup for {self.instance_name} ({self.__class__.__name__})"
-        )
-
-    def close_component(self):
-
-        LOGGER.debug(f"Closing component {self.instance_name}...")
-
-        self.closing.emit()  # Allow dependents to clean up first
-
-        # Explicitly remove from registry before Qt cleanup
-        if self.app:
-            self.app.remove_instance(self)
-
-        self.cleanup()
-
-    def generic_receiver(
-        self,
-        action: str,
-        sender_component_name: str,
-        sender_instance_name: str,
-        payload: dict,
-    ):
-        pass
-
-
 if __name__ == "__main__":
     import argparse
     import sys
@@ -841,11 +868,19 @@ if __name__ == "__main__":
         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
         help="Set the logging level",
     )
+    parser.add_argument(
+        "--log-time",
+        "-t",
+        action="store_true",
+        help="Include timestamps in log messages",
+    )
     args = parser.parse_args()
 
     logging.basicConfig(
         level=args.log_level,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        format="%(pathname)s:%(lineno)s "
+        + ("- %(asctime)s" if args.log_time else "")
+        + "- %(levelname)s - %(name)s - %(message)s",
     )
 
     pyside_app = qw.QApplication(sys.argv)

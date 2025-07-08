@@ -47,7 +47,7 @@ class FiltersComponent(app.AppComponent):
     ):
         pass
 
-    def cleanup(self):
+    def close_component(self):
         self.model = None
         self.filters_widget = None
 

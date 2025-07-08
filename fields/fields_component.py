@@ -1,6 +1,12 @@
 import logging
+from typing import TYPE_CHECKING
 
 import app
+import fields.fields_widget as fldw
+
+if TYPE_CHECKING:
+    import query.query_component as q
+
 from component_registry import register_app_component
 from fields import fields_model as fldm
 
@@ -12,42 +18,42 @@ class FieldsComponent(app.AppComponent):
 
     component_name = "fields"
 
-    def __init__(self, app: app.App, instance_name: str):
+    def __init__(self, app: "app.App", instance_name: str):
         super().__init__(app, instance_name)
 
         self.model = fldm.FieldsModel(self)
-        self.model.dataChanged.connect(self.emit_fields_changed)
+        self.model.dataChanged.connect(self.on_selected_fields_changed)
 
-        # Deferred local import
-        from fields.fields_widget import FieldsWidget
+        self.datalake_component = self.app.get_component("datalake")
 
-        self.fields_widget = FieldsWidget(self.app, self)
+        self.query = None
+
+        self.app.selected_query_changed.connect(self.on_current_query_changed)
+
+        self.fields_widget = fldw.FieldsWidget(self.app, self)
         self.fields_widget.setWindowTitle(self.app.translate("Fields selection"))
 
     def widget(self):
         return self.fields_widget
 
-    def emit_fields_changed(self):
-        self.broadcast.emit(
-            "selected_fields_changed",
-            "fields",
-            self.instance_name,
-            {"fields": self.model.checked_fields()},
-        )
+    def on_selected_fields_changed(self):
+        if self.model.checked_fields() != self.query.get_selected_fields():
+            self.query.set_selected_fields(self.model.checked_fields())
 
-    def generic_receiver(
-        self,
-        action: str,
-        sender_component_name: str,
-        sender_instance_name: str,
-        payload: dict,
-    ):
-        pass
+    def on_current_query_changed(self):
+        query: "q.QueryComponent" = self.app.get_current_query()
+        if query is None:
+            self.query = None
+            self.model.update_fields([])
+        else:
+            self.query = query
+            self.model.update_fields(self.query.get_all_fields())
+            self.model.set_checked_fields(self.query.get_selected_fields())
 
     def update_fields(self, fields: list[str]):
         self.model.update_fields(fields)
 
-    def cleanup(self):
+    def close_component(self):
         self.model = None
         self.fields_widget = None
 

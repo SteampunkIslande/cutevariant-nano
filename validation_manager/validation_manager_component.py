@@ -73,6 +73,11 @@ class ValidationManagerComponent(ap.AppComponent):
         self.validation_widget.export_to_genno.connect(self.export_to_genno)
         self.validation_widget.validate.connect(self.validate)
 
+        # Make sure to update self if the datalake changes
+        self.app.datalake_path_changed.connect(
+            self.validation_selection_widget.on_datalake_changed
+        )
+
     def on_validation_start(self):
         validation_info = self.validation_selection_widget.get_selected_validation()
         self.widget_holder.set_current_widget("validation")
@@ -294,11 +299,19 @@ class ValidationManagerComponent(ap.AppComponent):
         # Implement context menu entries here
         return []
 
-    def cleanup(self):
+    def close_component(self):
+        # Close all queries
+        query_manager_component: qm.QueryManagerComponent = self.app.get_component(
+            "query_manager"
+        )
+        if query_manager_component:
+            query_manager_component.clear()
+
         # Clean up resources
         self.widget_holder = None
         self.validation_model = None
         self.validation_selection_widget = None
         self.validation_widget = None
-        # Call parent cleanup
-        super().cleanup()
+
+        # Call parent close_component
+        super().close_component()

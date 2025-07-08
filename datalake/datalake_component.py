@@ -52,7 +52,7 @@ class DatalakeComponent(app.AppComponent):
 
     def __init__(
         self,
-        app: app.App,
+        app: "app.App",
         instance_name: str,
     ):
         super().__init__(app, instance_name)
@@ -69,24 +69,24 @@ class DatalakeComponent(app.AppComponent):
 
     def load_from_session(self, session: dict):
 
-        self.datalake_path = session.get("datalake_path", None)
-        if self.datalake_path is None:
+        new_datalake_path = session.get("datalake_path", None)
+        if new_datalake_path is None:
             LOGGER.warning(
-                "No datalake path found in session. Please set the datalake path."
+                "No datalake path found in session. Please set the datalake path. Datalake path didn't change."
             )
             return
-        if not os.path.isdir(self.datalake_path):
+        if not os.path.isdir(new_datalake_path):
             self.datalake_path = None
+        else:
+            self.datalake_path = new_datalake_path
 
-        self.emit_datalake_path_changed()
-
-    def emit_datalake_path_changed(self):
-        # TODO: This signal should be sent by the app
-        self.broadcast.emit(
-            "datalake_path_changed",
-            "datalake",
-            self.instance_name,
-            {"datalake_path": self.datalake_path},
+        self.app.update_app(
+            {
+                "action": "datalake_path_changed",
+                "sender_component_name": self.component_name,
+                "sender_instance_name": self.instance_name,
+                "data": {"datalake_path": self.datalake_path},
+            }
         )
 
     def save_to_session(self):
@@ -173,7 +173,14 @@ class DatalakeComponent(app.AppComponent):
         existing_dir = qw.QFileDialog.getExistingDirectory(self.app.window())
         if os.path.isdir(existing_dir):
             self.datalake_path = existing_dir
-            self.emit_datalake_path_changed()
+            self.app.update_app(
+                {
+                    "action": "datalake_path_changed",
+                    "sender_component_name": self.component_name,
+                    "sender_instance_name": self.instance_name,
+                    "data": {"datalake_path": self.datalake_path},
+                }
+            )
 
     def relative_to_absolute(self, path: str) -> str:
         if self.datalake_path:
@@ -200,9 +207,9 @@ class DatalakeComponent(app.AppComponent):
         with DatabaseConnection(self, database_name) as conn:
             return func(conn, *args, **kwargs)
 
-    def cleanup(self):
-        # Clean up resources
+    def close_component(self):
+
+        super().close_component()
+
         self.set_datalake_path_action = None
         self.update_datalake_action = None
-        # Call parent cleanup
-        super().cleanup()

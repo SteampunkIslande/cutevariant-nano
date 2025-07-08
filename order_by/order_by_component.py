@@ -58,6 +58,6 @@ class OrderByComponent(ap.AppComponent):
     def get_field_names(self):
         return self.field_names
 
-    def cleanup(self):
+    def close_component(self):
         self.model = None
         self.order_by_widget = None

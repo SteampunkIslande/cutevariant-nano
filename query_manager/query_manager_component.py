@@ -96,15 +96,6 @@ class QueryManagerComponent(ap.AppComponent):
         self.queries[query_name] = query
         self.queries_tab_widget.blockSignals(False)
 
-        # Connect destruction signal - use weak connection to avoid circular references
-        # Using weak connection to avoid circular references
-        query.beingDestroyed.connect(
-            lambda instance_name: self._on_query_destroyed(
-                instance_name.split("/")[-1]
-            ),
-            qc.Qt.ConnectionType.AutoConnection,
-        )
-
         # Connect title changed signal to update model only if widget exists
         if query.widget():
             query.widget().windowTitleChanged.connect(
@@ -134,29 +125,6 @@ class QueryManagerComponent(ap.AppComponent):
         query = self.queries.pop(old_name)
         self.queries[new_name] = query
 
-    def _on_query_destroyed(self, query_name: str):
-        """Callback when a QueryComponent is being destroyed"""
-        LOGGER.debug(f"QueryComponent {query_name} destroyed")
-
-        # Skip if model has been cleaned up
-        if self.query_model is None:
-            return
-
-        # Remove from model
-        items = self.query_model.findItems(query_name)
-        if items:
-            self.query_model.removeRow(items[0].row())
-
-        # Remove from queries dictionary
-        if query_name in self.queries:
-            del self.queries[query_name]
-
-        # Update current query if needed
-        if self.current_query and self.current_query.get_instance_name().endswith(
-            query_name
-        ):
-            self.current_query = None
-
     def get_final_query(self):
         return self.queries.get(self.app.translate("Final validation"))
 
@@ -173,10 +141,30 @@ class QueryManagerComponent(ap.AppComponent):
         self.current_query = self.queries[query_name]
 
     def close_query(self, query: q.QueryComponent):
+
+        print("Closing query:", query.get_instance_name())
+
+        # Simply close the component - cleanup will be handled by beingDestroyed signal
+        # Skip if model has been cleaned up
+        if self.query_model is None:
+            return
+
+        query_name = query.get_instance_name().split("/")[-1]
+
+        # Remove from model
+        items = self.query_model.findItems(query_name)
+        if items:
+            self.query_model.removeRow(items[0].row())
+        else:
+            print("could not find query in model:", query_name)
+
+        # Remove from queries dictionary
+        if query_name in self.queries:
+            del self.queries[query_name]
+
         if query is self.current_query:
             self.current_query = None
 
-        # Simply close the component - cleanup will be handled by beingDestroyed signal
         query.close_component()
 
     def on_query_tab_changed(self, tab_index: int):
@@ -221,10 +209,11 @@ class QueryManagerComponent(ap.AppComponent):
             self.close_query(query)
         self.query_model.clear()
 
-    def cleanup(self):
-        # Clean up resources
+    def close_component(self):
+        # Close all queries
         self.clear()
         self.query_manager_widget = None
         self.query_model = None
-        # Call parent cleanup
-        super().cleanup()
+
+        # Call parent close_component
+        super().close_component()

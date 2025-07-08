@@ -1,10 +1,14 @@
 import json
 import logging
+from typing import TYPE_CHECKING
 
 import PySide6.QtCore as qc
 import PySide6.QtWidgets as qw
 
 import app as ap
+
+if TYPE_CHECKING:
+    from fields.fields_component import FieldsComponent
 
 # Deferred import to resolve circular dependency
 
@@ -13,14 +17,13 @@ LOGGER = logging.getLogger(__name__)
 
 import fields.fields_model as fldm
 from common_widgets.searchable_list import SearchableList
-from fields.fields_component import FieldsComponent
 
 
 class PresetsWidget(qw.QWidget):
 
     preset_changed = qc.Signal()
 
-    def __init__(self, app: ap.App, model: fldm.FieldsModel):
+    def __init__(self, app: "ap.App", model: fldm.FieldsModel):
         super().__init__()
 
         self.app = app

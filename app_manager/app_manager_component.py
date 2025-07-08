@@ -48,9 +48,3 @@ class AppManager(app.AppComponent):
             window.add_component_to_window(
                 validation_component, mainwindow.WindowRegion.LEFT
             )
-
-    def cleanup(self):
-        # Clean up resources
-        # AppManager doesn't contain specific resources to clean up
-        # Call parent cleanup
-        super().cleanup()

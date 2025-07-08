@@ -158,9 +158,9 @@ class QueryTableWidget(qw.QWidget):
 
         self.app = app
         # Use weakref to avoid circular reference
-        self.query_ref = weakref.ref(query)
+        self.query_ref = weakref.proxy(query)
 
-        self.query_model = q_tm.QueryTableModel(query)
+        self.query_model = q_tm.QueryTableModel(self.query_ref)
         self.proxy_model = QueryTableProxyModel()
         self.proxy_model.setSourceModel(self.query_model)
 
@@ -418,6 +418,10 @@ class QueryTableWidget(qw.QWidget):
             if not filter_component:
                 return
             filter_component.add_expression(filter_text)
+
+    def close(self):
+        self.app = None
+        super().close()
 
 
 class SimpleFilterDialog(qw.QDialog):
