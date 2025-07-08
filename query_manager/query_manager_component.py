@@ -1,4 +1,5 @@
 import logging
+from typing import Optional
 
 import PySide6.QtCore as qc
 import PySide6.QtGui as qg
@@ -60,7 +61,7 @@ class QueryManagerComponent(ap.AppComponent):
         # Store QueryComponent references in a regular dictionary
         self.queries = {}
 
-        self.current_query = None
+        self.current_query: Optional[q.QueryComponent] = None
 
         self.query_model = qg.QStandardItemModel(self)
         self.query_manager_widget = QueryManagerWidget()
@@ -142,8 +143,6 @@ class QueryManagerComponent(ap.AppComponent):
 
     def close_query(self, query: q.QueryComponent):
 
-        print("Closing query:", query.get_instance_name())
-
         # Simply close the component - cleanup will be handled by beingDestroyed signal
         # Skip if model has been cleaned up
         if self.query_model is None:
@@ -156,7 +155,7 @@ class QueryManagerComponent(ap.AppComponent):
         if items:
             self.query_model.removeRow(items[0].row())
         else:
-            print("could not find query in model:", query_name)
+            LOGGER.warning("could not find query in model:", query_name)
 
         # Remove from queries dictionary
         if query_name in self.queries:
@@ -190,10 +189,6 @@ class QueryManagerComponent(ap.AppComponent):
                 "query_manager",
                 self.instance_name,
                 {"current_query": self.current_query.get_instance_name()},
-            )
-        else:
-            LOGGER.warning(
-                "Attempted to emit current_query_changed when current_query is None"
             )
 
     def widget(self) -> qw.QWidget:

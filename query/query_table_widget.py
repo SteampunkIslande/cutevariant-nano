@@ -3,7 +3,7 @@
 import weakref
 from formatter import FormatterDelegate
 from functools import partial
-from typing import List, Union
+from typing import TYPE_CHECKING, List, Union
 
 import PySide6.QtCore as qc
 import PySide6.QtGui as qg
@@ -14,6 +14,9 @@ import query.query_component as q_cmpt
 import query.query_table_model as q_tm
 from common_widgets.any_widget_dialog import AnyWidgetDialog
 from filters import filters_component as f_cmpt
+
+if TYPE_CHECKING:
+    from query.query_component import QueryComponent  # noqa: F401
 
 
 class PageSelector(qw.QWidget):
@@ -158,9 +161,9 @@ class QueryTableWidget(qw.QWidget):
 
         self.app = app
         # Use weakref to avoid circular reference
-        self.query_ref = weakref.proxy(query)
+        self.query: q_cmpt.QueryComponent = weakref.proxy(query)
 
-        self.query_model = q_tm.QueryTableModel(self.query_ref)
+        self.query_model = q_tm.QueryTableModel(self.query)
         self.proxy_model = QueryTableProxyModel()
         self.proxy_model.setSourceModel(self.query_model)
 
@@ -202,8 +205,7 @@ class QueryTableWidget(qw.QWidget):
         self.setLayout(layout)
 
     def get_current_validation_hashes(self) -> list[int | None]:
-        query = self.query_ref()
-        if not query:
+        if not self.query:
             return []
         selected_rows = self.table_view.selectionModel().selectedRows()
         if selected_rows:
@@ -231,7 +233,7 @@ class QueryTableWidget(qw.QWidget):
         menu.exec(self.table_view.mapToGlobal(pos))
 
     def add_order_by(self, index: qc.QModelIndex):
-        query = self.query_ref()
+        query = self.query
         if not query:
             return
         query.add_order_by(
@@ -275,8 +277,7 @@ class QueryTableWidget(qw.QWidget):
         )
 
     def add_variant_to_validation(self):
-        query = self.query_ref()
-        if not query:
+        if not self.query:
             return
         payload = {"validation_infos": []}
         for index in self.table_view.selectionModel().selectedRows(0):
@@ -288,7 +289,7 @@ class QueryTableWidget(qw.QWidget):
             transcript_id = row_data[".nm"]
             variant_hash = row_data[".variant_hash"]
 
-            val_table_uuid = query.get_editable_table_name()
+            val_table_uuid = self.query.get_editable_table_name()
             validation_hash = row_data[".validation_hash"]
 
             payload["validation_infos"].append(
@@ -302,7 +303,7 @@ class QueryTableWidget(qw.QWidget):
                     "accepted": True,
                 }
             )
-        query.add_variant_to_validation(payload)
+        self.query.add_variant_to_validation(payload)
 
     def show_row_userdata(self, index: qc.QModelIndex):
         row_data: dict = index.data(qc.Qt.ItemDataRole.UserRole)
@@ -401,19 +402,20 @@ class QueryTableWidget(qw.QWidget):
         self.proxy_model.setSourceModel(self.query_model)
 
     def filter_column(self, index: qc.QModelIndex):
-        query = self.query_ref()
-        if not query:
+        if not self.query:
             return
 
         col_name = index.model().headerData(
             index.column(), qc.Qt.Orientation.Horizontal
         )
-        dialog = SimpleFilterDialog(self.app, query.get_column_info(col_name), self)
+        dialog = SimpleFilterDialog(
+            self.app, self.query.get_column_info(col_name), self
+        )
 
         if dialog.exec() == qw.QDialog.DialogCode.Accepted:
             filter_text = dialog.get_filter()
             filter_component: f_cmpt.FiltersComponent = self.app.get_component(
-                "filters", query.get_instance_name() + "/filters"
+                "filters", self.query.get_instance_name() + "/filters"
             )
             if not filter_component:
                 return

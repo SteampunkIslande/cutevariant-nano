@@ -34,9 +34,6 @@ class AppManager(app.AppComponent):
         window.add_component_to_window(
             order_by_component, mainwindow.WindowRegion.LOWER
         )
-        window.add_component_to_window(
-            query_manager_component, mainwindow.WindowRegion.UPPER
-        )
 
         # Conditional management of validation component
 

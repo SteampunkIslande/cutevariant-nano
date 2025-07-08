@@ -28,10 +28,6 @@ class ValidationManagerComponent(ap.AppComponent):
 
     def __init__(self, app: ap.App, instance_name: str):
         super().__init__(app, instance_name)
-        # Query Manager Component
-        query_manager_component: qm.QueryManagerComponent = (
-            self.app.instantiate_component("query_manager")
-        )
 
         self.widget_holder = MultiWidgetHolder()
         # Deferred local import
@@ -302,10 +298,10 @@ class ValidationManagerComponent(ap.AppComponent):
             "query_manager"
         )
         if query_manager_component:
+            LOGGER.debug("Closing all queries in QueryManagerComponent")
             query_manager_component.clear()
 
         # Clean up resources
-        self.widget_holder = None
         self.validation_model = None
         self.validation_selection_widget = None
         self.validation_widget = None

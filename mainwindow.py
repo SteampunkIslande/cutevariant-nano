@@ -85,6 +85,9 @@ class MainWindow(qw.QMainWindow):
         self, component: "ap.AppComponent", region: WindowRegion
     ):
         if component.widget() is None:
+            LOGGER.info(
+                f"Component {component.instance_name} has no widget, cannot add to region {region.name}"
+            )
             return
 
         tab_widget = self.widget_regions[region]
@@ -120,6 +123,9 @@ class MainWindow(qw.QMainWindow):
                 self.title_update_handlers[component.instance_name]
             )
             del self.closing_components_handlers[component.instance_name]
+            LOGGER.debug(
+                f"Component {component.instance_name} closed and removed from region {region.name} tab widget. All signals disconnected."
+            )
         else:
             LOGGER.warning(
                 f"Component {component.instance_name} not found in region {region.name} tab widget."

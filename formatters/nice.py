@@ -47,8 +47,8 @@ DEFAULT_STYLE = {
     "Validé ?": {
         "background": {
             "map": {
-                "OUI": "#A1A1A1",
-                "NON": "green",
+                "OUI": "green",
+                "NON": "#A1A1A1",
             }
         }
     },
