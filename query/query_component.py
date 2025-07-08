@@ -553,7 +553,6 @@ class QueryComponent(ap.AppComponent):
                 self.commit()
 
     def close_component(self):
-
         super().close_component()
 
         # Close view via weak reference - avoids circular references
@@ -561,13 +560,14 @@ class QueryComponent(ap.AppComponent):
             self.view.close()
         self.view = None
 
-        # List all referrers to self
         import gc
 
+        # Print list of referrers to this instance
         referrers = gc.get_referrers(self)
-        print("I'm", self)
-        for referrer in referrers:
-            print(f"Referrer: {referrer}, type: {type(referrer)}, id: {id(referrer)}")
+        if referrers:
+            LOGGER.debug(
+                f"QueryComponent {self.instance_name} has {len(referrers)} referrers: {referrers}"
+            )
 
     def __del__(self):
         print(f"QueryComponent {self.instance_name} is being destroyed.!!!!;...")

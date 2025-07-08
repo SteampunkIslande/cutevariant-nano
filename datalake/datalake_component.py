@@ -70,16 +70,13 @@ class DatalakeComponent(app.AppComponent):
     def load_from_session(self, session: dict):
 
         new_datalake_path = session.get("datalake_path", None)
-        if new_datalake_path is None:
+        if new_datalake_path is None or not os.path.isdir(new_datalake_path):
             LOGGER.warning(
-                "No datalake path found in session. Please set the datalake path. Datalake path didn't change."
+                "No datalake path found for session (either not set or the directory does not exist). Please set the datalake path. Datalake path didn't change."
             )
             return
-        if not os.path.isdir(new_datalake_path):
-            self.datalake_path = None
-        else:
-            self.datalake_path = new_datalake_path
 
+        self.datalake_path = new_datalake_path
         self.app.update_app(
             {
                 "action": "datalake_path_changed",

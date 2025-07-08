@@ -98,8 +98,8 @@ class AppComponent(qc.QObject):
         # Explicitly remove from registry before Qt cleanup
         if self.app:
             self.app.remove_instance(self)
-        else:
-            print("No app!")
+            # Avoid double disconnect
+            self.app.application_closing.disconnect(self.close_component)
         self.app = None  # Break reference to the app
 
     def generic_receiver(

@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 
 # Deferred import to resolve circular dependency
-from typing import TYPE_CHECKING, Union
+from typing import Union
 
 import PySide6.QtCore as qc
 import PySide6.QtGui as qg
@@ -17,9 +17,6 @@ from commons import yaml_load
 from component_registry import register_app_component
 
 LOGGER = logging.getLogger(__name__)
-
-if TYPE_CHECKING:
-    from validation_manager.validation_model import ValidationModel
 
 
 @register_app_component(

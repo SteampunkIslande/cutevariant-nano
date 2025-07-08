@@ -39,12 +39,14 @@ class AppManager(app.AppComponent):
         )
 
         # Conditional management of validation component
-        validation_component = self.app.instantiate_component("validation_manager")
+
         if self.app.get_app_option("validation", "genno") == "genno":
+            validation_component = self.app.instantiate_component("validation_manager")
             window.add_component_to_window(
                 validation_component, mainwindow.WindowRegion.RIGHT
             )
         else:
-            window.add_component_to_window(
-                validation_component, mainwindow.WindowRegion.LEFT
-            )
+            # window.add_component_to_window(
+            #     validation_component, mainwindow.WindowRegion.LEFT
+            # )
+            pass
