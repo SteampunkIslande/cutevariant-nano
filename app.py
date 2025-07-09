@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import typing
 import weakref
 from formatter import Formatter
@@ -929,6 +930,12 @@ if __name__ == "__main__":
     )
 
     pyside_app = qw.QApplication(sys.argv)
+
+    icon_path = os.path.join(os.path.dirname(__file__), "assets/icon.ico")
+    icon = qg.QIcon(icon_path)
+    if icon.isNull():
+        LOGGER.error(f"Failed to load icon from {icon_path}")
+    pyside_app.setWindowIcon(icon)
 
     pyside_app.setApplicationName("cutevariant-nano")
     pyside_app.setOrganizationName("CharlesMB")
