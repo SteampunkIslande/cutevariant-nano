@@ -82,9 +82,7 @@ class ValidationManagerComponent(ap.AppComponent):
         validation_method = validation_info.get("validation_method")
         if not validation_method:
             return
-        config_folder_present, config_folder = self.app.get_config_folder()
-        if not config_folder_present:
-            return
+        config_folder = self.app.get_config_folder()
 
         self.validation_method = yaml_load(
             os.path.join(

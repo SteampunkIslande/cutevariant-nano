@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Union
 import PySide6.QtCore as qc
 import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
+import yaml
 
 import mainwindow as mw
 
@@ -203,14 +204,6 @@ class App(qc.QObject):
 
     def setup_app(self):
 
-        self.set_config_folder_action = qg.QAction(self.translate("Set config folder"))
-        self.set_config_folder_action.triggered.connect(self.set_config_folder)
-        add_action_to_menubar(
-            self.main_window.menuBar(),
-            self.translate("File"),
-            self.set_config_folder_action,
-        )
-
         if self.get_app_option("debug"):
             LOGGER.info(
                 "Debug mode enabled. Registering debug actions in the main window."
@@ -248,6 +241,8 @@ class App(qc.QObject):
         self.formatters = {
             "nice": NiceFormatter(self),
         }
+
+        self.ensure_config_folder()
 
         LOGGER.info(
             f"Setup completed: {APP_COMPONENT_REGISTRY.get_component_count()} components registered"
@@ -706,31 +701,81 @@ class App(qc.QObject):
 
     # UTILS
 
-    def set_config_folder(self) -> typing.Tuple[bool, typing.Union[Path | None]]:
-        config_folder = qw.QFileDialog.getExistingDirectory(
-            self.window(),
-            self.translate("Please choose a configuration folder"),
-        )
-        if config_folder:
-            self.save_user_prefs({"config_folder": config_folder})
-            return True, Path(config_folder)
-        else:
-            return False, None
+    def ensure_config_folder(self):
+        """Ensures that the config folder exists and is properly set up with default files."""
+        config_folder = self.get_config_folder()
 
-    def get_config_folder(self) -> typing.Tuple[bool, typing.Union[Path | None]]:
-        user_prefs = self.get_user_prefs()
-        if "config_folder" in user_prefs:
-            config_folder = Path(user_prefs["config_folder"])
-            return True, config_folder
-        else:
-            qw.QMessageBox.warning(
+        if not (config_folder / "validation_methods").exists():
+            if not self.setup_default_validation_methods():
+                return False
+        if not (config_folder / "styles").exists():
+            if not self.setup_default_styles():
+                return False
+
+        return True
+
+    def setup_default_validation_methods(self):
+        """Sets up the default validation methods in the config folder."""
+        try:
+            config_folder = self.get_config_folder()
+            validation_methods_folder = config_folder / "validation_methods"
+            validation_methods_folder.mkdir(parents=True, exist_ok=True)
+
+            from defaults import validation_methods
+
+            for method_name, method_content in validation_methods.items():
+                method_file = validation_methods_folder / f"{method_name}.yaml"
+                with open(method_file, "w", encoding="utf-8") as f:
+                    yaml.dump(method_content, f, allow_unicode=True)
+
+        except Exception as e:
+            LOGGER.error(f"Error setting up default validation methods: {e}")
+            qw.QMessageBox.critical(
                 self.window(),
-                self.translate("Validation"),
+                self.translate("Error"),
                 self.translate(
-                    "No configuration folder defined. Please choose one",
-                ),
+                    "An error occurred while setting up the default validation methods:\n{error}"
+                ).format(error=str(e)),
             )
-            return self.set_config_folder()
+            return False
+
+        LOGGER.info(f"Default validation methods set up at {validation_methods_folder}")
+        return True
+
+    def setup_default_styles(self):
+        """Sets up the default styles in the config folder."""
+        try:
+            config_folder = self.get_config_folder()
+            styles_folder = config_folder / "styles"
+            styles_folder.mkdir(parents=True, exist_ok=True)
+
+            from defaults import styles
+
+            for style_name, style_content in styles.items():
+                style_file = styles_folder / f"{style_name}.json"
+                with open(style_file, "w", encoding="utf-8") as f:
+                    json.dump(style_content, f, ensure_ascii=False, indent=4)
+
+        except Exception as e:
+            LOGGER.error(f"Error setting up default styles: {e}")
+            qw.QMessageBox.critical(
+                self.window(),
+                self.translate("Error"),
+                self.translate(
+                    "An error occurred while setting up the default styles:\n{error}"
+                ).format(error=str(e)),
+            )
+            return False
+
+        LOGGER.info(f"Default styles set up at {styles_folder}")
+        return True
+
+    def get_config_folder(self) -> Path:
+        return Path(
+            qc.QStandardPaths().writableLocation(
+                qc.QStandardPaths.StandardLocation.AppDataLocation
+            )
+        )
 
     def get_user_prefs(self):
         user_prefs = self.get_user_prefs_file()

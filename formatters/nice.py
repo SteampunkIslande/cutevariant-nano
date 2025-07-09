@@ -70,9 +70,7 @@ class NiceFormatter(Formatter):
     DISPLAY_NAME = "Nice formatter"
 
     def __init__(self, app: "ap.App"):
-        success, config_folder = app.get_config_folder()
-        if not success:
-            raise RuntimeError("Could not get config folder for NiceFormatter")
+        config_folder = app.get_config_folder()
 
         formatter_style_file = app.get_user_prefs().get("formatter_style_file", None)
         if formatter_style_file is None:

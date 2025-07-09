@@ -52,9 +52,8 @@ class PresetsWidget(qw.QWidget):
         return self.presets_combobox.currentData(qc.Qt.ItemDataRole.UserRole)["fields"]
 
     def load_presets(self):
-        success, config_folder = self.app.get_config_folder()
-        if not success:
-            return
+        config_folder = self.app.get_config_folder()
+
         presets_file = config_folder / "presets" / "presets.json"
         if not presets_file.exists():
             return
@@ -84,9 +83,8 @@ class PresetsWidget(qw.QWidget):
         self.presets["fields_presets"][preset_name] = {
             "fields": self.model.checked_fields(),
         }
-        success, config_folder = self.app.get_config_folder()
-        if not success:
-            return
+        config_folder = self.app.get_config_folder()
+
         presets_file = config_folder / "presets" / "presets.json"
         # Create if not exists
         presets_file.parent.mkdir(parents=True, exist_ok=True)

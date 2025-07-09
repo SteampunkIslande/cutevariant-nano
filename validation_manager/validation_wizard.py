@@ -41,7 +41,7 @@ class IntroPage(qw.QWizardPage):
 
         self.validation_method_combo = qw.QComboBox()
         validation_methods = []
-        _, config_folder = self.app.get_config_folder()
+        config_folder = self.app.get_config_folder()
         if config_folder.resolve().is_dir():
             validation_methods = [
                 f.stem

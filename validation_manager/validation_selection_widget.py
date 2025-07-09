@@ -85,7 +85,7 @@ class ValidationSelectionWidget(qw.QWidget):
         username = Path.home().name
 
         # Make sure we have a config folder (before we start the wizard)
-        success, _ = self.app.get_config_folder()
+        success = self.app.ensure_config_folder()
         if not success:
             qw.QMessageBox.critical(
                 self,
