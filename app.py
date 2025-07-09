@@ -667,7 +667,7 @@ class App(qc.QObject):
         if action == "datalake_path_changed":
             self.datalake_path_changed.emit()
         elif action == "selected_query_changed":
-            self.selected_query_changed.emit()
+            self.set_current_query(self.get_component("query", data["current_query"]))
         elif action == "selected_variant_changed":
             self.current_selected_variant = data.get("variant", None)
             self.selected_variant_changed.emit()
@@ -685,20 +685,25 @@ class App(qc.QObject):
         This will also update the main window title.
         """
 
+        if query is None:
+            LOGGER.debug("Setting current query to None")
+
         if query is self.current_selected_query:
             return
 
         self.current_selected_query = query
+
+        print("Emitting selected_query_changed signal")
         self.selected_query_changed.emit()
 
-        if query is not None:
-            self.window().setWindowTitle(
-                self.translate("CuteVariant Nano - Query: {query_name}").format(
-                    query_name=query.get_instance_name()
-                )
-            )
-        else:
-            self.window().setWindowTitle(self.translate("CuteVariant Nano"))
+        # if query is not None:
+        #     self.window().setWindowTitle(
+        #         self.translate("CuteVariant Nano - Query: {query_name}").format(
+        #             query_name=query.get_instance_name()
+        #         )
+        #     )
+        # else:
+        #     self.window().setWindowTitle(self.translate("CuteVariant Nano"))
 
     # UTILS
 

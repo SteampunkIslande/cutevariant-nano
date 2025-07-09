@@ -141,6 +141,17 @@ class QueryManagerComponent(ap.AppComponent):
         )
         self.current_query = self.queries[query_name]
 
+        self.app.update_app(
+            {
+                "action": "selected_query_changed",
+                "sender_component_name": self.component_name,
+                "sender_instance_name": self.instance_name,
+                "data": {
+                    "current_query": self.current_query.get_instance_name(),
+                },
+            }
+        )
+
     def close_query(self, query: q.QueryComponent):
 
         # Simply close the component - cleanup will be handled by beingDestroyed signal
@@ -182,14 +193,14 @@ class QueryManagerComponent(ap.AppComponent):
 
         self.set_current_query(current_query_name)
 
-        # Only emit signal if current_query is not None
-        if self.current_query:
-            self.broadcast.emit(
-                "current_query_changed",
-                "query_manager",
-                self.instance_name,
-                {"current_query": self.current_query.get_instance_name()},
-            )
+        # # Only emit signal if current_query is not None
+        # if self.current_query:
+        #     self.broadcast.emit(
+        #         "current_query_changed",
+        #         "query_manager",
+        #         self.instance_name,
+        #         {"current_query": self.current_query.get_instance_name()},
+        #     )
 
     def widget(self) -> qw.QWidget:
         return self.query_manager_widget
