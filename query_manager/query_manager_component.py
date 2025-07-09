@@ -202,6 +202,7 @@ class QueryManagerComponent(ap.AppComponent):
         queries = list(self.queries.values())
         for query in queries:
             self.close_query(query)
+        del queries
         self.query_model.clear()
 
     def close_component(self):

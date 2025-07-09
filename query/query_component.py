@@ -97,9 +97,6 @@ class QueryComponent(ap.AppComponent):
     # Signal for external use (tell the UI to update)
     query_changed = qc.Signal()
 
-    # Signal emitted when the component is being destroyed
-    beingDestroyed = qc.Signal(object)  # Emits the component instance
-
     def __init__(self, app: "ap.App", instance_name: str):
         super().__init__(app, instance_name)
 
@@ -553,24 +550,13 @@ class QueryComponent(ap.AppComponent):
                 self.commit()
 
     def close_component(self):
+        LOGGER.debug(f"Starting close_component for {self.instance_name}")
         super().close_component()
-
-        # Close view via weak reference - avoids circular references
-        if self.view:
-            self.view.close()
-        self.view = None
-
-        import gc
-
-        # Print list of referrers to this instance
-        referrers = gc.get_referrers(self)
-        if referrers:
-            LOGGER.debug(
-                f"QueryComponent {self.instance_name} has {len(referrers)} referrers: {referrers}"
-            )
+        self.deleteLater()
+        self.app = None
 
     def __del__(self):
-        print(f"QueryComponent {self.instance_name} is being destroyed.!!!!;...")
+        LOGGER.info(f"QueryComponent {self.instance_name} deleted")
 
 
 if __name__ == "__main__":

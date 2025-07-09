@@ -128,9 +128,15 @@ class ComponentRegistry:
             )
             return True  # Already removed, consider success
 
+        # Get reference to the instance before removing it
+        instance_ref = instances[instance_name]
+        LOGGER.debug(
+            f"Registry removing instance '{instance_name}' from component '{component_name}' (type: {type(instance_ref).__name__})"
+        )
+
         del instances[instance_name]
         LOGGER.debug(
-            f"Removed instance '{instance_name}' from component '{component_name}'"
+            f"Registry successfully removed instance '{instance_name}' from component '{component_name}'. Remaining instances: {list(instances.keys())}"
         )
         return True
 
