@@ -2,6 +2,7 @@
 
 
 import logging
+import os
 
 from PySide6.QtCore import QBuffer, QByteArray, QPoint, QRect, Qt
 from PySide6.QtGui import (
@@ -115,7 +116,9 @@ class FIconEngine(QIconEngine):
         :return: QFont or False if the file is not loaded
         """
         db = QFontDatabase()
-        font_id = db.addApplicationFont(filename)
+        font_id = db.addApplicationFont(
+            os.path.join(os.path.dirname(__file__), filename)
+        )
         if font_id == -1:
             LOGGER.error("FIconEngine:setFontPath:: cannot load font icon.")
             return False
@@ -162,8 +165,6 @@ class FIcon(QIcon):
 
 def setFontPath(filename):
     """Handy function to load font file
-
-    .. note:: Fonts are supposed to be in cst.DIR_FONTS
-    .. note:: This function is called only 1 time at the start of the program
+    Only accepts files that are relative to the assets folder.
     """
     return FIconEngine.setFontPath(filename)
