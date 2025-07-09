@@ -58,19 +58,6 @@ class ComponentRegistry:
         if not all(key in definition for key in required_def_keys):
             raise ValueError(f"'definition' must contain keys: {required_def_keys}")
 
-    def get_component_def(self, name: str) -> Optional[dict]:
-        """
-        Get the definition of a component.
-
-        Args:
-            name: Component name
-
-        Returns:
-            Optional[dict]: Component definition or None if not found
-        """
-        component_data = self.registry.get(name)
-        return component_data["definition"] if component_data else None
-
     def get_component_data(self, name: str) -> Optional[dict]:
         """
         Get complete data for a component (definition + instances).
@@ -115,30 +102,6 @@ class ComponentRegistry:
         """
         return len(self.registry)
 
-    def get_components_by_policy(self, policy: str) -> Dict[str, dict]:
-        """
-        Return all components with a given instantiation policy.
-
-        Args:
-            policy: Instantiation policy ("singleton" or "multi")
-
-        Returns:
-            Dict[str, dict]: Components matching the policy
-        """
-        return {
-            name: component_data
-            for name, component_data in self.registry.items()
-            if component_data["definition"]["instantiation_policy"] == policy
-        }
-
-    def clear_registry(self) -> None:
-        """
-        Completely clear the component registry.
-        Recommended use only for testing.
-        """
-        LOGGER.warning("Complete clearing of component registry")
-        self.registry.clear()
-
     def remove_component_instance(
         self, component_name: str, instance_name: str
     ) -> bool:
@@ -170,75 +133,6 @@ class ComponentRegistry:
             f"Removed instance '{instance_name}' from component '{component_name}'"
         )
         return True
-
-    def get_active_instances(self) -> Dict[str, list]:
-        """
-        Get all active instances grouped by component.
-
-        Returns:
-            Dict[str, list]: Dictionary mapping component names to lists of instance names
-        """
-        return {
-            component_name: list(component_data["instances"].keys())
-            for component_name, component_data in self.registry.items()
-            if component_data["instances"]
-        }
-
-    def get_total_instance_count(self) -> int:
-        """
-        Get the total number of active component instances.
-
-        Returns:
-            int: Total number of instances across all components
-        """
-        return sum(
-            len(component_data["instances"])
-            for component_data in self.registry.values()
-        )
-
-    def validate_registry_integrity(self) -> list:
-        """
-        Validate the integrity of the component registry.
-
-        Returns:
-            list: List of issues found (empty if no issues)
-        """
-        issues = []
-
-        for component_name, component_data in self.registry.items():
-            if not isinstance(component_data, dict):
-                issues.append(f"Component '{component_name}' data is not a dictionary")
-                continue
-
-            if "definition" not in component_data:
-                issues.append(f"Component '{component_name}' missing definition")
-
-            if "instances" not in component_data:
-                issues.append(f"Component '{component_name}' missing instances")
-                continue
-
-            instances = component_data["instances"]
-            if not isinstance(instances, dict):
-                issues.append(
-                    f"Component '{component_name}' instances is not a dictionary"
-                )
-                continue
-
-            for instance_name, instance in instances.items():
-                if instance is None:
-                    issues.append(
-                        f"Component '{component_name}' has None instance '{instance_name}'"
-                    )
-                elif not hasattr(instance, "component_name"):
-                    issues.append(
-                        f"Instance '{instance_name}' of '{component_name}' missing component_name attribute"
-                    )
-                elif instance.component_name != component_name:
-                    issues.append(
-                        f"Instance '{instance_name}' component_name mismatch: expected '{component_name}', got '{instance.component_name}'"
-                    )
-
-        return issues
 
 
 # Decorator to register components
