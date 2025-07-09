@@ -100,6 +100,7 @@ class AppComponent(qc.QObject):
             self.app.remove_instance(self)
             # Avoid double disconnect
             self.app.application_closing.disconnect(self.close_component)
+        self.app = None
 
     def generic_receiver(
         self,
