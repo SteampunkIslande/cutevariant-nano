@@ -141,6 +141,9 @@ class QueryManagerComponent(ap.AppComponent):
         )
         self.current_query = self.queries[query_name]
 
+        LOGGER.debug(
+            f"Setting current query to {self.current_query.get_instance_name()}"
+        )
         self.app.update_app(
             {
                 "action": "selected_query_changed",

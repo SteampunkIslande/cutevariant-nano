@@ -40,11 +40,10 @@ class FieldsModel(qg.QStandardItemModel):
     def set_checked_fields(self, fields: list[str]):
         for i in range(self.rowCount()):
             item = self.item(i)
-            item.setCheckState(
-                qc.Qt.CheckState.Checked
-                if item.text() in fields or item.text().startswith(".")
-                else qc.Qt.CheckState.Unchecked
-            )
+            if item.text() in fields or item.text().startswith(".") or len(fields) == 0:
+                item.setCheckState(qc.Qt.CheckState.Checked)
+            else:
+                item.setCheckState(qc.Qt.CheckState.Unchecked)
 
     def checked_fields(self):
         return [

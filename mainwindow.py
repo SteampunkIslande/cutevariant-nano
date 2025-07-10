@@ -108,6 +108,10 @@ class MainWindow(qw.QMainWindow):
             self.title_update_handlers[component.instance_name]
         )
 
+        LOGGER.debug(
+            f"Added component {component.instance_name} to region {region.name} tab widget."
+        )
+
     def on_component_closing(self, component: "ap.AppComponent", region: WindowRegion):
         LOGGER.debug(
             f"Closing component {component.instance_name} in region {region.name}"

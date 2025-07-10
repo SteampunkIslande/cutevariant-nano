@@ -693,17 +693,16 @@ class App(qc.QObject):
 
         self.current_selected_query = query
 
-        print("Emitting selected_query_changed signal")
         self.selected_query_changed.emit()
 
-        # if query is not None:
-        #     self.window().setWindowTitle(
-        #         self.translate("CuteVariant Nano - Query: {query_name}").format(
-        #             query_name=query.get_instance_name()
-        #         )
-        #     )
-        # else:
-        #     self.window().setWindowTitle(self.translate("CuteVariant Nano"))
+        if query is not None:
+            self.window().setWindowTitle(
+                self.translate("CuteVariant Nano - Query: {query_name}").format(
+                    query_name=query.get_instance_name()
+                )
+            )
+        else:
+            self.window().setWindowTitle(self.translate("CuteVariant Nano"))
 
     # UTILS
 
