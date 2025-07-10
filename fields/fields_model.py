@@ -26,13 +26,14 @@ class FieldsModel(qg.QStandardItemModel):
             return
         for i, field in enumerate(self.fields):
             item = qg.QStandardItem(field)
-            # item.setData(i, qc.Qt.ItemDataRole.UserRole)
+            item.setData(i, qc.Qt.ItemDataRole.UserRole)
             item.setDragEnabled(True)
             item.setCheckable(True)
             item.setCheckState(qc.Qt.CheckState.Checked)
             self.appendRow(item)
 
     def canDropMimeData(self, data, action, row, column, parent):
+        """Check if the drop is allowed."""
         if parent.isValid():
             return False
         return True
@@ -51,6 +52,9 @@ class FieldsModel(qg.QStandardItemModel):
             for i in range(self.rowCount())
             if self.item(i).checkState() == qc.Qt.CheckState.Checked
         ]
+
+    def all_fields(self):
+        return self.fields
 
     def __del__(self):
         LOGGER.debug("FieldsModel deleted")

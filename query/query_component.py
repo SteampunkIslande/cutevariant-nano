@@ -150,6 +150,9 @@ class QueryComponent(ap.AppComponent):
         # User-defined variables
         self.variables = dict()
 
+        # Datalake component, used to run queries
+        self.datalake: dl.DatalakeComponent = self.app.get_component("datalake")
+
         return self
 
     def add_variant_to_validation(self, payload: dict):
@@ -238,11 +241,10 @@ class QueryComponent(ap.AppComponent):
     def set_readonly_table(self, files: List[str]):
         if not files:
             return self
-        datalake = self.get_datalake()
-        if not datalake:
+        if not self.datalake:
             return self
 
-        new_readonly_table = f"read_parquet({duck_db_literal_string_list(datalake.relative_to_absolute(f) for f in files)})"
+        new_readonly_table = f"read_parquet({duck_db_literal_string_list(self.datalake.relative_to_absolute(f) for f in files)})"
 
         if self.readonly_table != new_readonly_table:
             self.readonly_table = new_readonly_table
@@ -252,11 +254,10 @@ class QueryComponent(ap.AppComponent):
         return self
 
     def get_editable_table_human_readable_name(self) -> str:
-        datalake = self.get_datalake()
-        if not datalake or not datalake.datalake_path:
+        if not self.datalake or not self.datalake.datalake_path:
             return self.app.translate("No datalake selected")
 
-        return datalake.run_with_connection(
+        return self.datalake.run_with_connection(
             "validation",
             lambda conn: conn.sql(
                 f"SELECT table_name FROM validations WHERE table_uuid = '{self.editable_table_name}'"
@@ -267,16 +268,15 @@ class QueryComponent(ap.AppComponent):
 
     def get_column_info(self, colname: str):
         select = self.select_query(paginated=False, columns=f'"{colname}"')
-        datalake = self.get_datalake()
-        if not datalake:
+        if not self.datalake:
             return
-        (datatype, nullable) = datalake.run_with_connection(
+        (datatype, nullable) = self.datalake.run_with_connection(
             "validation",
             lambda conn: conn.sql(
                 f"SELECT column_type,null FROM (describe({select}))"
             ).fetchone(),
         )
-        top_10_values = datalake.run_with_connection(
+        top_10_values = self.datalake.run_with_connection(
             "validation",
             lambda conn: [
                 c[1]
@@ -334,7 +334,7 @@ class QueryComponent(ap.AppComponent):
         return self
 
     def compute_all_fields(self):
-        self.all_fields = self.get_datalake().run_with_connection(
+        self.all_fields = self.datalake.run_with_connection(
             "validation", lambda conn: conn.sql(self.select_query()).columns
         )
         return self
@@ -384,18 +384,16 @@ class QueryComponent(ap.AppComponent):
         if not self.readonly_table:
             return ""
 
+        # No columns provided, use all fields or selected fields
         if not columns:
             if self.all_fields and self.selected_fields:
                 columns = ",".join(
                     [f'"{f}"' for f in self.selected_fields if f in self.all_fields]
-                    + [
-                        f'"{f}"'
-                        for f in self.all_fields
-                        if f not in self.selected_fields
-                    ]
                 )
+            else:
+                columns = "*"
 
-        fields = columns or "*"
+        fields = columns
 
         order_by = (
             " ORDER BY " + ", ".join([f'"{ob[0]}" {ob[1]}' for ob in self.order_by])
@@ -415,7 +413,7 @@ class QueryComponent(ap.AppComponent):
             **{
                 "main_table": self.readonly_table,
                 "user_table": f'"{self.editable_table_name}"',
-                "pwd": self.get_datalake().datalake_path,
+                "pwd": self.datalake.datalake_path,
                 "selected_genes": duck_db_literal_string_tuple(self.selected_genes),
                 "selected_samples": duck_db_literal_string_tuple(self.selected_samples),
                 **self.variables,
@@ -431,7 +429,7 @@ class QueryComponent(ap.AppComponent):
 
     def get_variant_info(self, validation_hash: int, columns: List[str] = None):
 
-        variant_info = self.get_datalake().run_with_connection(
+        variant_info = self.datalake.run_with_connection(
             "validation",
             lambda conn: conn.sql(
                 self.select_query(
@@ -452,10 +450,10 @@ class QueryComponent(ap.AppComponent):
         )
 
     def is_valid(self):
-        return bool(self.readonly_table) and self.get_datalake()
+        return bool(self.readonly_table) and self.datalake
 
     def to_do(self):
-        if not self.get_datalake().datalake_path:
+        if not self.datalake.datalake_path:
             return "Please select a datalake"
         if not self.readonly_table:
             return "Please select a main table"
@@ -464,13 +462,13 @@ class QueryComponent(ap.AppComponent):
 
     def get_table_data(self) -> List[dict]:
         q = self.select_query()
-        return self.get_datalake().run_with_connection(
+        return self.datalake.run_with_connection(
             "validation", lambda conn: run_sql(q, conn)
         )
 
     def get_row_count(self) -> int:
         q = self.count_query()
-        return self.get_datalake().run_with_connection(
+        return self.datalake.run_with_connection(
             "validation", lambda conn: run_sql(q, conn)[0]["count_star"]
         )
 
@@ -516,10 +514,10 @@ class QueryComponent(ap.AppComponent):
         # query:selected_genes_changed with payload keys: selected_genes
         # query:all_fields_changed with payload keys: all_fields
         # query:selected_fields_changed with payload keys: fields
-        for change, payload in self.changes_list:
-            self.broadcast.emit(
-                f"query:{change}_changed", "query", self.instance_name, payload
-            )
+        # for change, payload in self.changes_list:
+        #     self.broadcast.emit(
+        #         f"query:{change}_changed", "query", self.instance_name, payload
+        #     )
         self.changes_list.clear()
         self.update_data()
 
