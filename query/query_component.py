@@ -560,13 +560,15 @@ class QueryComponent(ap.AppComponent):
         pass
 
     def close_component(self):
-        LOGGER.debug(f"Starting close_component for {self.instance_name}")
+        LOGGER.debug(
+            f"Starting close_component for {self.instance_name} (AKA {self.ui_name})"
+        )
         super().close_component()
         self.deleteLater()
         self.app = None
 
     def __del__(self):
-        LOGGER.info(f"QueryComponent {self.instance_name} deleted")
+        LOGGER.info(f"QueryComponent {self.instance_name} (AKA {self.ui_name}) deleted")
 
 
 if __name__ == "__main__":

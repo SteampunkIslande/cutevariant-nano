@@ -696,9 +696,17 @@ class App(qc.QObject):
             LOGGER.debug("Setting current query to None")
 
         if query is self.current_selected_query:
+            LOGGER.warning("set_current_query called with the same query, ignoring.")
             return
 
+        # A bit weird, but I cannot figure out a way to refactor this
+        if self.current_selected_query is not None:
+            self.current_selected_query.closing.disconnect(
+                self.on_selected_query_closing
+            )
         self.current_selected_query = query
+        if self.current_selected_query is not None:
+            self.current_selected_query.closing.connect(self.on_selected_query_closing)
 
         self.selected_query_changed.emit()
 
@@ -725,6 +733,10 @@ class App(qc.QObject):
                 return False
 
         return True
+
+    def on_selected_query_closing(self):
+        """Handle the closing of the currently selected query."""
+        self.set_current_query(None)
 
     def setup_default_validation_methods(self):
         """Sets up the default validation methods in the config folder."""
