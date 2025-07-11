@@ -672,7 +672,9 @@ class App(qc.QObject):
         if action == "datalake_path_changed":
             self.datalake_path_changed.emit()
         elif action == "selected_query_changed":
-            self.set_current_query(self.get_component("query", data["current_query"]))
+            self.set_current_query(
+                self.get_component("query", data.get("current_query"))
+            )
         elif action == "selected_variant_changed":
             self.current_selected_variant = data.get("variant", None)
             self.selected_variant_changed.emit()
