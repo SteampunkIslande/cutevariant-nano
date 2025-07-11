@@ -254,6 +254,7 @@ class ValidationModel(qc.QAbstractTableModel):
             "sample_names": self.app.translate("Sample names"),
             "gene_names": self.app.translate("Gene names"),
             "username": self.app.translate("Username"),
+            "validation_name": self.app.translate("Validation name"),
             "validation_method": self.app.translate("Validation method"),
             "table_uuid": self.app.translate("Table UUID"),
             "creation_date": self.app.translate("Creation date"),
