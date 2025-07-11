@@ -39,6 +39,7 @@ class FieldsComponent(app.AppComponent):
     def on_selected_fields_changed(self):
         if self.model.checked_fields() != self.query.get_selected_fields():
             self.query.set_selected_fields(self.model.checked_fields()).commit()
+            print("Selected fields changed:", self.model.checked_fields())
 
     def on_selected_query_changed(self):
         query: "q.QueryComponent" = self.app.get_current_query()
@@ -69,12 +70,13 @@ class FieldsComponent(app.AppComponent):
 
     def update_self(self):
         if self.query is None:
+            self.model.update_fields([])
             return
 
-        if self.query.get_all_fields() != self.model.all_fields():
+        if self.query.get_all_fields() != self.model.get_all_fields():
             self.model.update_fields(self.query.get_all_fields())
-            # Below call seems to be the one that slows down the app
             self.model.set_checked_fields(self.query.get_selected_fields())
+            self.on_selected_fields_changed()
 
     def close_component(self):
 
