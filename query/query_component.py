@@ -105,12 +105,23 @@ class QueryComponent(ap.AppComponent):
 
         self.view = query.query_table_widget.QueryTableWidget(self.app, self)
         self.closing.connect(self.view.close)
-        self.view.setWindowTitle(self.instance_name)
+
+        self.ui_name = self.app.translate("Unnamed query")
 
         self.changes_list = []
 
     def get_datalake(self) -> "dl.DatalakeComponent":
         return self.app.get_component("datalake")
+
+    def get_ui_name(self) -> str:
+        """Get the UI name of the query, used in the QueryManagerWidget."""
+        return self.ui_name
+
+    def set_ui_name(self, name: str):
+        """Set the UI name of the query, used in the QueryManagerWidget."""
+        self.ui_name = name
+        self.view.setWindowTitle(name)
+        return self
 
     def init_state(self):
         # When we create a new Query, we want to reset everything, except for the datalake path...

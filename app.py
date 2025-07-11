@@ -702,12 +702,12 @@ class App(qc.QObject):
 
         if query is not None:
             self.window().setWindowTitle(
-                self.translate("CuteVariant Nano - Query: {query_name}").format(
-                    query_name=query.get_instance_name()
+                self.translate("Cutevariant - Query: {query_name}").format(
+                    query_name=query.get_ui_name()
                 )
             )
         else:
-            self.window().setWindowTitle(self.translate("CuteVariant Nano"))
+            self.window().setWindowTitle(self.translate("CuteVariant"))
 
     # UTILS
 
