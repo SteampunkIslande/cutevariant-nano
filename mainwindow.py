@@ -142,7 +142,6 @@ class MainWindow(qw.QMainWindow):
         tab_index = tab_widget.indexOf(component.widget())
         if tab_index != -1:
             tab_widget.setTabText(tab_index, new_title)
-            component.widget().setWindowTitle(new_title)
 
     def get_window_panel(self, region: WindowRegion):
         return self.widget_regions[region]
