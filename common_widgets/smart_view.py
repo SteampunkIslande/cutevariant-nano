@@ -97,6 +97,11 @@ class SmartView(QWidget):
     def update_selected_col(self, cur: QModelIndex, prev: QModelIndex):
         self.column_selection_model.set_column(cur.row())
 
+    def set_hidden_rows(self, row_indexes: list[int]):
+        """Hide rows in the table view based on the provided row indexes."""
+        self.column_selection_model.hide_row_indexes(row_indexes)
+        self.table_view.reset()
+
 
 if __name__ == "__main__":
 

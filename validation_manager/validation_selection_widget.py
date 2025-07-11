@@ -54,6 +54,7 @@ class ValidationSelectionWidget(qw.QWidget):
         self.view.filter_le.setPlaceholderText(
             self.app.translate("Filter on validation name...")
         )
+        self.view.set_hidden_rows([VALIDATION_TABLE_COLUMNS["table_uuid"]])
         self.model.model_updated.connect(
             lambda: self.view.set_list_view_column(
                 VALIDATION_TABLE_COLUMNS["validation_name"]
