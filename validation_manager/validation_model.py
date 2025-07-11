@@ -238,11 +238,25 @@ class ValidationModel(qc.QAbstractTableModel):
         orientation: qc.Qt.Orientation,
         role: int = qc.Qt.ItemDataRole.DisplayRole,
     ) -> str | None:
+
+        header_names_translations = {
+            "parquet_files": self.app.translate("Parquet files"),
+            "sample_names": self.app.translate("Sample names"),
+            "gene_names": self.app.translate("Gene names"),
+            "username": self.app.translate("Username"),
+            "validation_name": self.app.translate("Validation name"),
+            "table_uuid": self.app.translate("Table UUID"),
+            "creation_date": self.app.translate("Creation date"),
+            "completed": self.app.translate("Completed"),
+        }
+
         if section >= len(self.headers) or section < 0:
             return None
         if role == qc.Qt.ItemDataRole.DisplayRole:
             if orientation == qc.Qt.Orientation.Horizontal:
-                return self.headers[section]
+                return header_names_translations.get(
+                    self.headers[section], self.headers[section]
+                )
 
     def new_validation(
         self,
