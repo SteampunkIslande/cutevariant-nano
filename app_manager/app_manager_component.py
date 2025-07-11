@@ -26,7 +26,6 @@ class AppManager(app.AppComponent):
         fields_component = self.app.instantiate_component("fields")
         filters_component = self.app.instantiate_component("filters")
         order_by_component = self.app.instantiate_component("order_by")
-        query_manager_component = self.app.instantiate_component("query_manager")
 
         # Add components to window regions
         window.add_component_to_window(fields_component, mainwindow.WindowRegion.LOWER)

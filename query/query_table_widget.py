@@ -16,7 +16,7 @@ from common_widgets.any_widget_dialog import AnyWidgetDialog
 from filters import filters_component as f_cmpt
 
 if TYPE_CHECKING:
-    from query.query_component import QueryComponent  # noqa: F401
+    from query.query_component import QueryComponent
 
 
 class PageSelector(qw.QWidget):
@@ -415,7 +415,7 @@ class QueryTableWidget(qw.QWidget):
         if dialog.exec() == qw.QDialog.DialogCode.Accepted:
             filter_text = dialog.get_filter()
             filter_component: f_cmpt.FiltersComponent = self.app.get_component(
-                "filters", self.query.get_instance_name() + "/filters"
+                "filters"
             )
             if not filter_component:
                 return

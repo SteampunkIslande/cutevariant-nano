@@ -46,7 +46,7 @@ class QueryManagerWidget(qw.QWidget):
 
 
 @register_app_component(
-    name="query_manager", policy="singleton", instantiation_time="demand"
+    name="query_manager", policy="singleton", instantiation_time="setup"
 )
 class QueryManagerComponent(ap.AppComponent):
 
@@ -77,9 +77,7 @@ class QueryManagerComponent(ap.AppComponent):
 
     def new_query(self, query_name: str, data_prep: dict, query_options: dict):
 
-        query: q.QueryComponent = self.app.instantiate_component(
-            "query", f"{self.instance_name}/{query_name}"
-        )
+        query: q.QueryComponent = self.app.instantiate_component("query", query_name)
 
         query.setup_query(
             data_prep,
@@ -162,7 +160,7 @@ class QueryManagerComponent(ap.AppComponent):
         if self.query_model is None:
             return
 
-        query_name = query.get_instance_name().split("/")[-1]
+        query_name = query.get_instance_name()
 
         # Remove from model
         items = self.query_model.findItems(query_name)
@@ -189,8 +187,7 @@ class QueryManagerComponent(ap.AppComponent):
         # Tab index changed but not its content (for example, the tab was moved)
         if (
             self.current_query
-            and current_query_name
-            == self.current_query.get_instance_name().split("/")[-1]
+            and current_query_name == self.current_query.get_instance_name()
         ):
             return
 

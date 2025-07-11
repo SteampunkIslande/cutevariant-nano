@@ -568,6 +568,11 @@ class App(qc.QObject):
             instance_name = component_name  # Fixed name for singletons
             if instance_name in instances:
                 LOGGER.debug(f"Returning existing singleton instance: {component_name}")
+                LOGGER.warning(
+                    "Singleton components should not be instantiated multiple times. This one is {}.".format(
+                        instance_name
+                    )
+                )
                 return instances[instance_name]
 
         elif policy == "multi":

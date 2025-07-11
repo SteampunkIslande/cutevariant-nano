@@ -105,7 +105,7 @@ class QueryComponent(ap.AppComponent):
 
         self.view = query.query_table_widget.QueryTableWidget(self.app, self)
         self.closing.connect(self.view.close)
-        self.view.setWindowTitle(self.instance_name.split("/")[-1])
+        self.view.setWindowTitle(self.instance_name)
 
         self.changes_list = []
 
@@ -350,7 +350,7 @@ class QueryComponent(ap.AppComponent):
 
     def setup_query(
         self,
-        data: dict,
+        query_template_dict: dict,
         editable_table_name: str,
         readonly_table: List[str],
         selected_genes: List[str],
@@ -362,8 +362,8 @@ class QueryComponent(ap.AppComponent):
         Args:
             data (dict): The json object to build the query template from
         """
-        self.query_definition = data
-        self.query_template = build_query_template(data)
+        self.query_definition = query_template_dict
+        self.query_template = build_query_template(query_template_dict)
 
         self.set_editable_table_name(editable_table_name)
         self.set_readonly_table(readonly_table)
@@ -530,22 +530,23 @@ class QueryComponent(ap.AppComponent):
     def generic_receiver(
         self, action, sender_component_name, sender_instance_name, payload
     ):
-        if action == "order_by_changed":
-            if sender_instance_name == f"{self.instance_name}/order_by":
-                self.order_by = payload["order_by_expression"]
-                self.commit()
-        if action == "filters_changed":
-            if sender_instance_name == f"filters/{self.instance_name}/filters":
-                self.applied_filter = payload["filter_tree"]
-                self.commit()
-        if action == "selected_fields_changed":
-            if sender_instance_name == f"{self.instance_name}/fields":
-                self.set_selected_fields(payload["fields"])
-                self.view.update_selected_fields(payload["fields"])
-                self.commit()
-        if action == "validation_infos_added":
-            if sender_instance_name == f"validation_manager":
-                self.commit()
+        # if action == "order_by_changed":
+        #     if sender_instance_name == f"{self.instance_name}/order_by":
+        #         self.order_by = payload["order_by_expression"]
+        #         self.commit()
+        # if action == "filters_changed":
+        #     if sender_instance_name == f"filters/{self.instance_name}/filters":
+        #         self.applied_filter = payload["filter_tree"]
+        #         self.commit()
+        # if action == "selected_fields_changed":
+        #     if sender_instance_name == f"{self.instance_name}/fields":
+        #         self.set_selected_fields(payload["fields"])
+        #         self.view.update_selected_fields(payload["fields"])
+        #         self.commit()
+        # if action == "validation_infos_added":
+        #     if sender_instance_name == f"validation_manager":
+        #         self.commit()
+        pass
 
     def close_component(self):
         LOGGER.debug(f"Starting close_component for {self.instance_name}")
