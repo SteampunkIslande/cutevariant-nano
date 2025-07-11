@@ -213,6 +213,16 @@ class ValidationModel(qc.QAbstractTableModel):
         if role == qc.Qt.ItemDataRole.UserRole:
             return {k: v for k, v in zip(self.headers, self._data[index.row()])}
 
+        if role == qc.Qt.ItemDataRole.ToolTipRole:
+            res = self._data[index.row()][index.column()]
+            if isinstance(res, list):
+                return "\n".join(res)
+            if isinstance(res, datetime.datetime):
+                return res.strftime(self.app.translate("%m/%d/%Y %H:%M:%S"))
+            if isinstance(res, bool):
+                res = self.app.translate("Yes") if res else self.app.translate("No")
+            return str(res)
+
     def rowCount(self, parent: qc.QModelIndex = qc.QModelIndex()) -> int:
         if parent.isValid():
             return 0
@@ -244,7 +254,7 @@ class ValidationModel(qc.QAbstractTableModel):
             "sample_names": self.app.translate("Sample names"),
             "gene_names": self.app.translate("Gene names"),
             "username": self.app.translate("Username"),
-            "validation_name": self.app.translate("Validation name"),
+            "validation_method": self.app.translate("Validation method"),
             "table_uuid": self.app.translate("Table UUID"),
             "creation_date": self.app.translate("Creation date"),
             "completed": self.app.translate("Completed"),
