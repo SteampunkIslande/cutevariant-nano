@@ -355,6 +355,7 @@ class QueryComponent(ap.AppComponent):
 
     def set_selected_fields(self, fields: List[str]):
         if fields != self.selected_fields:
+            print("Changing from", self.selected_fields, "to", fields)
             self.changes_list.append(("selected_fields", {"fields": fields}))
             self.selected_fields = [f for f in fields if f in self.all_fields]
         return self

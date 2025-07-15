@@ -23,6 +23,7 @@ class FieldsComponent(app.AppComponent):
 
         self.model = fldm.FieldsModel(self)
         self.model.dataChanged.connect(self.on_selected_fields_changed)
+        self.model.rowsMoved.connect(self.on_selected_fields_changed)
 
         self.datalake_component = self.app.get_component("datalake")
 
@@ -39,7 +40,9 @@ class FieldsComponent(app.AppComponent):
     def on_selected_fields_changed(self):
         if self.model.checked_fields() != self.query.get_selected_fields():
             self.query.set_selected_fields(self.model.checked_fields()).commit()
-            print("Selected fields changed:", self.model.checked_fields())
+        else:
+            print(self.model.checked_fields())
+            print(self.query.get_selected_fields())
 
     def on_selected_query_changed(self):
         query: "q.QueryComponent" = self.app.get_current_query()
@@ -76,7 +79,7 @@ class FieldsComponent(app.AppComponent):
         if self.query.get_all_fields() != self.model.get_all_fields():
             self.model.update_fields(self.query.get_all_fields())
             self.model.set_checked_fields(self.query.get_selected_fields())
-            self.on_selected_fields_changed()
+            # self.on_selected_fields_changed()
 
     def close_component(self):
 
