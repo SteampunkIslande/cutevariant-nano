@@ -1,14 +1,21 @@
 import datetime
 import os
 from pathlib import Path
-from typing import List
+
+# Deferred import to resolve circular dependency
+from typing import TYPE_CHECKING, List
 
 import duckdb as db
 import polars as pl
 import PySide6.QtCore as qc
 
 import app as ap
-import validation_manager.validation_manager_component as vmc
+
+if TYPE_CHECKING:
+    from validation_manager.validation_manager_component import (
+        ValidationManagerComponent,
+    )
+
 from commons import duck_db_literal_string_list
 
 VALIDATION_TABLE_COLUMNS = {
@@ -175,7 +182,7 @@ class ValidationModel(qc.QAbstractTableModel):
     def __init__(self, app: ap.App, parent_component: ap.AppComponent) -> None:
         super().__init__(parent_component)
         self.app = app
-        self.parent_component: vmc.ValidationManagerComponent = parent_component
+        self.parent_component: "ValidationManagerComponent" = parent_component
         self.headers = []
         self._data = []
 
@@ -206,6 +213,16 @@ class ValidationModel(qc.QAbstractTableModel):
         if role == qc.Qt.ItemDataRole.UserRole:
             return {k: v for k, v in zip(self.headers, self._data[index.row()])}
 
+        if role == qc.Qt.ItemDataRole.ToolTipRole:
+            res = self._data[index.row()][index.column()]
+            if isinstance(res, list):
+                return "\n".join(res)
+            if isinstance(res, datetime.datetime):
+                return res.strftime(self.app.translate("%m/%d/%Y %H:%M:%S"))
+            if isinstance(res, bool):
+                res = self.app.translate("Yes") if res else self.app.translate("No")
+            return str(res)
+
     def rowCount(self, parent: qc.QModelIndex = qc.QModelIndex()) -> int:
         if parent.isValid():
             return 0
@@ -231,11 +248,26 @@ class ValidationModel(qc.QAbstractTableModel):
         orientation: qc.Qt.Orientation,
         role: int = qc.Qt.ItemDataRole.DisplayRole,
     ) -> str | None:
+
+        header_names_translations = {
+            "parquet_files": self.app.translate("Parquet files"),
+            "sample_names": self.app.translate("Sample names"),
+            "gene_names": self.app.translate("Gene names"),
+            "username": self.app.translate("Username"),
+            "validation_name": self.app.translate("Validation name"),
+            "validation_method": self.app.translate("Validation method"),
+            "table_uuid": self.app.translate("Table UUID"),
+            "creation_date": self.app.translate("Creation date"),
+            "completed": self.app.translate("Completed"),
+        }
+
         if section >= len(self.headers) or section < 0:
             return None
         if role == qc.Qt.ItemDataRole.DisplayRole:
             if orientation == qc.Qt.Orientation.Horizontal:
-                return self.headers[section]
+                return header_names_translations.get(
+                    self.headers[section], self.headers[section]
+                )
 
     def new_validation(
         self,

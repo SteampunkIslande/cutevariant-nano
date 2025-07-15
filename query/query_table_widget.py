@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 
-
+import weakref
+from formatter import FormatterDelegate
 from functools import partial
-from typing import List, Union
+from typing import TYPE_CHECKING, List, Union
 
 import PySide6.QtCore as qc
 import PySide6.QtGui as qg
@@ -14,6 +15,9 @@ import query.query_table_model as q_tm
 from common_widgets.any_widget_dialog import AnyWidgetDialog
 from filters import filters_component as f_cmpt
 
+if TYPE_CHECKING:
+    from query.query_component import QueryComponent
+
 
 class PageSelector(qw.QWidget):
 
@@ -21,7 +25,8 @@ class PageSelector(qw.QWidget):
         super().__init__(parent)
 
         self.app = app
-        self.query = query
+        # Use weakref to avoid circular reference
+        self.query_ref = weakref.ref(query)
 
         # TODO: rows line edit: setValidator: range should be user defined...
 
@@ -50,7 +55,7 @@ class PageSelector(qw.QWidget):
         self.last_page_button = qw.QPushButton(">>")
         self.last_page_button.clicked.connect(self.goto_last_page)
 
-        self.query.query_changed.connect(self.update_page_selector)
+        query.query_changed.connect(self.update_page_selector)
 
         self.setup_layout()
 
@@ -69,40 +74,54 @@ class PageSelector(qw.QWidget):
         self.setLayout(layout)
 
     def goto_first_page(self):
-        self.query.first_page().commit()
+        query = self.query_ref()
+        if query:
+            query.first_page().commit()
 
     def goto_previous_page(self):
-        self.query.previous_page().commit()
+        query = self.query_ref()
+        if query:
+            query.previous_page().commit()
 
     def goto_next_page(self):
-        self.query.next_page().commit()
+        query = self.query_ref()
+        if query:
+            query.next_page().commit()
 
     def goto_last_page(self):
-        self.query.last_page().commit()
+        query = self.query_ref()
+        if query:
+            query.last_page().commit()
 
     def update_page_selector(self):
+        query = self.query_ref()
+        if not query:
+            return
+
         # Block signals to avoid infinite loops
         self.page_lineedit.blockSignals(True)
         self.rows_lineedit.blockSignals(True)
 
-        self.rows_lineedit.setText(str(self.query.get_limit()))
-        self.page_lineedit.setText(str(self.query.get_page()))
+        self.rows_lineedit.setText(str(query.get_limit()))
+        self.page_lineedit.setText(str(query.get_page()))
 
-        self.page_lineedit.setValidator(
-            qg.QIntValidator(1, self.query.get_page_count())
-        )
+        self.page_lineedit.setValidator(qg.QIntValidator(1, query.get_page_count()))
         self.page_count_label.setText(
-            self.app.translate("out of {}").format(self.query.get_page_count())
+            self.app.translate("out of {}").format(query.get_page_count())
         )
 
         self.page_lineedit.blockSignals(False)
         self.rows_lineedit.blockSignals(False)
 
     def set_page(self, page):
-        self.query.set_page(int(page) if page else 1).commit()
+        query = self.query_ref()
+        if query:
+            query.set_page(int(page) if page else 1).commit()
 
     def set_rows_per_page(self, rows_per_page):
-        self.query.set_limit(int(rows_per_page or 10)).commit()
+        query = self.query_ref()
+        if query:
+            query.set_limit(int(rows_per_page or 10)).commit()
 
 
 class QueryTableProxyModel(qc.QSortFilterProxyModel):
@@ -141,19 +160,25 @@ class QueryTableWidget(qw.QWidget):
         super().__init__(parent)
 
         self.app = app
-        self.query = query
+        # Use weakref to avoid circular reference
+        self.query: q_cmpt.QueryComponent = weakref.proxy(query)
 
         self.query_model = q_tm.QueryTableModel(self.query)
         self.proxy_model = QueryTableProxyModel()
         self.proxy_model.setSourceModel(self.query_model)
 
+        self.custom_delegate = FormatterDelegate(self)
+        self.custom_delegate.set_formatter(self.app.get_formatter())
+
         self.table_view = qw.QTableView()
+        # Set up custom delegate for styled rendering
+        self.table_view.setItemDelegate(self.custom_delegate)
+        self.table_view.setAlternatingRowColors(True)
+
         self.table_view.setSelectionBehavior(
             qw.QAbstractItemView.SelectionBehavior.SelectRows
         )
-        self.table_view.horizontalHeader().setStretchLastSection(
-            True
-        )  # Set last column to expand
+        self.table_view.horizontalHeader().setStretchLastSection(True)
         self.table_view.horizontalHeader().setContextMenuPolicy(
             qg.Qt.ContextMenuPolicy.CustomContextMenu
         )
@@ -164,11 +189,14 @@ class QueryTableWidget(qw.QWidget):
         self.table_view.customContextMenuRequested.connect(self.show_table_context_menu)
         self.table_view.setModel(self.proxy_model)
 
+        # Connect model reset signal to update proxy
+        self.query_model.modelReset.connect(self.on_model_reset)
+
         self.table_view.selectionModel().selectionChanged.connect(
             self.selection_changed
         )
 
-        self.page_selector = PageSelector(self.app, self.query)
+        self.page_selector = PageSelector(self.app, query)
 
         layout = qw.QVBoxLayout()
         layout.addWidget(self.table_view)
@@ -177,6 +205,8 @@ class QueryTableWidget(qw.QWidget):
         self.setLayout(layout)
 
     def get_current_validation_hashes(self) -> list[int | None]:
+        if not self.query:
+            return []
         selected_rows = self.table_view.selectionModel().selectedRows()
         if selected_rows:
 
@@ -203,7 +233,10 @@ class QueryTableWidget(qw.QWidget):
         menu.exec(self.table_view.mapToGlobal(pos))
 
     def add_order_by(self, index: qc.QModelIndex):
-        self.query.add_order_by(
+        query = self.query
+        if not query:
+            return
+        query.add_order_by(
             self.proxy_model.headerData(index.column(), qc.Qt.Orientation.Horizontal),
             "ASC",
         ).commit()
@@ -244,6 +277,8 @@ class QueryTableWidget(qw.QWidget):
         )
 
     def add_variant_to_validation(self):
+        if not self.query:
+            return
         payload = {"validation_infos": []}
         for index in self.table_view.selectionModel().selectedRows(0):
             row_data: dict[str, Union[str | int]] = index.data(
@@ -342,8 +377,8 @@ class QueryTableWidget(qw.QWidget):
         row_data: dict[str] = index.data(qc.Qt.ItemDataRole.UserRole)
         nc = row_data.get(".NC", None)
         position = row_data.get(".Position", None)
-        reference = row_data.get(".Allèle de référence", None)
-        alternate = row_data.get(".Allèle alternatif", None)
+        reference = row_data.get(".Reference allele", None)
+        alternate = row_data.get(".Alternate allele", None)
         if all((nc, position, reference, alternate)):
             res = mobidetails_get(nc, position, reference, alternate)
             if "mobidetails_id" in res:
@@ -362,7 +397,13 @@ class QueryTableWidget(qw.QWidget):
     def update_selected_fields(self, fields: list[str]):
         self.proxy_model.update_selected_fields(fields)
 
+    def on_model_reset(self):
+        """Reconnect proxy model after source model reset"""
+        self.proxy_model.setSourceModel(self.query_model)
+
     def filter_column(self, index: qc.QModelIndex):
+        if not self.query:
+            return
 
         col_name = index.model().headerData(
             index.column(), qc.Qt.Orientation.Horizontal
@@ -374,11 +415,15 @@ class QueryTableWidget(qw.QWidget):
         if dialog.exec() == qw.QDialog.DialogCode.Accepted:
             filter_text = dialog.get_filter()
             filter_component: f_cmpt.FiltersComponent = self.app.get_component(
-                "filters", self.query.get_instance_name() + "/filters"
+                "filters"
             )
             if not filter_component:
                 return
             filter_component.add_expression(filter_text)
+
+    def close(self):
+        self.app = None
+        super().close()
 
 
 class SimpleFilterDialog(qw.QDialog):

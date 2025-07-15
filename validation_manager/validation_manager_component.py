@@ -1,5 +1,8 @@
+import logging
 import os
 from pathlib import Path
+
+# Deferred import to resolve circular dependency
 from typing import Union
 
 import PySide6.QtCore as qc
@@ -11,25 +14,31 @@ import datalake.datalake_component as dl
 import query_manager.query_manager_component as qm
 from common_widgets.multiwidget_holder import MultiWidgetHolder
 from commons import yaml_load
-from validation_manager.validation_model import ValidationModel
-from validation_manager.validation_selection_widget import ValidationSelectionWidget
-from validation_manager.validation_widget import ValidationWidget
+from component_registry import register_app_component
+
+LOGGER = logging.getLogger(__name__)
 
 
+@register_app_component(
+    name="validation_manager", policy="singleton", instantiation_time="demand"
+)
 class ValidationManagerComponent(ap.AppComponent):
 
-    def __init__(
-        self, app: ap.App, instance_name: str, parent_component: ap.AppComponent
-    ):
-        super().__init__(app, instance_name, parent_component)
+    component_name = "validation_manager"
 
-        # Query Manager Component
-        query_manager_component: qm.QueryManagerComponent = (
-            self.app.instantiate_singleton("query_manager")
-        )
+    def __init__(self, app: ap.App, instance_name: str):
+        super().__init__(app, instance_name)
 
         self.widget_holder = MultiWidgetHolder()
+        # Deferred local import
+        from validation_manager.validation_model import ValidationModel
+
         self.validation_model = ValidationModel(self.app, self)
+
+        from validation_manager.validation_selection_widget import (
+            ValidationSelectionWidget,
+        )
+        from validation_manager.validation_widget import ValidationWidget
 
         self.validation_selection_widget = ValidationSelectionWidget(
             self.app, self.validation_model, self
@@ -57,6 +66,11 @@ class ValidationManagerComponent(ap.AppComponent):
         self.validation_widget.export_to_genno.connect(self.export_to_genno)
         self.validation_widget.validate.connect(self.validate)
 
+        # Make sure to update self if the datalake changes
+        self.app.datalake_path_changed.connect(
+            self.validation_selection_widget.on_datalake_changed
+        )
+
     def on_validation_start(self):
         validation_info = self.validation_selection_widget.get_selected_validation()
         self.widget_holder.set_current_widget("validation")
@@ -68,9 +82,7 @@ class ValidationManagerComponent(ap.AppComponent):
         validation_method = validation_info.get("validation_method")
         if not validation_method:
             return
-        config_folder_present, config_folder = self.app.get_config_folder()
-        if not config_folder_present:
-            return
+        config_folder = self.app.get_config_folder()
 
         self.validation_method = yaml_load(
             os.path.join(
@@ -89,6 +101,12 @@ class ValidationManagerComponent(ap.AppComponent):
         query_manager_component: qm.QueryManagerComponent = self.app.get_component(
             "query_manager"
         )
+        if not query_manager_component:
+            LOGGER.error(
+                "QueryManagerComponent is not available, cannot set validation"
+            )
+            return
+
         query_manager_component.clear()
         self.init_validation(validation_info)
 
@@ -125,6 +143,10 @@ class ValidationManagerComponent(ap.AppComponent):
         query_manager_component: qm.QueryManagerComponent = self.app.get_component(
             "query_manager"
         )
+        if not query_manager_component:
+            LOGGER.error("QueryManagerComponent is not available, cannot validate")
+            return
+
         # Close all queries, replace with the final one
         query_manager_component.clear()
         query_manager_component.new_query(
@@ -143,7 +165,7 @@ class ValidationManagerComponent(ap.AppComponent):
         if not self.validation_method:
             return
 
-        user_prefs = self.app.load_user_prefs()
+        user_prefs = self.app.get_user_prefs()
         if "genno_export_folder" not in user_prefs:
             qw.QMessageBox.warning(
                 self.widget(),
@@ -172,29 +194,39 @@ class ValidationManagerComponent(ap.AppComponent):
         query_manager_component: qm.QueryManagerComponent = self.app.get_component(
             "query_manager"
         )
+        if not query_manager_component:
+            LOGGER.error(
+                "QueryManagerComponent is not available, cannot export to genno"
+            )
+            return
+
         query = query_manager_component.get_final_query()
         if not query:
-            print("No query to export")
+            LOGGER.warning("No query to export")
             return
         sql_query = query.select_query(paginated=False, columns="COLUMNS('^[^.]')")
         datalake = self.get_datalake()
         if not datalake:
+            LOGGER.error("Datalake component is not available, cannot export to genno")
             return
-        else:
-            base_filename = self.validation_name or "validation"
-            datalake.run_with_connection(
-                "validation",
-                lambda conn: conn.sql(
-                    f""" COPY ({sql_query}) TO '{genno_export_folder / f'{base_filename}.csv'}' (DELIMITER ';') """
-                ),
-            )
+
+        base_filename = self.validation_name or "validation"
+        datalake.run_with_connection(
+            "validation",
+            lambda conn: conn.sql(
+                f""" COPY ({sql_query}) TO '{genno_export_folder / f'{base_filename}.csv'}' (DELIMITER ';') """
+            ),
+        )
 
     def on_back_to_validation_selection(self):
         query_manager_component: qm.QueryManagerComponent = self.app.get_component(
             "query_manager"
         )
-        # Close all queries, replace with the final one
-        query_manager_component.clear()
+        if not query_manager_component:
+            LOGGER.error("QueryManagerComponent is not available, cannot clear queries")
+        else:
+            # Close all queries, replace with the final one
+            query_manager_component.clear()
 
         self.widget_holder.set_current_widget("validation_selection")
 
@@ -258,13 +290,19 @@ class ValidationManagerComponent(ap.AppComponent):
         # Implement context menu entries here
         return []
 
-    def on_datalake_changed(self):
-        return
+    def close_component(self):
+        # Close all queries
+        query_manager_component: qm.QueryManagerComponent = self.app.get_component(
+            "query_manager"
+        )
+        if query_manager_component:
+            LOGGER.debug("Closing all queries in QueryManagerComponent")
+            query_manager_component.clear()
 
+        # Clean up resources
+        self.validation_model = None
+        self.validation_selection_widget = None
+        self.validation_widget = None
 
-def register_component():
-    return "validation_manager", {
-        "instantiation_policy": "singleton",
-        "instantiate_on": "demand",
-        "class": ValidationManagerComponent,
-    }
+        # Call parent close_component
+        super().close_component()

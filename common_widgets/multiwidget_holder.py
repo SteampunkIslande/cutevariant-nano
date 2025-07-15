@@ -1,4 +1,8 @@
+import logging
+
 import PySide6.QtWidgets as qw
+
+LOGGER = logging.getLogger(__name__)
 
 
 class MultiWidgetHolder(qw.QWidget):
@@ -32,12 +36,17 @@ class MultiWidgetHolder(qw.QWidget):
 
     def set_current_widget(self, name: str):
         if name not in self.widgets:
+            LOGGER.error(f"Widget with name '{name}' does not exist.")
             return
         if self.current_widget is self.widgets[name]:
+            LOGGER.debug(f"Widget '{name}' is already the current widget.")
             return
         if self.current_widget:
             self._layout.replaceWidget(self.current_widget, self.widgets[name])
             self.current_widget.hide()
+            LOGGER.debug(
+                f"Replacing current widget '{self.current_widget_name}' with '{name}'."
+            )
         else:
             self._layout.addWidget(self.widgets[name])
 

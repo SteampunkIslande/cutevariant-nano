@@ -1,11 +1,20 @@
 import json
-import weakref
+import logging
+from typing import TYPE_CHECKING
 
 import PySide6.QtCore as qc
 import PySide6.QtWidgets as qw
 
 import app as ap
-import fields.fields_component as fld_cmp
+
+if TYPE_CHECKING:
+    from fields.fields_component import FieldsComponent
+
+# Deferred import to resolve circular dependency
+
+
+LOGGER = logging.getLogger(__name__)
+
 import fields.fields_model as fldm
 from common_widgets.searchable_list import SearchableList
 
@@ -14,7 +23,7 @@ class PresetsWidget(qw.QWidget):
 
     preset_changed = qc.Signal()
 
-    def __init__(self, app: ap.App, model: fldm.FieldsModel):
+    def __init__(self, app: "ap.App", model: fldm.FieldsModel):
         super().__init__()
 
         self.app = app
@@ -43,9 +52,8 @@ class PresetsWidget(qw.QWidget):
         return self.presets_combobox.currentData(qc.Qt.ItemDataRole.UserRole)["fields"]
 
     def load_presets(self):
-        success, config_folder = self.app.get_config_folder()
-        if not success:
-            return
+        config_folder = self.app.get_config_folder()
+
         presets_file = config_folder / "presets" / "presets.json"
         if not presets_file.exists():
             return
@@ -75,9 +83,8 @@ class PresetsWidget(qw.QWidget):
         self.presets["fields_presets"][preset_name] = {
             "fields": self.model.checked_fields(),
         }
-        success, config_folder = self.app.get_config_folder()
-        if not success:
-            return
+        config_folder = self.app.get_config_folder()
+
         presets_file = config_folder / "presets" / "presets.json"
         # Create if not exists
         presets_file.parent.mkdir(parents=True, exist_ok=True)
@@ -88,11 +95,11 @@ class PresetsWidget(qw.QWidget):
         self.presets_combobox.blockSignals(False)
 
     def __del__(self):
-        print("PresetsWidget deleted")
+        LOGGER.debug("PresetsWidget deleted")
 
 
 class FieldsWidget(qw.QWidget):
-    def __init__(self, app: ap.App, component: "fld_cmp.FieldsComponent"):
+    def __init__(self, app: ap.App, component: "FieldsComponent"):
         super().__init__()
 
         self.app = app
@@ -120,5 +127,14 @@ class FieldsWidget(qw.QWidget):
         layout.addWidget(self.presets_widget)
         self.setLayout(layout)
 
+    def close(self):
+        self.app = None
+        self.component = None
+        self.model = None
+        self.proxy_model = None
+        self.searchable_list = None
+        self.presets_widget = None
+        super().close()
+
     def __del__(self):
-        print("FieldsWidget deleted")
+        LOGGER.debug("FieldsWidget deleted")

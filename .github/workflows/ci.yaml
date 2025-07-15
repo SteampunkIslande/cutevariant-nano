@@ -10,7 +10,7 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-24.04, ubuntu-22.04, windows-latest, macos-latest]
 
     runs-on: ${{ matrix.os }}
 
@@ -40,12 +40,16 @@ jobs:
           enable-plugins: pyside6
           include-module: polars,yaml,xlsxwriter,numpy
           nofollow-import-to: ipython
-          windows-icon-from-ico: icon.ico
+          windows-icon-from-ico: assets/icon.ico
+          linux-icon: assets/icon.ico
+          macos-app-icon: assets/icon.ico
+          include-data-dir: assets=assets
+          disable-console: true
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ runner.os }} Build
+          name: ${{ matrix.os }} Build
           path: |
             build/*.exe
             build/*.bin

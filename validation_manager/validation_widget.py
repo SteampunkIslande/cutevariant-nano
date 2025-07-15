@@ -21,10 +21,11 @@ class ValidationWidget(qw.QWidget):
         super().__init__(parent)
 
         self.parent_component = parent_component
+        self.parent_component.closing.connect(self.on_parent_component_closing)
         self._layout = qw.QVBoxLayout(self)
         self.app = app
 
-        query_manager: qmc.QueryManagerComponent = self.app.get_component(
+        self.query_manager: qmc.QueryManagerComponent = self.app.get_component(
             "query_manager"
         )
 
@@ -36,16 +37,25 @@ class ValidationWidget(qw.QWidget):
 
         self.return_to_validation_button.clicked.connect(self.on_return_to_validation)
 
-        self.query_manager_widget = query_manager.widget()
+        self.query_manager_widget = self.query_manager.widget()
+        self.query_manager.closing.connect(self.on_query_manager_closing)
 
         self.setup_layout()
 
         self.completed = False
         self.setup_state()
 
-    def setup_layout(self):
+    def on_query_manager_closing(self):
+        self.query_manager_widget = None
+        self.query_manager = None
 
+    def setup_layout(self):
         self._layout.addWidget(self.query_manager_widget)
+
+        # FIX: Ensure widget visibility after adding to layout
+        # Widget may lose visibility state during reparenting
+        self.query_manager_widget.show()
+
         # Add vertical spacer
         self._layout.addStretch()
 
@@ -85,3 +95,11 @@ class ValidationWidget(qw.QWidget):
         self.completed = False
         self.setup_state()
         self.return_to_validation.emit()
+
+    def on_parent_component_closing(self):
+        self.app = None
+        self.parent_component = None
+        self._layout = None
+        self.validate_button = None
+        self.return_to_validation_button = None
+        self.query_manager_widget = None

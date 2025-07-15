@@ -54,6 +54,7 @@ class ValidationSelectionWidget(qw.QWidget):
         self.view.filter_le.setPlaceholderText(
             self.app.translate("Filter on validation name...")
         )
+        self.view.set_hidden_rows([VALIDATION_TABLE_COLUMNS["table_uuid"]])
         self.model.model_updated.connect(
             lambda: self.view.set_list_view_column(
                 VALIDATION_TABLE_COLUMNS["validation_name"]
@@ -85,7 +86,7 @@ class ValidationSelectionWidget(qw.QWidget):
         username = Path.home().name
 
         # Make sure we have a config folder (before we start the wizard)
-        success, _ = self.app.get_config_folder()
+        success = self.app.ensure_config_folder()
         if not success:
             qw.QMessageBox.critical(
                 self,
@@ -116,6 +117,9 @@ class ValidationSelectionWidget(qw.QWidget):
         self._layout.addWidget(self.new_validation_button)
         self._layout.addWidget(self.start_validation_button)
         self.setLayout(self._layout)
+        # Load initial data
+        if self.parent_component.get_datalake():
+            self.model.update()
 
     def on_datalake_changed(self):
         datalake = self.parent_component.get_datalake()

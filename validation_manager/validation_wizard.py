@@ -41,7 +41,7 @@ class IntroPage(qw.QWizardPage):
 
         self.validation_method_combo = qw.QComboBox()
         validation_methods = []
-        _, config_folder = self.app.get_config_folder()
+        config_folder = self.app.get_config_folder()
         if config_folder.resolve().is_dir():
             validation_methods = [
                 f.stem
@@ -273,7 +273,7 @@ class GeneListSelectPage(qw.QWizardPage):
         if "validation_method" in self.data:
 
             validation_method: dict[str, dict] = yaml_load(
-                Path(self.app.load_user_prefs()["config_folder"])
+                self.app.get_config_folder()
                 / Path("validation_methods")
                 / Path(self.data["validation_method"] + ".yaml")
             )
@@ -292,7 +292,7 @@ class GeneListSelectPage(qw.QWizardPage):
             CR = "\n"
             self.selected_genes_label.setText(
                 qc.QCoreApplication.tr(
-                    "Panel(s): {0}{CR}Gène(s) sélectionné(s):{CR}{1}".format(
+                    "Panel(s): {0}{CR}Selected gene(s):{CR}{1}".format(
                         ", ".join(selected_gene_sets),
                         CR.join(self.data["gene_names"]),
                         CR=CR,

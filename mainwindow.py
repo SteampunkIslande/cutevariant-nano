@@ -1,9 +1,14 @@
+import logging
+import weakref
 from enum import Enum
+from functools import partial
 
 import PySide6.QtCore as qc
 import PySide6.QtWidgets as qw
 
 import app as ap
+
+LOGGER = logging.getLogger(__name__)
 
 
 class WindowRegion(Enum):
@@ -18,7 +23,7 @@ class MainWindow(qw.QMainWindow):
 
     closing = qc.Signal()
 
-    def __init__(self, app: ap.App):
+    def __init__(self, app: "ap.App"):
         super().__init__()
 
         self.horizontal_splitter = qw.QSplitter()
@@ -71,15 +76,72 @@ class MainWindow(qw.QMainWindow):
             [left_tab_size, central_tab_size, right_tab_size]
         )
 
+        self.closing_components_handlers = {}
+        self.title_update_handlers = {}
+
         self.app = app
 
-    def add_component_to_window(self, component: ap.AppComponent, region: WindowRegion):
+    def add_component_to_window(
+        self, component: "ap.AppComponent", region: WindowRegion
+    ):
         if component.widget() is None:
+            LOGGER.info(
+                f"Component {component.instance_name} has no widget, cannot add to region {region.name}"
+            )
             return
 
-        self.widget_regions[region].addTab(
-            component.widget(), component.widget().windowTitle()
+        tab_widget = self.widget_regions[region]
+        tab_widget.addTab(component.widget(), component.widget().windowTitle())
+
+        self.closing_components_handlers[component.instance_name] = partial(
+            self.on_component_closing, weakref.proxy(component), region
         )
+
+        self.title_update_handlers[component.instance_name] = partial(
+            self.update_component_title, weakref.proxy(component), region=region
+        )
+
+        component.closing.connect(
+            self.closing_components_handlers[component.instance_name]
+        )
+        component.widget().windowTitleChanged.connect(
+            self.title_update_handlers[component.instance_name]
+        )
+
+        LOGGER.debug(
+            f"Added component {component.instance_name} to region {region.name} tab widget."
+        )
+
+    def on_component_closing(self, component: "ap.AppComponent", region: WindowRegion):
+        LOGGER.debug(
+            f"Closing component {component.instance_name} in region {region.name}"
+        )
+        tab_widget = self.widget_regions[region]
+        tab_index = tab_widget.indexOf(component.widget())
+        if tab_index != -1:
+            tab_widget.removeTab(tab_index)
+            component.closing.disconnect(
+                self.closing_components_handlers[component.instance_name]
+            )
+            component.widget().windowTitleChanged.disconnect(
+                self.title_update_handlers[component.instance_name]
+            )
+            del self.closing_components_handlers[component.instance_name]
+            LOGGER.debug(
+                f"Component {component.instance_name} closed and removed from region {region.name} tab widget. All signals disconnected."
+            )
+        else:
+            LOGGER.warning(
+                f"Component {component.instance_name} not found in region {region.name} tab widget."
+            )
+
+    def update_component_title(
+        self, component: "ap.AppComponent", new_title: str, region: WindowRegion
+    ):
+        tab_widget = self.widget_regions[region]
+        tab_index = tab_widget.indexOf(component.widget())
+        if tab_index != -1:
+            tab_widget.setTabText(tab_index, new_title)
 
     def get_window_panel(self, region: WindowRegion):
         return self.widget_regions[region]
