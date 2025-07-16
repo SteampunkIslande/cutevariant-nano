@@ -1,6 +1,7 @@
 # A model to selected fields using checkboxes
 
 
+import json
 import logging
 
 import PySide6.QtCore as qc
@@ -33,36 +34,41 @@ class FieldsModel(qc.QAbstractItemModel):
 
     def mimeTypes(self):
         """Return the list of MIME types supported by this model."""
-        return ["application/x-fields-model-item"]
+        return ["text/json"]
 
     def mimeData(self, indexes):
         """Create MIME data for the given indexes."""
-        if not indexes:
-            return None
-
         mime_data = qc.QMimeData()
+        if not indexes:
+            return mime_data
 
-        # Get the rows being dragged
-        rows = sorted(set(index.row() for index in indexes))
+        if len(indexes) != 1:
+            return mime_data
 
-        # Create a simple string representation of the rows
-        data = ",".join(str(row) for row in rows)
-        mime_data.setData("application/x-fields-model-item", data.encode("utf-8"))
+        data = {
+            "field_index": indexes[0].row(),
+        }
+
+        mime_data.setData("text/json", json.dumps(data).encode("utf-8"))
 
         return mime_data
 
-    def canDropMimeData(self, data, action, row, column, parent):
+    def canDropMimeData(
+        self,
+        data: qc.QMimeData,
+        action: qc.Qt.DropAction,
+        row: int,
+        column: int,
+        parent: qc.QModelIndex,
+    ):
         """Check if the drop is allowed."""
-        if parent.isValid():
-            return False
-
-        if not data.hasFormat("application/x-fields-model-item"):
-            return False
-
-        if action != qc.Qt.DropAction.MoveAction:
-            return False
-
-        return True
+        if (
+            not parent.isValid()
+            and action == qc.Qt.DropAction.MoveAction
+            and data.hasFormat("text/json")
+        ):
+            return True
+        return False
 
     def dropMimeData(self, data, action, row, column, parent):
         """Handle the drop of MIME data."""
@@ -72,52 +78,23 @@ class FieldsModel(qc.QAbstractItemModel):
         if action == qc.Qt.DropAction.IgnoreAction:
             return True
 
-        # Get the source rows
-        source_data = (
-            data.data("application/x-fields-model-item").data().decode("utf-8")
+        if not data.hasFormat("text/json"):
+            LOGGER.warning("Drop data does not have the expected format.")
+            return False
+
+        try:
+            json_data: dict = json.loads(data.data("text/json").data().decode("utf-8"))
+        except json.JSONDecodeError:
+            LOGGER.error("Failed to decode JSON data from drop.")
+            return False
+
+        field_index = json_data.get("field_index")
+
+        self.beginMoveRows(
+            qc.QModelIndex(), field_index, field_index, qc.QModelIndex(), row - 1
         )
-        source_rows = [int(r) for r in source_data.split(",")]
-
-        # Determine the destination row
-        if row == -1:
-            # Dropped on an item, insert after it
-            if parent.isValid():
-                dest_row = parent.row() + 1
-            else:
-                dest_row = len(self.fields)
-        else:
-            dest_row = row
-
-        # Sort source rows in descending order to avoid index shifting issues
-        source_rows.sort(reverse=True)
-
-        # Extract the items to move
-        items_to_move = []
-        for source_row in source_rows:
-            if 0 <= source_row < len(self.fields):
-                items_to_move.append(self.fields[source_row])
-
-        # Remove items from source positions (in reverse order)
-        for source_row in source_rows:
-            if 0 <= source_row < len(self.fields):
-                self.beginRemoveRows(qc.QModelIndex(), source_row, source_row)
-                del self.fields[source_row]
-                self.endRemoveRows()
-
-                # Adjust destination row if necessary
-                if source_row < dest_row:
-                    dest_row -= 1
-
-        # Insert items at the destination
-        if dest_row > len(self.fields):
-            dest_row = len(self.fields)
-
-        items_to_move.reverse()  # Reverse to maintain original order
-        for i, item in enumerate(items_to_move):
-            insert_row = dest_row + i
-            self.beginInsertRows(qc.QModelIndex(), insert_row, insert_row)
-            self.fields.insert(insert_row, item)
-            self.endInsertRows()
+        self.fields.insert(row, self.fields.pop(field_index))
+        self.endMoveRows()
 
         return True
 
@@ -153,7 +130,7 @@ class FieldsModel(qc.QAbstractItemModel):
         if role == qc.Qt.ItemDataRole.CheckStateRole:
             self.fields[index.row()] = (
                 self.fields[index.row()][0],
-                value,
+                qc.Qt.CheckState(value),
             )
             self.dataChanged.emit(index, index)
             return True
