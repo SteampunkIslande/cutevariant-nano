@@ -21,7 +21,7 @@ class QueryManagerWidget(qw.QWidget):
 
     query_renamed = qc.Signal(str, str)
 
-    def __init__(self, parent: qw.QWidget = None):
+    def __init__(self, model: qc.QAbstractItemModel, parent: qw.QWidget = None):
         super().__init__(parent)
 
         self._layout = qw.QVBoxLayout(self)
@@ -29,18 +29,14 @@ class QueryManagerWidget(qw.QWidget):
 
         self._layout.addWidget(self.query_list_view)
 
-        self.model = None
-
-        self.setLayout(self._layout)
-
-    def set_model(self, model: qc.QAbstractItemModel):
         self.model = model
-        if self.query_list_view.model():
-            self.query_list_view.selectionModel().currentChanged.disconnect()
+
         self.query_list_view.setModel(model)
-        self.query_list_view.selectionModel().currentChanged.connect(
+        self.query_list_view.selectionModel().selectionChanged.connect(
             self.on_current_query_changed
         )
+
+        self.setLayout(self._layout)
 
     def set_current_query(self, query_instancename: str):
         if self.model:
@@ -55,9 +51,11 @@ class QueryManagerWidget(qw.QWidget):
                 qc.QItemSelectionModel.SelectionFlag.ClearAndSelect,
             )
 
-    def on_current_query_changed(self, current: qc.QModelIndex, _: qc.QModelIndex):
-        if not current:
+    def on_current_query_changed(self):
+        indexes = self.query_list_view.selectionModel().selectedIndexes()
+        if not indexes:
             return
+        current = indexes[0]
         if not current.isValid():
             return
         # Either None or empty string
@@ -88,8 +86,7 @@ class QueryManagerComponent(ap.AppComponent):
         self.current_query: Optional[q.QueryComponent] = None
 
         self.query_model = qg.QStandardItemModel(self)
-        self.query_manager_widget = QueryManagerWidget()
-        self.query_manager_widget.set_model(self.query_model)
+        self.query_manager_widget = QueryManagerWidget(self.query_model)
         self.query_manager_widget.current_query_changed.connect(self.set_current_query)
 
         self.queries_tab_widget = app.window().get_window_panel(mw.WindowRegion.UPPER)
