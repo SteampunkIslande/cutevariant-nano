@@ -66,6 +66,10 @@ class ValidationManagerComponent(ap.AppComponent):
         self.validation_widget.export_to_genno.connect(self.export_to_genno)
         self.validation_widget.validate.connect(self.validate)
 
+        self.query_manager_component: qm.QueryManagerComponent = self.app.get_component(
+            "query_manager"
+        )
+
         # Make sure to update self if the datalake changes
         self.app.datalake_path_changed.connect(
             self.validation_selection_widget.on_datalake_changed
@@ -97,21 +101,12 @@ class ValidationManagerComponent(ap.AppComponent):
         self.validation_name = validation_info.get("validation_name")
 
     def set_validation(self, validation_info: dict):
-        # Completely new validation, forget all the queries we may have
-        query_manager_component: qm.QueryManagerComponent = self.app.get_component(
-            "query_manager"
-        )
-        if not query_manager_component:
-            LOGGER.error(
-                "QueryManagerComponent is not available, cannot set validation"
-            )
-            return
 
-        query_manager_component.clear()
+        self.query_manager_component.clear()
         self.init_validation(validation_info)
 
         # Add final validation query
-        query_manager_component.new_query(
+        self.query_manager_component.new_query(
             self.app.translate("Final validation"),
             self.validation_method["final"]["query"],
             {
@@ -128,7 +123,7 @@ class ValidationManagerComponent(ap.AppComponent):
             return
 
         for sample_name in self.sample_names:
-            query_manager_component.new_query(
+            self.query_manager_component.new_query(
                 sample_name,
                 self.validation_method["default"]["query"],
                 {
@@ -140,16 +135,10 @@ class ValidationManagerComponent(ap.AppComponent):
             )
 
     def validate(self):
-        query_manager_component: qm.QueryManagerComponent = self.app.get_component(
-            "query_manager"
-        )
-        if not query_manager_component:
-            LOGGER.error("QueryManagerComponent is not available, cannot validate")
-            return
 
         # Close all queries, replace with the final one
-        query_manager_component.clear()
-        query_manager_component.new_query(
+        self.query_manager_component.clear()
+        self.query_manager_component.new_query(
             self.app.translate("Final validation"),
             self.validation_method["final"]["query"],
             {
@@ -191,16 +180,7 @@ class ValidationManagerComponent(ap.AppComponent):
 
         genno_export_folder = Path(genno_export_folder)
 
-        query_manager_component: qm.QueryManagerComponent = self.app.get_component(
-            "query_manager"
-        )
-        if not query_manager_component:
-            LOGGER.error(
-                "QueryManagerComponent is not available, cannot export to genno"
-            )
-            return
-
-        query = query_manager_component.get_final_query()
+        query = self.query_manager_component.get_final_query()
         if not query:
             LOGGER.warning("No query to export")
             return
@@ -219,14 +199,7 @@ class ValidationManagerComponent(ap.AppComponent):
         )
 
     def on_back_to_validation_selection(self):
-        query_manager_component: qm.QueryManagerComponent = self.app.get_component(
-            "query_manager"
-        )
-        if not query_manager_component:
-            LOGGER.error("QueryManagerComponent is not available, cannot clear queries")
-        else:
-            # Close all queries, replace with the final one
-            query_manager_component.clear()
+        self.query_manager_component.clear()
 
         self.widget_holder.set_current_widget("validation_selection")
 
@@ -292,17 +265,13 @@ class ValidationManagerComponent(ap.AppComponent):
 
     def close_component(self):
         # Close all queries
-        query_manager_component: qm.QueryManagerComponent = self.app.get_component(
-            "query_manager"
-        )
-        if query_manager_component:
-            LOGGER.debug("Closing all queries in QueryManagerComponent")
-            query_manager_component.clear()
+        self.query_manager_component.clear()
 
         # Clean up resources
         self.validation_model = None
         self.validation_selection_widget = None
         self.validation_widget = None
+        self.query_manager_component = None
 
         # Call parent close_component
         super().close_component()

@@ -109,9 +109,12 @@ default:
         - main_table.alternate AS '.Allèle alternatif'
         - floor(1e2 * main_table.cv_AF) / 1e2 AS 'Fréquence allélique'
         - MAP{{-1:'UNK',0:'REF',1:'HET',2:'HOM'}}[main_table.cv_GT] AS 'Génotype'
-        - info_AC_raw AS 'Allele count Gnomad(exome)'
-        - floor(1e5 * "info_AF_raw") / 1e5 AS 'Frequence Gnomad(exome)'
-        - info_Hom_raw AS 'Nombre d''Homozygote (exome)'
+        - main_table.info_AC_raw AS 'Allele count Gnomad(exome)'
+        - floor(1e5 * main_table.info_AF_raw) / 1e5 AS 'Frequence Gnomad(exome)'
+        - main_table.info_Hom_raw AS 'Nombre d''Homozygote (exome)'
+        - gnomad_v4_ppi4.info_AF_raw AS 'Frequence Gnomad(genome)'
+        - gnomad_v4_ppi4.info_nhomalt AS 'Nombre d''Homozygote (genome)'
+        - refseq_contigs.refseq || ':' || main_table.position || main_table.reference || '>' || main_table.alternate AS gCoords
         - if(len(main_table.reference)>len(main_table.alternate),'deletion',if(len(main_table.reference)<len(main_table.alternate),'insertion','substitution')) AS 'Famille de l anomalie'
         - main_table.snpeff_Annotation AS 'Annotation'
         - main_table.snpeff_Annotation_Impact AS 'Annotation impact'
@@ -126,7 +129,6 @@ default:
         - user_table.tags AS '.tags'
         - if(contains(main_table.snpeff_Annotation,'intron_variant'), TRY_CAST (regexp_extract(main_table."snpeff_HGVS.c",'[\+|-](\d+)', 1) AS INT16), 0) AS 'Distance de l exon'
         - if(user_table.accepted = true,'OUI','NON') AS 'Validé ?'
-        - if(user_table.accepted IS NULL,'#A1A1A1',MAP{{true:'green',false:'#A1A1A1'}}[user_table.accepted]) AS '.accepted_color'
 
       tables:
         - expression: "{main_table}"
@@ -164,6 +166,10 @@ default:
         - expression: read_csv('{pwd}/annotations/ucscToRefSeq.txt.gz',header=False,names=['contig','_1','_2','refseq'])
           alias: refseq_contigs
           "on": main_table.chromosome = refseq_contigs.contig
+          how: ""
+        - expression: read_parquet('{pwd}/annotations/gnomad_ppi_v4.hashed.hg19.parquet')
+          alias: gnomad_v4_ppi4
+          "on": main_table.variant_hash = gnomad_v4_ppi4.variant_hash
           how: ""
       filter:
         filter_type: AND
