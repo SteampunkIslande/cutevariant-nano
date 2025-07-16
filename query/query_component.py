@@ -133,9 +133,7 @@ class QueryComponent(ap.AppComponent):
 
         # All fields available to the user. Including those starting with a dot (hidden by default in the UI).
         # Also includes fields that are not selected in the view. So that they can be filtered on.
-        self.all_fields = []
-
-        self.selected_fields = []
+        self.fields = []
 
         # Filter tree, updated by the filters_changed signal
         self.applied_filter = {}
@@ -335,29 +333,22 @@ class QueryComponent(ap.AppComponent):
     def get_selected_genes(self) -> List[str]:
         return self.selected_genes
 
-    def get_all_fields(self) -> List[str]:
-        return self.all_fields
+    def get_fields(self) -> List[tuple[str, bool]]:
+        return self.fields
 
-    def set_fields(self, fields: List[str]):
-        if fields != self.all_fields:
+    def set_fields(self, fields: List[tuple[str, bool]]):
+        if fields != self.fields:
             self.changes_list.append(("all_fields", {"all_fields": fields}))
-        self.all_fields = fields
+        self.fields = fields
         return self
 
-    def compute_all_fields(self):
-        self.all_fields = self.datalake.run_with_connection(
-            "validation", lambda conn: conn.sql(self.select_query()).columns
-        )
-        return self
-
-    def get_selected_fields(self) -> List[str]:
-        return self.selected_fields
-
-    def set_selected_fields(self, fields: List[str]):
-        if fields != self.selected_fields:
-            print("Changing from", self.selected_fields, "to", fields)
-            self.changes_list.append(("selected_fields", {"fields": fields}))
-            self.selected_fields = [f for f in fields if f in self.all_fields]
+    def compute_fields(self):
+        self.fields = [
+            (c, True)
+            for c in self.datalake.run_with_connection(
+                "validation", lambda conn: conn.sql(self.select_query()).columns
+            )
+        ]
         return self
 
     def setup_query(
@@ -382,9 +373,9 @@ class QueryComponent(ap.AppComponent):
         self.set_selected_genes(selected_genes)
         self.set_selected_samples(selected_samples)
 
-        previous_fields = self.all_fields
-        self.compute_all_fields()
-        new_fields = self.all_fields
+        previous_fields = self.fields
+        self.compute_fields()
+        new_fields = self.fields
 
         if previous_fields != new_fields:
             self.changes_list.append(("all_fields", {"all_fields": new_fields}))
@@ -398,10 +389,8 @@ class QueryComponent(ap.AppComponent):
 
         # No columns provided, use all fields or selected fields
         if not columns:
-            if self.all_fields and self.selected_fields:
-                columns = ",".join(
-                    [f'"{f}"' for f in self.selected_fields if f in self.all_fields]
-                )
+            if self.fields:
+                columns = ",".join([f'"{f}"' for f, c in self.fields if c])
             else:
                 columns = "*"
 

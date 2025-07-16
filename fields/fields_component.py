@@ -38,11 +38,8 @@ class FieldsComponent(app.AppComponent):
         return self.fields_widget
 
     def on_selected_fields_changed(self):
-        if self.model.checked_fields() != self.query.get_selected_fields():
-            self.query.set_selected_fields(self.model.checked_fields()).commit()
-        else:
-            print(self.model.checked_fields())
-            print(self.query.get_selected_fields())
+        if self.model.get_all_fields() != self.query.get_fields():
+            self.query.set_fields(self.model.get_all_fields()).commit()
 
     def on_selected_query_changed(self):
         query: "q.QueryComponent" = self.app.get_current_query()
@@ -62,24 +59,19 @@ class FieldsComponent(app.AppComponent):
             self.query.closing.connect(self.on_selected_query_closing)
             self.query.query_changed.connect(self.on_query_changed)
 
-        self.update_self()
+        self.on_query_changed()
 
     def on_selected_query_closing(self):
         self.query = None
-        self.model.update_fields([])
+        self.model.load([])
 
     def on_query_changed(self):
-        self.update_self()
-
-    def update_self(self):
         if self.query is None:
-            self.model.update_fields([])
+            self.model.load([])
             return
 
-        if self.query.get_all_fields() != self.model.get_all_fields():
-            self.model.update_fields(self.query.get_all_fields())
-            self.model.set_checked_fields(self.query.get_selected_fields())
-            # self.on_selected_fields_changed()
+        if self.query.get_fields() != self.model.get_all_fields():
+            self.model.load(self.query.get_fields())
 
     def close_component(self):
 

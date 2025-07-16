@@ -16,16 +16,12 @@ class FieldsModel(qc.QAbstractItemModel):
 
         self.fields = []
 
-    def update_fields(self, fields: list[str]):
-        self.load(fields)
-
-    def load(self, fields: list[str]):
+    def load(self, fields: list[tuple[str, bool]]):
         self.beginResetModel()
-        if not fields:
-            self.fields = []
-            self.endResetModel()
-            return
-        self.fields = [(f, qc.Qt.CheckState.Unchecked) for f in fields]
+        self.fields = [
+            (f, qc.Qt.CheckState.Checked if c else qc.Qt.CheckState.Unchecked)
+            for f, c in fields
+        ]
         self.endResetModel()
 
     def supportedDropActions(self):
@@ -162,11 +158,10 @@ class FieldsModel(qc.QAbstractItemModel):
 
     def set_checked_fields(self, fields: list[str]):
         self.beginResetModel()
-        for i, (field, _) in enumerate(self.fields):
-            if field in fields or len(fields) == 0:
-                self.fields[i] = (field, qc.Qt.CheckState.Checked)
-            else:
-                self.fields[i] = (field, qc.Qt.CheckState.Unchecked)
+        self_fields = [f[0] for f in self.fields]
+        self.fields = [
+            (f, qc.Qt.CheckState.Checked) for f in fields if f in self_fields
+        ] + [(f, qc.Qt.CheckState.Unchecked) for f in self_fields if f not in fields]
         self.endResetModel()
 
     def checked_fields(self):
@@ -177,7 +172,10 @@ class FieldsModel(qc.QAbstractItemModel):
         ]
 
     def get_all_fields(self):
-        return [f[0] for f in self.fields]
+        return [
+            (f[0], True if f[1] == qc.Qt.CheckState.Checked else False)
+            for f in self.fields
+        ]
 
     def __del__(self):
         LOGGER.debug("FieldsModel deleted")
