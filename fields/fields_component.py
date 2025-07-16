@@ -25,8 +25,6 @@ class FieldsComponent(app.AppComponent):
         self.model.dataChanged.connect(self.on_selected_fields_changed)
         self.model.rowsMoved.connect(self.on_selected_fields_changed)
 
-        self.datalake_component = self.app.get_component("datalake")
-
         self.query = None
 
         self.app.selected_query_changed.connect(self.on_selected_query_changed)

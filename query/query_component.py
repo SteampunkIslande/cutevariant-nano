@@ -131,7 +131,7 @@ class QueryComponent(ap.AppComponent):
         self.fields = []
 
         # Filter tree, updated by the filters_changed signal
-        self.applied_filter = {}
+        self.applied_filter = None
 
         # Essential members, not meant to change
         self.readonly_table = None
@@ -389,6 +389,21 @@ class QueryComponent(ap.AppComponent):
                 **self.variables,
             }
         )
+
+    def set_filter(self, filter_tree: dict):
+        """Add a filter to the query. The filter_tree is a dict that can be converted to a FilterItem."""
+        if not isinstance(filter_tree, dict):
+            raise ValueError("Filter tree must be a dict")
+        try:
+            flt.FilterItem.from_json(filter_tree)
+        except ValueError as e:
+            raise ValueError(f"Invalid filter tree: {e}")
+        self.applied_filter = filter_tree
+        return self
+
+    def get_filter(self) -> dict:
+        """Get the filter tree of the query."""
+        return self.applied_filter
 
     def add_order_by(self, colname: str, order: str):
         if not self.order_by:
