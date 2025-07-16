@@ -48,6 +48,55 @@ class QueryManagerComponent(ap.AppComponent):
         # Note: ComponentRegistry doesn't have componentDestroyed signal
         # Component destruction management is done via the beingDestroyed signal of QueryComponent
 
+    def new_generic_query(
+        self, query_ui_name: str, template: dict, parquet_files: list
+    ):
+        query_instancename = str(uuid4())
+        query: q.QueryComponent = self.app.instantiate_component(
+            "query",
+            query_instancename,
+        )
+
+        query.set_ui_name(query_ui_name)
+
+        query.setup_query(
+            template,
+            None,  # No table_uuid for generic queries
+            parquet_files,
+            None,  # No gene_names for generic queries
+            None,  # No sample_names for generic queries
+        )
+
+        query_item = qg.QStandardItem(query_ui_name)
+        query_item.setData(query_instancename, qc.Qt.ItemDataRole.UserRole)
+        query_item.setEditable(False)
+
+        self.query_model.appendRow(query_item)
+
+        # COMPONENT HOLDERS INSTALLATION
+
+        self.queries_tab_widget.blockSignals(True)
+        self.app.window().add_component_to_window(query, mw.WindowRegion.UPPER)
+
+        self.queries[query_instancename] = query
+        self.query_uiname_toinstancename[query_ui_name] = query_instancename
+
+        self.queries_tab_widget.blockSignals(False)
+
+        # Connect title changed signal to update model only if widget exists
+        if query.widget():
+            query.widget().windowTitleChanged.connect(
+                partial(self.update_query_ui_name, query_ui_name)
+            )
+        else:
+            LOGGER.warning(
+                f"Query {query_instancename} has no widget, cannot connect windowTitleChanged"
+            )
+
+        query.commit()
+        self.set_current_query(query_instancename)
+        return query
+
     def new_query(self, query_ui_name: str, data_prep: dict, query_options: dict):
 
         query_instancename = str(uuid4())

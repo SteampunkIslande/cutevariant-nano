@@ -250,6 +250,9 @@ class QueryComponent(ap.AppComponent):
         if not self.datalake or not self.datalake.datalake_path:
             return self.app.translate("No datalake selected")
 
+        if not self.editable_table_name:
+            pass
+
         return self.datalake.run_with_connection(
             "validation",
             lambda conn: conn.sql(
