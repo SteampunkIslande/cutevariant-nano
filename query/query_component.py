@@ -108,11 +108,6 @@ class QueryComponent(ap.AppComponent):
 
         self.ui_name = self.app.translate("Unnamed query")
 
-        self.changes_list = []
-
-    def get_datalake(self) -> "dl.DatalakeComponent":
-        return self.app.get_component("datalake")
-
     def get_ui_name(self) -> str:
         """Get the UI name of the query, used in the QueryManagerWidget."""
         return self.ui_name
@@ -126,10 +121,10 @@ class QueryComponent(ap.AppComponent):
     def init_state(self):
         # When we create a new Query, we want to reset everything, except for the datalake path...
         self.query_template = ""
-        self.query_definition: dict = None
+        self.query_definition: dict = {}
 
         # Order by, updated by the order_by_changed signal
-        self.order_by = None
+        self.order_by = []
 
         # All fields available to the user. Including those starting with a dot (hidden by default in the UI).
         # Also includes fields that are not selected in the view. So that they can be filtered on.
@@ -176,7 +171,6 @@ class QueryComponent(ap.AppComponent):
         if key in QueryComponent.RESERVED_VARIABLES:
             raise ValueError(f"Variable name {key} is reserved")
         self.variables[key] = value
-        self.changes_list.append(("variable", {"key": key, "value": value}))
         return self
 
     def get_variable(self, key: str) -> str:
@@ -191,9 +185,6 @@ class QueryComponent(ap.AppComponent):
         if key in self.variables and self.variables[key] == value:
             return self
 
-        if key not in self.variables or self.variables[key] != value:
-            self.changes_list.append(("variable", {"key": key, "value": value}))
-
         # Apply the change
         self.variables[key] = value
         return self
@@ -202,19 +193,15 @@ class QueryComponent(ap.AppComponent):
         return self.limit
 
     def set_limit(self, limit: int):
-        if limit != self.limit:
-            self.changes_list.append(("limit", {"limit": limit}))
-            self.limit = limit
+        self.limit = limit
         return self
 
     def get_page(self) -> int:
         return self.current_page
 
     def set_page(self, page: int):
-        if page != self.current_page:
-            self.changes_list.append(("page", {"page": page}))
-            self.current_page = page
-            self.offset = (page - 1) * self.limit
+        self.current_page = page
+        self.offset = (page - 1) * self.limit
         return self
 
     def previous_page(self):
@@ -257,9 +244,6 @@ class QueryComponent(ap.AppComponent):
 
         if self.readonly_table != new_readonly_table:
             self.readonly_table = new_readonly_table
-            self.changes_list.append(
-                ("readonly_table", {"readonly_table": self.readonly_table})
-            )
         return self
 
     def get_editable_table_human_readable_name(self) -> str:
@@ -306,18 +290,10 @@ class QueryComponent(ap.AppComponent):
         return self.editable_table_name
 
     def set_editable_table_name(self, name: str):
-        if self.editable_table_name != name:
-            self.changes_list.append(
-                ("editable_table_name", {"editable_table_name": name})
-            )
         self.editable_table_name = name
         return self
 
     def set_selected_samples(self, samples: List[str]):
-        if samples != self.selected_samples:
-            self.changes_list.append(
-                ("selected_samples", {"selected_samples": samples})
-            )
         self.selected_samples = samples
         return self
 
@@ -325,8 +301,6 @@ class QueryComponent(ap.AppComponent):
         return self.selected_samples
 
     def set_selected_genes(self, genes: List[str]):
-        if genes != self.selected_genes:
-            self.changes_list.append(("selected_genes", {"selected_genes": genes}))
         self.selected_genes = genes
         return self
 
@@ -337,8 +311,6 @@ class QueryComponent(ap.AppComponent):
         return self.fields
 
     def set_fields(self, fields: List[tuple[str, bool]]):
-        if fields != self.fields:
-            self.changes_list.append(("all_fields", {"all_fields": fields}))
         self.fields = fields
         return self
 
@@ -376,9 +348,6 @@ class QueryComponent(ap.AppComponent):
         previous_fields = self.fields
         self.compute_fields()
         new_fields = self.fields
-
-        if previous_fields != new_fields:
-            self.changes_list.append(("all_fields", {"all_fields": new_fields}))
 
         return self
 
@@ -425,7 +394,6 @@ class QueryComponent(ap.AppComponent):
         if not self.order_by:
             self.order_by = []
         self.order_by.append([colname, order])
-        self.changes_list.append(("order_by", {"order_by": self.order_by}))
         return self
 
     def get_variant_info(self, validation_hash: int, columns: List[str] = None):
@@ -505,21 +473,6 @@ class QueryComponent(ap.AppComponent):
         self.query_changed.emit()
 
     def commit(self):
-        # Could emit:
-        # query:variable_changed with payload keys: key, value
-        # query:limit_changed with payload keys: limit
-        # query:page_changed with payload keys: page
-        # query:readonly_table_changed with payload keys: readonly_table
-        # query:editable_table_name_changed with payload keys: editable_table_name
-        # query:selected_samples_changed with payload keys: selected_samples
-        # query:selected_genes_changed with payload keys: selected_genes
-        # query:all_fields_changed with payload keys: all_fields
-        # query:selected_fields_changed with payload keys: fields
-        # for change, payload in self.changes_list:
-        #     self.broadcast.emit(
-        #         f"query:{change}_changed", "query", self.instance_name, payload
-        #     )
-        self.changes_list.clear()
         self.update_data()
 
     def widget(self):
