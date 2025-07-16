@@ -85,11 +85,15 @@ class FieldsModel(qc.QAbstractItemModel):
             return False
 
         field_index = json_data.get("field_index")
+        if field_index == row:
+            LOGGER.warning("Field index is the same as the drop row, ignoring.")
+            return True
 
         self.beginMoveRows(
-            qc.QModelIndex(), field_index, field_index, qc.QModelIndex(), row - 1
+            qc.QModelIndex(), field_index, field_index, qc.QModelIndex(), row
         )
-        self.fields.insert(row, self.fields.pop(field_index))
+        original = self.fields.pop(field_index)
+        self.fields.insert(row, original)
         self.endMoveRows()
 
         return True
