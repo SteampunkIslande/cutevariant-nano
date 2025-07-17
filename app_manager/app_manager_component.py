@@ -42,7 +42,9 @@ class AppManager(app.AppComponent):
                 validation_component, mainwindow.WindowRegion.RIGHT
             )
         else:
-            # window.add_component_to_window(
-            #     validation_component, mainwindow.WindowRegion.LEFT
-            # )
-            pass
+            generic_explorer_component = self.app.instantiate_component(
+                "generic_explorer"
+            )
+            window.add_component_to_window(
+                generic_explorer_component, mainwindow.WindowRegion.RIGHT
+            )

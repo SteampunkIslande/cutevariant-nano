@@ -138,7 +138,7 @@ class App(qc.QObject):
 
         self.formatters = {}
 
-        self.app_options: dict = app_options or {}
+        self.app_options: dict = {"validation": "generic"}
 
         self.missing_translations = set()
 
@@ -171,6 +171,7 @@ class App(qc.QObject):
         import datalake.datalake_component
         import fields.fields_component
         import filters.filters_component
+        import generic_explorer.generic_explorer_component
         import order_by.order_by_component
         import query.query_component
         import query_manager.query_manager_component

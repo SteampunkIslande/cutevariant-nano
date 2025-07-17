@@ -61,10 +61,10 @@ class QueryManagerComponent(ap.AppComponent):
 
         query.setup_query(
             template,
-            None,  # No table_uuid for generic queries
+            [],  # No table_uuid for generic queries
             parquet_files,
-            None,  # No gene_names for generic queries
-            None,  # No sample_names for generic queries
+            [],  # No gene_names for generic queries
+            [],  # No sample_names for generic queries
         )
 
         query_item = qg.QStandardItem(query_ui_name)

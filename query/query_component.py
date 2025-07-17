@@ -240,7 +240,7 @@ class QueryComponent(ap.AppComponent):
         if not self.datalake:
             return self
 
-        new_readonly_table = f"read_parquet({duck_db_literal_string_list(self.datalake.relative_to_absolute(f) for f in files)})"
+        new_readonly_table = f"read_parquet({duck_db_literal_string_list(self.datalake.relative_to_absolute(f) for f in files)},union_by_name=True)"
 
         if self.readonly_table != new_readonly_table:
             self.readonly_table = new_readonly_table
