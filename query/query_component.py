@@ -17,6 +17,42 @@ from commons import duck_db_literal_string_list, duck_db_literal_string_tuple
 LOGGER = logging.getLogger(__name__)
 
 
+def validate_query_template(data: dict) -> bool:
+    """Validate the query template structure."""
+    if not isinstance(data, dict):
+        return False
+    if "select" not in data:
+        return False
+    select_def = data["select"]
+    if not isinstance(select_def, dict):
+        return False
+    if "fields" not in select_def or not isinstance(select_def["fields"], list):
+        return False
+    if "tables" not in select_def or not isinstance(select_def["tables"], list):
+        return False
+    for table in select_def["tables"]:
+        if not isinstance(table, dict):
+            return False
+        if "on" in table and not isinstance(table["on"], (str, dict)):
+            return False
+        if "how" in table and table["how"] not in ["INNER", "LEFT", "RIGHT", "FULL"]:
+            return False
+        if "select" in table and not validate_query_template(table["select"]):
+            return False
+    if "filter" in select_def and not isinstance(select_def["filter"], dict):
+        return False
+    if "group_by" in select_def and not isinstance(select_def["group_by"], (str, list)):
+        return False
+    if "order_by" in select_def and not isinstance(select_def["order_by"], list):
+        return False
+    for order in select_def.get("order_by", []):
+        if not isinstance(order, dict) or "field" not in order or "order" not in order:
+            return False
+        if order["order"] not in ["ASC", "DESC"]:
+            return False
+    return True
+
+
 def build_query_template(data: dict) -> str:
     select_def = data["select"]
     fields = select_def["fields"]
@@ -135,6 +171,7 @@ class QueryComponent(ap.AppComponent):
 
         # Essential members, not meant to change
         self.readonly_table = None
+        self.readonly_files = []
         self.editable_table_name = None
         self.selected_samples = []
         self.selected_genes = []
@@ -159,6 +196,7 @@ class QueryComponent(ap.AppComponent):
 
         return self
 
+    # Validation specific method: should be called by the validation manager component
     def add_variant_to_validation(self, payload: dict):
         self.broadcast.emit(
             "add_variant_to_validation",
@@ -167,6 +205,7 @@ class QueryComponent(ap.AppComponent):
             payload,
         )
 
+    # Variable management methods
     def add_variable(self, key: str, value: str):
         if key in QueryComponent.RESERVED_VARIABLES:
             raise ValueError(f"Variable name {key} is reserved")
@@ -182,11 +221,12 @@ class QueryComponent(ap.AppComponent):
     def set_variable(self, key: str, value: str):
         if key in QueryComponent.RESERVED_VARIABLES:
             raise ValueError(f"Variable name {key} is reserved")
-        if key in self.variables and self.variables[key] == value:
-            return self
-
-        # Apply the change
         self.variables[key] = value
+        return self
+
+    def remove_variable(self, key: str):
+        if key in self.variables:
+            del self.variables[key]
         return self
 
     def get_limit(self) -> int:
@@ -200,6 +240,10 @@ class QueryComponent(ap.AppComponent):
         return self.current_page
 
     def set_page(self, page: int):
+        if page < 1:
+            raise ValueError("Page number must be greater than 0")
+        if page > self.page_count:
+            raise ValueError("Page number exceeds total page count")
         self.current_page = page
         self.offset = (page - 1) * self.limit
         return self
@@ -225,6 +269,7 @@ class QueryComponent(ap.AppComponent):
     def get_page_count(self):
         return self.page_count
 
+    # Those useless getters...
     def get_data(self):
         return self.data
 
@@ -234,33 +279,20 @@ class QueryComponent(ap.AppComponent):
     def get_readonly_table(self) -> str:
         return self.readonly_table
 
+    # Convenient method to set the readonly table from a list of files
     def set_readonly_table(self, files: List[str]):
         if not files:
             return self
         if not self.datalake:
             return self
 
-        new_readonly_table = f"read_parquet({duck_db_literal_string_list(self.datalake.relative_to_absolute(f) for f in files)},union_by_name=True)"
+        self.readonly_files = files
 
-        if self.readonly_table != new_readonly_table:
-            self.readonly_table = new_readonly_table
+        if len(files) == 1:
+            self.readonly_table = f"read_parquet('{self.datalake.datalake_path}/{files[0]}',union_by_name=True)"
+        else:
+            self.readonly_table = f"read_parquet({duck_db_literal_string_list(self.datalake.relative_to_absolute(f) for f in files)},union_by_name=True)"
         return self
-
-    def get_editable_table_human_readable_name(self) -> str:
-        if not self.datalake or not self.datalake.datalake_path:
-            return self.app.translate("No datalake selected")
-
-        if not self.editable_table_name:
-            pass
-
-        return self.datalake.run_with_connection(
-            "validation",
-            lambda conn: conn.sql(
-                f"SELECT table_name FROM validations WHERE table_uuid = '{self.editable_table_name}'"
-            ).fetchone()[0],
-        ) or self.app.translate(
-            "No table with name {}".format(self.editable_table_name)
-        )
 
     def get_column_info(self, colname: str):
         select = self.select_query(paginated=False, columns=f'"{colname}"')
@@ -296,19 +328,19 @@ class QueryComponent(ap.AppComponent):
         self.editable_table_name = name
         return self
 
+    def get_selected_samples(self) -> List[str]:
+        return self.selected_samples
+
     def set_selected_samples(self, samples: List[str]):
         self.selected_samples = samples
         return self
 
-    def get_selected_samples(self) -> List[str]:
-        return self.selected_samples
+    def get_selected_genes(self) -> List[str]:
+        return self.selected_genes
 
     def set_selected_genes(self, genes: List[str]):
         self.selected_genes = genes
         return self
-
-    def get_selected_genes(self) -> List[str]:
-        return self.selected_genes
 
     def get_fields(self) -> List[tuple[str, bool]]:
         return self.fields
@@ -317,20 +349,32 @@ class QueryComponent(ap.AppComponent):
         self.fields = fields
         return self
 
+    # Should be called whenever the query template is updated
     def compute_fields(self):
+        q = self.select_query()
+        print(q)
         self.fields = [
             (c, True)
             for c in self.datalake.run_with_connection(
-                "validation", lambda conn: conn.sql(self.select_query()).columns
+                "validation", lambda conn: conn.sql(q).columns
             )
         ]
         return self
 
+    def setup_query_template(self, definition: dict):
+        """Set up the query template from a definition."""
+        self.query_definition = definition
+        self.query_template = build_query_template(definition)
+        return self
+
+    # Validation specific method. Or is it?
+    # Selected genes and samples maybe are too specific
+    # But editable table name is useful for user-defined annotations
     def setup_query(
         self,
-        query_template_dict: dict,
+        query_definition: dict,
         editable_table_name: str,
-        readonly_table: List[str],
+        parquet_files_list: List[str],
         selected_genes: List[str],
         selected_samples: List[str],
     ) -> "QueryComponent":
@@ -340,17 +384,15 @@ class QueryComponent(ap.AppComponent):
         Args:
             data (dict): The json object to build the query template from
         """
-        self.query_definition = query_template_dict
-        self.query_template = build_query_template(query_template_dict)
+        self.query_definition = query_definition
+        self.query_template = build_query_template(query_definition)
 
         self.set_editable_table_name(editable_table_name)
-        self.set_readonly_table(readonly_table)
+        self.set_readonly_table(parquet_files_list)
         self.set_selected_genes(selected_genes)
         self.set_selected_samples(selected_samples)
 
-        previous_fields = self.fields
         self.compute_fields()
-        new_fields = self.fields
 
         return self
 
@@ -453,14 +495,6 @@ class QueryComponent(ap.AppComponent):
     def is_valid(self):
         return bool(self.readonly_table) and self.datalake
 
-    def to_do(self):
-        if not self.datalake.datalake_path:
-            return "Please select a datalake"
-        if not self.readonly_table:
-            return "Please select a main table"
-        if not self.editable_table_name:
-            return "Please select a validation table"
-
     def get_table_data(self) -> List[dict]:
         q = self.select_query()
         return self.datalake.run_with_connection(
@@ -473,7 +507,7 @@ class QueryComponent(ap.AppComponent):
             "validation", lambda conn: run_sql(q, conn)[0]["count_star"]
         )
 
-    def update_data(self):
+    def commit(self):
         # Empty data before updating
         self.header = []
         self.data = []
@@ -504,35 +538,11 @@ class QueryComponent(ap.AppComponent):
             self.offset = 0
         self.query_changed.emit()
 
-    def commit(self):
-        self.update_data()
-
     def widget(self):
         return self.view
 
     def filter_tree_to_string(self, f: dict) -> str:
         return str(flt.FilterItem.from_json(f))
-
-    def generic_receiver(
-        self, action, sender_component_name, sender_instance_name, payload
-    ):
-        # if action == "order_by_changed":
-        #     if sender_instance_name == f"{self.instance_name}/order_by":
-        #         self.order_by = payload["order_by_expression"]
-        #         self.commit()
-        # if action == "filters_changed":
-        #     if sender_instance_name == f"filters/{self.instance_name}/filters":
-        #         self.applied_filter = payload["filter_tree"]
-        #         self.commit()
-        # if action == "selected_fields_changed":
-        #     if sender_instance_name == f"{self.instance_name}/fields":
-        #         self.set_selected_fields(payload["fields"])
-        #         self.view.update_selected_fields(payload["fields"])
-        #         self.commit()
-        # if action == "validation_infos_added":
-        #     if sender_instance_name == f"validation_manager":
-        #         self.commit()
-        pass
 
     def close_component(self):
         LOGGER.debug(
@@ -541,6 +551,39 @@ class QueryComponent(ap.AppComponent):
         super().close_component()
         self.deleteLater()
         self.app = None
+
+    def to_json(self) -> dict:
+        """Convert the query component to a JSON-like dict."""
+        return {
+            "query_definition": self.query_definition,
+            "readonly_files": self.readonly_files,
+            "editable_table_name": self.editable_table_name,
+            "selected_genes": self.selected_genes,
+            "selected_samples": self.selected_samples,
+            "fields": self.fields,
+            "applied_filter": self.applied_filter,
+            "order_by": self.order_by,
+            "variables": self.variables,
+            "ui_name": self.ui_name,
+            "instance_name": self.instance_name,
+        }
+
+    def from_json(self, data: dict):
+        """Load the query component from a JSON-like dict."""
+        self.setup_query(
+            data["query_definition"],
+            data["editable_table_name"],
+            data["readonly_files"],
+            data["selected_genes"],
+            data["selected_samples"],
+        )
+        self.set_fields(data["fields"])
+        self.set_filter(data["applied_filter"])
+        self.set_order_by(data["order_by"])
+        self.variables = data.get("variables", {})
+        self.ui_name = data.get("ui_name", self.app.translate("Unnamed query"))
+        self.view.setWindowTitle(self.ui_name)
+        return self
 
     def __del__(self):
         LOGGER.info(f"QueryComponent {self.instance_name} (AKA {self.ui_name}) deleted")

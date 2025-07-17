@@ -1,5 +1,7 @@
+import json
 import logging
 from functools import partial
+from pathlib import Path
 from typing import Optional
 from uuid import uuid4
 
@@ -10,10 +12,13 @@ import PySide6.QtWidgets as qw
 import app as ap
 import mainwindow as mw
 import query.query_component as q
+from commons import yaml_load
 from component_registry import register_app_component
 from query_manager.query_manager_widget import QueryManagerWidget
 
 LOGGER = logging.getLogger(__name__)
+
+import datalake.datalake_component as dl
 
 
 @register_app_component(
@@ -45,27 +50,71 @@ class QueryManagerComponent(ap.AppComponent):
         if self.queries_tab_widget:
             self.queries_tab_widget.currentChanged.connect(self.on_query_tab_changed)
 
+        self.datalake: dl.DatalakeComponent = self.app.get_component("datalake")
+        if self.datalake:
+            self.app.datalake_path_changed.connect(self.on_datalake_changed)
+            self.datalake_path = self.datalake.datalake_path
+
+        self.group_name = self.app.translate("Generic Queries")
+
         # Note: ComponentRegistry doesn't have componentDestroyed signal
         # Component destruction management is done via the beingDestroyed signal of QueryComponent
 
+    def set_group_name(self, group_name: str):
+        """Set the group name for the queries"""
+        self.group_name = group_name
+        self.query_manager_widget.setWindowTitle(
+            self.app.translate(f"Queries - {self.group_name}")
+        )
+
     def new_generic_query(
-        self, query_ui_name: str, template: dict, parquet_files: list
+        self,
+        query_ui_name: str,
+        template: dict = None,
+        parquet_files: list = None,
     ):
-        query_instancename = str(uuid4())
-        query: q.QueryComponent = self.app.instantiate_component(
-            "query",
-            query_instancename,
+
+        serialized_path = (
+            Path(self.datalake_path)
+            / "queries"
+            / self.group_name
+            / (query_ui_name + ".json")
         )
 
-        query.set_ui_name(query_ui_name)
+        if serialized_path.exists():
+            # Read from this json the query instance name
+            serialized_query = yaml_load(serialized_path)
+            query_instancename = serialized_query["instance_name"]
+            query: q.QueryComponent = self.app.instantiate_component(
+                "query",
+                query_instancename,
+            )
 
-        query.setup_query(
-            template,
-            [],  # No table_uuid for generic queries
-            parquet_files,
-            [],  # No gene_names for generic queries
-            [],  # No sample_names for generic queries
-        )
+            query.from_json(
+                serialized_query,
+            )
+
+        else:
+            if not template:
+                raise ValueError("Template must be provided for new generic queries.")
+            if not parquet_files:
+                raise ValueError(
+                    "Parquet files must be provided for new generic queries."
+                )
+            query_instancename = str(uuid4())
+            query: q.QueryComponent = self.app.instantiate_component(
+                "query",
+                query_instancename,
+            )
+
+            query.set_ui_name(query_ui_name)
+            query.setup_query(
+                template,
+                "",  # No table_uuid for generic queries
+                parquet_files,
+                "query",
+                query_instancename,
+            )
 
         query_item = qg.QStandardItem(query_ui_name)
         query_item.setData(query_instancename, qc.Qt.ItemDataRole.UserRole)
@@ -264,7 +313,41 @@ class QueryManagerComponent(ap.AppComponent):
         if query is self.current_query:
             self.current_query = None
 
+        self.serialize_query(
+            query,
+            query_group_name=self.group_name,
+            query_ui_name=query.get_ui_name(),
+        )
+
         query.close_component()
+
+    def serialize_query(
+        self,
+        query: "q.QueryComponent",
+        query_group_name: str,
+        query_ui_name: str,
+    ):
+        """Serialize the current query to a JSON file in the datalake queries folder."""
+        if not self.datalake_path:
+            LOGGER.error("Datalake path is not set, cannot serialize query.")
+            return
+
+        serialized_path = (
+            Path(self.datalake_path)
+            / "queries"
+            / query_group_name
+            / (query_ui_name + ".json")
+        )
+
+        serialized_path.parent.mkdir(parents=True, exist_ok=True)
+
+        with open(serialized_path, "w") as f:
+            json.dump(
+                query.to_json(),
+                f,
+                indent=4,
+                ensure_ascii=False,
+            )
 
     def on_query_tab_changed(self, tab_index: int):
         if tab_index < 0:
@@ -297,7 +380,42 @@ class QueryManagerComponent(ap.AppComponent):
         return self.query_manager_widget
 
     def on_datalake_changed(self):
+        """Handle datalake path changes"""
+        if self.datalake:
+            self.datalake_path = self.datalake.datalake_path
+            LOGGER.debug(f"Datalake path changed to: {self.datalake_path}")
+        else:
+            LOGGER.warning("Datalake component not found, cannot update datalake path.")
+            self.datalake_path = None
         return
+
+    def save_to_session(self):
+        return {
+            "group_name": self.group_name,
+        }
+
+    def load_from_session(self, session: dict):
+        """Load the component state from a session dictionary."""
+        if "group_name" in session:
+            self.set_group_name(session["group_name"])
+        else:
+            LOGGER.warning("No group name found in session, using default.")
+            self.set_group_name(self.app.translate("Generic Queries"))
+
+        # Search for queries from self.group_name within datalake path/queries/group_name
+        queries_path = Path(self.datalake_path) / "queries" / self.group_name
+        if not queries_path.exists():
+            LOGGER.warning(
+                f"Queries path {queries_path} does not exist, no queries to load."
+            )
+            return
+        for query_file in queries_path.glob("*.json"):
+            with open(query_file, "r") as f:
+                serialized_query = json.load(f)
+            query_ui_name = serialized_query.get("ui_name", query_file.stem)
+            self.new_generic_query(
+                query_ui_name=query_ui_name,
+            )
 
     def clear(self):
         # Close all
@@ -306,6 +424,7 @@ class QueryManagerComponent(ap.AppComponent):
             self.close_query(query)
         del queries
         self.query_model.clear()
+        self.set_group_name(self.app.translate("Generic Queries"))
 
     def close_component(self):
         # Close all queries

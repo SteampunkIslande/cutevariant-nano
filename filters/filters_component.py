@@ -62,8 +62,9 @@ class FiltersComponent(app.AppComponent):
             self.model.load(None)
             return
 
-        if self.query.get_filter() != self.model.to_dict():
-            self.model.load(self.query.get_filter())
+        query_filter = self.query.get_filter()
+        if query_filter != self.model.to_dict():
+            self.model.load(query_filter)
 
     def add_expression(self, expression: str):
         self.model.add_filter(expression)

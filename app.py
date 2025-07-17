@@ -631,10 +631,10 @@ class App(qc.QObject):
 
         last_session_path: Path = self.get_last_session_path()
 
+        self.setup_formatter()
+
         if last_session_path is not None and last_session_path.is_file():
             self.load_session(last_session_path)
-
-        self.setup_formatter()
 
     # RUNNING APP LIFE CYCLE
 
