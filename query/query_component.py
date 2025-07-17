@@ -408,6 +408,20 @@ class QueryComponent(ap.AppComponent):
         """Get the filter tree of the query."""
         return self.applied_filter
 
+    def get_order_by(self) -> List[list[str, str]]:
+        """Get the order by expression of the query."""
+        return self.order_by
+
+    def set_order_by(self, order_by: List[list[str, str]]):
+        """Set the order by expression of the query."""
+        if not isinstance(order_by, list):
+            raise ValueError("Order by must be a list of [field, order] pairs")
+        for ob in order_by:
+            if not isinstance(ob, list) or len(ob) != 2:
+                raise ValueError("Each order by item must be a list of [field, order]")
+        self.order_by = order_by
+        return self
+
     def add_order_by(self, colname: str, order: str):
         if not self.order_by:
             self.order_by = []

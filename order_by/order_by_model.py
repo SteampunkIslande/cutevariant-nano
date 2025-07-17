@@ -120,8 +120,9 @@ class OrderByModel(qc.QAbstractTableModel):
         self._data = data
         self.endResetModel()
 
-    def get_data(self) -> list[tuple[str, str]]:
-        return self._data
+    def get_data(self) -> list[list[str, str]]:
+        # Turn list of tuple into list of lists
+        return [[row[0], row[1]] for row in self._data]
 
     def flags(self, index: qc.QModelIndex):
         return (

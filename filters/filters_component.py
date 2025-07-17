@@ -3,9 +3,8 @@ import logging
 import app
 import filters.filters_model as fltm
 import filters.filters_widget as fltw
-from component_registry import register_app_component
-
 import query.query_component as q
+from component_registry import register_app_component
 
 LOGGER = logging.getLogger(__name__)
 
@@ -75,11 +74,6 @@ class FiltersComponent(app.AppComponent):
 
     def widget(self):
         return self.filters_widget
-
-    def generic_receiver(
-        self, action, sender_component_name, sender_instance_name, payload
-    ):
-        pass
 
     def close_component(self):
         self.app.selected_query_changed.disconnect(self.on_selected_query_changed)
