@@ -10,7 +10,6 @@ from typing import TYPE_CHECKING, Union
 import PySide6.QtCore as qc
 import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
-import yaml
 
 import mainwindow as mw
 
@@ -746,12 +745,14 @@ class App(qc.QObject):
             validation_methods_folder = config_folder / "validation_methods"
             validation_methods_folder.mkdir(parents=True, exist_ok=True)
 
-            from defaults import validation_methods
-
-            for method_name, method_content in validation_methods.items():
-                method_file = validation_methods_folder / f"{method_name}.yaml"
-                with open(method_file, "w", encoding="utf-8") as f:
-                    yaml.dump(method_content, f, allow_unicode=True)
+            default_validation_methods_src = (
+                Path(__file__).parent / "assets" / "defaults" / "validation_methods"
+            )
+            for method_file in default_validation_methods_src.glob("*.yaml"):
+                dest_file = validation_methods_folder / method_file.name
+                if not dest_file.exists():
+                    with open(dest_file, "w", encoding="utf-8") as f:
+                        f.write(method_file.read_text(encoding="utf-8"))
 
         except Exception as e:
             LOGGER.error(f"Error setting up default validation methods: {e}")
@@ -774,12 +775,14 @@ class App(qc.QObject):
             styles_folder = config_folder / "styles"
             styles_folder.mkdir(parents=True, exist_ok=True)
 
-            from defaults import styles
-
-            for style_name, style_content in styles.items():
-                style_file = styles_folder / f"{style_name}.json"
-                with open(style_file, "w", encoding="utf-8") as f:
-                    json.dump(style_content, f, ensure_ascii=False, indent=4)
+            default_style_files_src = (
+                Path(__file__).parent / "assets" / "defaults" / "styles"
+            )
+            for style_file in default_style_files_src.glob("*.json"):
+                dest_file = styles_folder / style_file.name
+                if not dest_file.exists():
+                    with open(dest_file, "w", encoding="utf-8") as f:
+                        f.write(style_file.read_text(encoding="utf-8"))
 
         except Exception as e:
             LOGGER.error(f"Error setting up default styles: {e}")
