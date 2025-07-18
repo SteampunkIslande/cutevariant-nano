@@ -75,6 +75,9 @@ class ValidationManagerComponent(ap.AppComponent):
             self.validation_selection_widget.on_datalake_changed
         )
 
+        self.validation_method = None
+        self.validation_method_name = None
+
     def on_validation_start(self):
         validation_info = self.validation_selection_widget.get_selected_validation()
         self.widget_holder.set_current_widget("validation")
@@ -88,6 +91,7 @@ class ValidationManagerComponent(ap.AppComponent):
             return
         config_folder = self.app.get_config_folder()
 
+        self.validation_method_name = validation_method
         self.validation_method = yaml_load(
             os.path.join(
                 config_folder, "validation_methods", validation_method + ".yaml"
@@ -108,7 +112,8 @@ class ValidationManagerComponent(ap.AppComponent):
         self.query_manager_component.set_group_name(self.table_uuid)
 
         # Add final validation query
-        self.query_manager_component.new_generic_query(
+        validation_mismatches = {}
+        final_query = self.query_manager_component.new_generic_query(
             self.app.translate("Final validation"),
             self.validation_method["final"]["query"],
             readonly_files=self.parquet_files,
@@ -119,13 +124,22 @@ class ValidationManagerComponent(ap.AppComponent):
             },
         )
 
+        if (
+            final_query.get_query_definition()
+            != self.validation_method["final"]["query"]
+        ):
+            validation_mismatches[self.app.translate("Final validation")] = (
+                self.validation_method["final"]["query"],
+                final_query,
+            )
+
         completed = validation_info.get("completed")
         if completed:
             self.validation_widget.set_completed(True)
             return
 
         for sample_name in self.sample_names:
-            self.query_manager_component.new_generic_query(
+            q = self.query_manager_component.new_generic_query(
                 sample_name,
                 self.validation_method["default"]["query"],
                 readonly_files=self.parquet_files,
@@ -135,6 +149,49 @@ class ValidationManagerComponent(ap.AppComponent):
                     "selected_genes": self.gene_names,
                 },
             )
+
+            if q.get_query_definition() != self.validation_method["default"]["query"]:
+                validation_mismatches[sample_name] = (
+                    self.validation_method["default"]["query"],
+                    q,
+                )
+
+        if validation_mismatches and not self.app.get_user_pref(
+            "ignore_validation_method_mismatch", False
+        ):
+            res = qw.QMessageBox.question(
+                self.validation_widget,
+                self.app.translate("Validation method mismatch"),
+                self.app.translate(
+                    "<body>The following queries were created with an older validation method:<br/>{queries}"
+                    "<br/>Do you want to update them to fit the latest version?</body>"
+                ).format(queries="<br/>".join(validation_mismatches.keys())),
+                qw.QMessageBox.StandardButton.Yes | qw.QMessageBox.StandardButton.No,
+                qw.QMessageBox.StandardButton.No,
+            )
+            if res == qw.QMessageBox.StandardButton.Yes:
+                for query_uiname, (
+                    query_definition,
+                    query,
+                ) in validation_mismatches.items():
+                    self.query_manager_component.update_query_definition(
+                        query, query_definition
+                    )
+
+            if res == qw.QMessageBox.StandardButton.No:
+                if (
+                    qw.QMessageBox.question(
+                        self.validation_widget,
+                        self.app.translate("Validation method mismatch"),
+                        self.app.translate(
+                            "Do you want to ignore all similar warnings in the future?"
+                        ),
+                    )
+                    == qw.QMessageBox.StandardButton.Yes
+                ):
+                    self.app.save_user_prefs(
+                        {"ignore_validation_method_mismatch": True}
+                    )
 
     def validate(self):
 

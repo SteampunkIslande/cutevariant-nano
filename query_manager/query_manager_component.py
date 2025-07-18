@@ -151,6 +151,15 @@ class QueryManagerComponent(ap.AppComponent):
         self.set_current_query(query_instancename)
         return query
 
+    def update_query_definition(self, query: q.QueryComponent, new_definition: dict):
+        """Update the query definition of an existing query"""
+        if query.get_instance_name() not in self.queries:
+            LOGGER.warning(
+                f"Query with instance name {query.get_instance_name()} not found in queries dictionary."
+            )
+            return
+        query.setup_query_template(new_definition).compute_fields().commit()
+
     def update_query_ui_name(self, old_name: str, new_name: str):
         """Update query name in model and queries dictionary"""
 

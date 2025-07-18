@@ -166,7 +166,6 @@ class GenericExplorerComponent(ap.AppComponent):
             return
 
         file_names = [name.strip() for name in file_names.split(",") if name.strip()]
-        print(file_names)
 
         if not file_names:
             qw.QMessageBox.warning(

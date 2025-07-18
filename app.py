@@ -826,6 +826,11 @@ class App(qc.QObject):
             / "config.json"
         ).resolve()
 
+    def get_user_pref(self, key: str, default=None) -> typing.Any:
+        """Get a user preference by `key`. If the key does not exist, return `default`."""
+        user_prefs: dict = self.get_user_prefs()
+        return user_prefs.get(key, default)
+
     def save_user_prefs(self, prefs: dict):
         """Saves `prefs` to the user's preferences file. This file is located in the user's writable location, in a folder named `config.json`
         It's OK to call this method with a partial dictionary, it will only update the keys that are present in the passed dictionary.

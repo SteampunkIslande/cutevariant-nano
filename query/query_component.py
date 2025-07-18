@@ -349,16 +349,24 @@ class QueryComponent(ap.AppComponent):
         self.fields = fields
         return self
 
+    def get_query_definition(self) -> dict:
+        """Get the query definition."""
+        return self.query_definition
+
     # Should be called whenever the query template is updated
     def compute_fields(self):
         q = self.select_query()
         try:
-            self.fields = [
-                (c, True)
+            new_fields = {
+                c: True
                 for c in self.datalake.run_with_connection(
                     "validation", lambda conn: conn.sql(q).columns
                 )
-            ]
+            }
+            for f_name, checked in self.fields:
+                if f_name in new_fields:
+                    new_fields[f_name] = checked
+            self.fields = [(f_name, checked) for f_name, checked in new_fields.items()]
         except Exception as e:
             LOGGER.error(f"Error computing fields: {e}\nQuery: {q}")
         return self
