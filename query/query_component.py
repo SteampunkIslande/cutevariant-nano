@@ -352,13 +352,15 @@ class QueryComponent(ap.AppComponent):
     # Should be called whenever the query template is updated
     def compute_fields(self):
         q = self.select_query()
-        print(q)
-        self.fields = [
-            (c, True)
-            for c in self.datalake.run_with_connection(
-                "validation", lambda conn: conn.sql(q).columns
-            )
-        ]
+        try:
+            self.fields = [
+                (c, True)
+                for c in self.datalake.run_with_connection(
+                    "validation", lambda conn: conn.sql(q).columns
+                )
+            ]
+        except Exception as e:
+            LOGGER.error(f"Error computing fields: {e}\nQuery: {q}")
         return self
 
     def setup_query_template(self, definition: dict):
@@ -367,30 +369,32 @@ class QueryComponent(ap.AppComponent):
         self.query_template = build_query_template(definition)
         return self
 
-    # Validation specific method. Or is it?
-    # Selected genes and samples maybe are too specific
-    # But editable table name is useful for user-defined annotations
     def setup_query(
         self,
-        query_definition: dict,
-        editable_table_name: str,
-        parquet_files_list: List[str],
-        selected_genes: List[str],
-        selected_samples: List[str],
+        query_definition: dict,  # Mandatory: the select query definition
+        editable_table_name: str,  # Mandatory: the name of the editable table
+        readonly_files: List[str],  # Mandatory: the list of readonly files
+        **kwargs,  # Optional: additional parameters.
     ) -> "QueryComponent":
         """Builds a query template from a json object.
         Provided json object must have a select key at the root level.
 
         Args:
-            data (dict): The json object to build the query template from
+            query_definition (dict): The query definition
+            editable_table_name (str): The name of the editable table
+            readonly_files (List[str]): The list of readonly files
+            **kwargs: Additional parameters. Currently supports:
+                - selected_genes (List[str]): List of selected genes (when used with validation component)
+                - selected_samples (List[str]): List of selected samples (when used with validation component)
         """
-        self.query_definition = query_definition
-        self.query_template = build_query_template(query_definition)
+        self.setup_query_template(query_definition)
 
         self.set_editable_table_name(editable_table_name)
-        self.set_readonly_table(parquet_files_list)
-        self.set_selected_genes(selected_genes)
-        self.set_selected_samples(selected_samples)
+        self.set_readonly_table(readonly_files)
+        if "selected_genes" in kwargs:
+            self.set_selected_genes(kwargs["selected_genes"])
+        if "selected_samples" in kwargs:
+            self.set_selected_samples(kwargs["selected_samples"])
 
         self.compute_fields()
 
@@ -570,13 +574,7 @@ class QueryComponent(ap.AppComponent):
 
     def from_json(self, data: dict):
         """Load the query component from a JSON-like dict."""
-        self.setup_query(
-            data["query_definition"],
-            data["editable_table_name"],
-            data["readonly_files"],
-            data["selected_genes"],
-            data["selected_samples"],
-        )
+        self.setup_query(**data)
         self.set_fields(data["fields"])
         self.set_filter(data["applied_filter"])
         self.set_order_by(data["order_by"])

@@ -105,15 +105,17 @@ class ValidationManagerComponent(ap.AppComponent):
         self.query_manager_component.clear()
         self.init_validation(validation_info)
 
+        self.query_manager_component.set_group_name(self.table_uuid)
+
         # Add final validation query
-        self.query_manager_component.new_query(
+        self.query_manager_component.new_generic_query(
             self.app.translate("Final validation"),
             self.validation_method["final"]["query"],
-            {
-                "sample_names": self.sample_names,
-                "table_uuid": self.table_uuid,
-                "gene_names": self.gene_names,
-                "parquet_files": self.parquet_files,
+            readonly_files=self.parquet_files,
+            editable_table_name=self.table_uuid,
+            **{
+                "selected_samples": self.sample_names,
+                "selected_genes": self.gene_names,
             },
         )
 
@@ -123,14 +125,14 @@ class ValidationManagerComponent(ap.AppComponent):
             return
 
         for sample_name in self.sample_names:
-            self.query_manager_component.new_query(
+            self.query_manager_component.new_generic_query(
                 sample_name,
                 self.validation_method["default"]["query"],
-                {
-                    "sample_names": [sample_name],
-                    "table_uuid": self.table_uuid,
-                    "gene_names": self.gene_names,
-                    "parquet_files": self.parquet_files,
+                readonly_files=self.parquet_files,
+                editable_table_name=self.table_uuid,
+                **{
+                    "selected_samples": [sample_name],
+                    "selected_genes": self.gene_names,
                 },
             )
 
@@ -138,14 +140,14 @@ class ValidationManagerComponent(ap.AppComponent):
 
         # Close all queries, replace with the final one
         self.query_manager_component.clear()
-        self.query_manager_component.new_query(
+        self.query_manager_component.new_generic_query(
             self.app.translate("Final validation"),
             self.validation_method["final"]["query"],
-            {
+            readonly_files=self.parquet_files,
+            editable_table_name=self.table_uuid,
+            **{
                 "sample_names": self.sample_names,
-                "table_uuid": self.table_uuid,
                 "gene_names": self.gene_names,
-                "parquet_files": self.parquet_files,
             },
         )
         self.validation_model.finish_validation(self.table_uuid)
@@ -239,11 +241,18 @@ class ValidationManagerComponent(ap.AppComponent):
 
     def load_from_session(self, session: dict):
         # Implement loading logic here
-        pass
+
+        validation_info = session.get("validation_info", {})
+        if validation_info:
+            self.widget_holder.set_current_widget("validation")
+            self.set_validation(validation_info)
 
     def save_to_session(self) -> dict:
         # Implement saving logic here
-        return {}
+
+        return {
+            "validation_info": self.validation_selection_widget.serialize_validation_info()
+        }
 
     def on_start(self):
         # Implement startup logic here
@@ -264,8 +273,6 @@ class ValidationManagerComponent(ap.AppComponent):
         return []
 
     def close_component(self):
-        # Close all queries
-        self.query_manager_component.clear()
 
         # Clean up resources
         self.validation_model = None

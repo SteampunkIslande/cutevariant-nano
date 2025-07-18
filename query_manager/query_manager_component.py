@@ -10,6 +10,7 @@ import PySide6.QtGui as qg
 import PySide6.QtWidgets as qw
 
 import app as ap
+import datalake.datalake_component as dl
 import mainwindow as mw
 import query.query_component as q
 from commons import yaml_load
@@ -17,8 +18,6 @@ from component_registry import register_app_component
 from query_manager.query_manager_widget import QueryManagerWidget
 
 LOGGER = logging.getLogger(__name__)
-
-import datalake.datalake_component as dl
 
 
 @register_app_component(
@@ -50,38 +49,45 @@ class QueryManagerComponent(ap.AppComponent):
         if self.queries_tab_widget:
             self.queries_tab_widget.currentChanged.connect(self.on_query_tab_changed)
 
-        self.datalake: dl.DatalakeComponent = self.app.get_component("datalake")
-        if self.datalake:
-            self.app.datalake_path_changed.connect(self.on_datalake_changed)
-            self.datalake_path = self.datalake.datalake_path
+        # Initialize datalake component and path
+        self.datalake_path = None
 
         self.group_name = self.app.translate("Generic Queries")
 
         # Note: ComponentRegistry doesn't have componentDestroyed signal
         # Component destruction management is done via the beingDestroyed signal of QueryComponent
 
+    def on_start(self):
+        self.datalake: dl.DatalakeComponent = self.app.get_component("datalake")
+        self.app.datalake_path_changed.connect(self.on_datalake_changed)
+        if self.datalake:
+            self.datalake_path = self.datalake.datalake_path
+
     def set_group_name(self, group_name: str):
         """Set the group name for the queries"""
         self.group_name = group_name
-        self.query_manager_widget.setWindowTitle(
-            self.app.translate(f"Queries - {self.group_name}")
-        )
 
     def new_generic_query(
         self,
-        query_ui_name: str,
-        template: dict = None,
-        parquet_files: list = None,
+        ui_name: str,
+        query_definition: dict = None,
+        readonly_files: list = None,
+        editable_table_name: str = None,
+        **kwargs,  # Additional parameters for specific use (e.g., selected_genes, selected_samples)
     ):
 
         serialized_path = (
-            Path(self.datalake_path)
-            / "queries"
-            / self.group_name
-            / (query_ui_name + ".json")
+            (
+                Path(self.datalake_path)
+                / "queries"
+                / self.group_name
+                / (ui_name + ".json")
+            )
+            if self.datalake_path
+            else None
         )
 
-        if serialized_path.exists():
+        if serialized_path and serialized_path.exists():
             # Read from this json the query instance name
             serialized_query = yaml_load(serialized_path)
             query_instancename = serialized_query["instance_name"]
@@ -95,9 +101,9 @@ class QueryManagerComponent(ap.AppComponent):
             )
 
         else:
-            if not template:
+            if not query_definition:
                 raise ValueError("Template must be provided for new generic queries.")
-            if not parquet_files:
+            if not readonly_files:
                 raise ValueError(
                     "Parquet files must be provided for new generic queries."
                 )
@@ -107,16 +113,15 @@ class QueryManagerComponent(ap.AppComponent):
                 query_instancename,
             )
 
-            query.set_ui_name(query_ui_name)
+            query.set_ui_name(ui_name)
             query.setup_query(
-                template,
-                "",  # No table_uuid for generic queries
-                parquet_files,
-                "query",
-                query_instancename,
+                query_definition,
+                editable_table_name,
+                readonly_files,
+                **kwargs,  # Pass additional parameters like selected_genes, selected_samples
             )
 
-        query_item = qg.QStandardItem(query_ui_name)
+        query_item = qg.QStandardItem(ui_name)
         query_item.setData(query_instancename, qc.Qt.ItemDataRole.UserRole)
         query_item.setEditable(False)
 
@@ -128,14 +133,14 @@ class QueryManagerComponent(ap.AppComponent):
         self.app.window().add_component_to_window(query, mw.WindowRegion.UPPER)
 
         self.queries[query_instancename] = query
-        self.query_uiname_toinstancename[query_ui_name] = query_instancename
+        self.query_uiname_toinstancename[ui_name] = query_instancename
 
         self.queries_tab_widget.blockSignals(False)
 
         # Connect title changed signal to update model only if widget exists
         if query.widget():
             query.widget().windowTitleChanged.connect(
-                partial(self.update_query_ui_name, query_ui_name)
+                partial(self.update_query_ui_name, ui_name)
             )
         else:
             LOGGER.warning(
@@ -389,33 +394,39 @@ class QueryManagerComponent(ap.AppComponent):
             self.datalake_path = None
         return
 
-    def save_to_session(self):
-        return {
-            "group_name": self.group_name,
-        }
+    # def save_to_session(self):
+    #     return {
+    #         "group_name": self.group_name,
+    #         "datalake_path": self.datalake_path,
+    #     }
 
-    def load_from_session(self, session: dict):
-        """Load the component state from a session dictionary."""
-        if "group_name" in session:
-            self.set_group_name(session["group_name"])
-        else:
-            LOGGER.warning("No group name found in session, using default.")
-            self.set_group_name(self.app.translate("Generic Queries"))
+    # def load_from_session(self, session: dict):
+    #     """Load the component state from a session dictionary."""
 
-        # Search for queries from self.group_name within datalake path/queries/group_name
-        queries_path = Path(self.datalake_path) / "queries" / self.group_name
-        if not queries_path.exists():
-            LOGGER.warning(
-                f"Queries path {queries_path} does not exist, no queries to load."
-            )
-            return
-        for query_file in queries_path.glob("*.json"):
-            with open(query_file, "r") as f:
-                serialized_query = json.load(f)
-            query_ui_name = serialized_query.get("ui_name", query_file.stem)
-            self.new_generic_query(
-                query_ui_name=query_ui_name,
-            )
+    #     datalake_path = session.get("datalake_path", None)
+    #     if not datalake_path:
+    #         return
+    #     self.datalake_path = datalake_path
+
+    #     if "group_name" in session:
+    #         self.set_group_name(session["group_name"])
+    #     else:
+    #         LOGGER.warning("No group name found in session, using default.")
+    #         self.set_group_name(self.app.translate("Generic Queries"))
+
+    #     # Search for queries from self.group_name within datalake path/queries/group_name
+    #     queries_path = Path(self.datalake_path) / "queries" / self.group_name
+    #     if not queries_path.exists():
+    #         LOGGER.warning(
+    #             f"Queries path {queries_path} does not exist, no queries to load."
+    #         )
+    #         return
+    #     for query_file in queries_path.glob("*.json"):
+    #         with open(query_file, "r") as f:
+    #             serialized_query: dict = json.load(f)
+    #         if "ui_name" not in serialized_query:
+    #             serialized_query["ui_name"] = query_file.stem
+    #         self.new_generic_query(**serialized_query)
 
     def clear(self):
         # Close all
@@ -424,7 +435,6 @@ class QueryManagerComponent(ap.AppComponent):
             self.close_query(query)
         del queries
         self.query_model.clear()
-        self.set_group_name(self.app.translate("Generic Queries"))
 
     def close_component(self):
         # Close all queries

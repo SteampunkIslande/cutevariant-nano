@@ -138,7 +138,7 @@ class App(qc.QObject):
 
         self.formatters = {}
 
-        self.app_options: dict = {"validation": "generic"}
+        self.app_options: dict = app_options
 
         self.missing_translations = set()
 
@@ -246,6 +246,8 @@ class App(qc.QObject):
 
         self.ensure_config_folder()
 
+        self.setup_formatter()
+
         LOGGER.info(
             f"Setup completed: {APP_COMPONENT_REGISTRY.get_component_count()} components registered"
         )
@@ -264,7 +266,7 @@ class App(qc.QObject):
         self.current_formatter = formatter_name
         self.current_formatter_changed.emit(formatter_name)
 
-    def _setup_component_menu(self, instance: "AppComponent"):
+    def setup_component_menu(self, instance: "AppComponent"):
         """Configure menu entries for a component."""
         new_instance_menu_entries: list[tuple[str, qg.QAction]] = (
             instance.get_menubar_entries()
@@ -593,7 +595,7 @@ class App(qc.QObject):
             self, instance_name or component_name
         )
 
-        self._setup_component_menu(instance)
+        self.setup_component_menu(instance)
 
         # Automatic connections
         instance.broadcast.connect(self.dispatch_broadcast)
@@ -630,8 +632,6 @@ class App(qc.QObject):
                 instance.on_start()
 
         last_session_path: Path = self.get_last_session_path()
-
-        self.setup_formatter()
 
         if last_session_path is not None and last_session_path.is_file():
             self.load_session(last_session_path)

@@ -178,5 +178,7 @@ class GenericExplorerComponent(ap.AppComponent):
 
         # Create a new query
         self.query_manager.new_generic_query(
-            query_ui_name=query_name, template=DEFAULT_QUERY, parquet_files=file_names
+            ui_name=query_name,
+            query_definition=DEFAULT_QUERY,
+            readonly_files=file_names,
         )

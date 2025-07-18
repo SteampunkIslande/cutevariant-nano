@@ -137,3 +137,10 @@ class ValidationSelectionWidget(qw.QWidget):
         if selected:
             return selected[0].data(qc.Qt.ItemDataRole.UserRole)
         return None
+
+    def serialize_validation_info(self) -> dict:
+        selected = self.get_selected_validation()
+        if selected:
+            # Cannot serialize date to JSON, so we remove it
+            return {k: v for k, v in selected.items() if k != "creation_date"}
+        return {}
