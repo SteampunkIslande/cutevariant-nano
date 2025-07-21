@@ -31,6 +31,7 @@ class DatabaseConnection:
         return self.conn
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        self.conn.close()
         if exc_type is not None:
             info = (exc_type, exc_val, exc_tb)
             LOGGER.error("Database connection error", exc_info=info)
