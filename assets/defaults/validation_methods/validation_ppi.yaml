@@ -129,6 +129,9 @@ default:
         - user_table.tags AS '.tags'
         - if(contains(main_table.snpeff_Annotation,'intron_variant'), TRY_CAST (regexp_extract(main_table."snpeff_HGVS.c",'[\+|-](\d+)', 1) AS INT16), 0) AS 'Distance de l exon'
         - if(user_table.accepted = true,'OUI','NON') AS 'Validé ?'
+        - alamut.note AS 'Commentaire Alamut'
+        - alamut.acmg AS 'Classification ACMG Alamut'
+        - alamut.classification AS 'Classification Alamut'
 
       tables:
         - expression: "{main_table}"
@@ -170,6 +173,10 @@ default:
         - expression: read_parquet('{pwd}/annotations/gnomad_ppi_v4.hashed.hg19.parquet')
           alias: gnomad_v4_ppi4
           "on": main_table.variant_hash = gnomad_v4_ppi4.variant_hash
+          how: ""
+        - expression: read_parquet('{pwd}/annotations/alamut.parquet')
+          alias: alamut
+          "on": main_table.chromosome = 'chr'||alamut.chromosome AND main_table.position = alamut.start AND main_table.reference = alamut.deleted AND main_table.alternate = alamut.inserted
           how: ""
       filter:
         filter_type: AND
