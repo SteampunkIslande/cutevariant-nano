@@ -22,6 +22,8 @@ from formatters.nice import NiceFormatter
 
 LOGGER = logging.getLogger(__name__)
 
+from common_widgets.prefs_widget import PrefsWidget
+
 
 class AppComponent(qc.QObject):
 
@@ -231,6 +233,15 @@ class App(qc.QObject):
                 self.show_reference_tree_action,
             )
 
+        # Add standard menu entries
+        self.show_preferences_action = qg.QAction(self.translate("Preferences"))
+        self.show_preferences_action.triggered.connect(self.show_preferences_dialog)
+        add_action_to_menubar(
+            self.main_window.menuBar(),
+            self.translate("File"),
+            self.show_preferences_action,
+        )
+
         # Automatic instantiation of "setup" components
         all_components = APP_COMPONENT_REGISTRY.get_all_components()
         for component_name, component_data in all_components.items():
@@ -250,6 +261,13 @@ class App(qc.QObject):
         LOGGER.info(
             f"Setup completed: {APP_COMPONENT_REGISTRY.get_component_count()} components registered"
         )
+
+    def show_preferences_dialog(self):
+        prefs = self.get_user_prefs()
+        dialog = PrefsWidget(prefs, self.main_window)
+        if dialog.exec() == qw.QDialog.DialogCode.Accepted:
+            new_prefs = dialog.prefs
+            self.save_user_prefs(new_prefs)
 
     def setup_formatter(self):
         import ficon
@@ -806,6 +824,25 @@ class App(qc.QObject):
         )
 
     def get_user_prefs(self):
+        """Get user preferences from the config file.
+        Example structure of the prefs dictionary:
+        prefs = {
+            "my_string:combo_box:RED:GREEN:BLUE": "BLUE",
+            "my_number": 42,
+            "my_bool": True,
+            "my_file:existing_file": "/path/to/file",
+            "other_weird_field:existing_dir": "weird",
+        "Advanced": {
+            "my_other_string": "world",
+            "my_other_number": 24,
+            "my_other_bool": False,
+            "some_color:color": "#ff0000",
+        },
+        }
+
+        Returns:
+            dict: User preferences
+        """
         user_prefs = self.get_user_prefs_file()
         prefs = {}
         if user_prefs.exists():
@@ -829,6 +866,11 @@ class App(qc.QObject):
     def get_user_pref(self, key: str, default=None) -> typing.Any:
         """Get a user preference by `key`. If the key does not exist, return `default`."""
         user_prefs: dict = self.get_user_prefs()
+        if "." in key:
+            category, subkey = key.split(".", 1)
+            if category in user_prefs and isinstance(user_prefs[category], dict):
+                return user_prefs[category].get(subkey, default)
+
         return user_prefs.get(key, default)
 
     def save_user_prefs(self, prefs: dict):
@@ -844,7 +886,16 @@ class App(qc.QObject):
             with open(user_prefs, "r", encoding="utf-8") as f:
                 old_prefs = json.load(f)
 
-        old_prefs.update(prefs)
+        # Update old preferences with new ones, even with nested dictionaries
+        # For nested dictionaries, it is expected that the keys are in the form "category.subkey"
+        for key, value in prefs.items():
+            if "." in key:
+                category, subkey = key.split(".", 1)
+                if category not in old_prefs:
+                    old_prefs[category] = {}
+                old_prefs[category][subkey] = value
+            else:
+                old_prefs[key] = value
 
         with open(user_prefs, "w", encoding="utf-8") as f:
             json.dump(old_prefs, f, ensure_ascii=False)
@@ -925,6 +976,9 @@ class App(qc.QObject):
 
         # Emit application closing signal first
         self.application_closing.emit()
+
+    def __del__(self):
+        print("App destructor called, cleaning up...")
 
 
 if __name__ == "__main__":
