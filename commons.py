@@ -1,4 +1,3 @@
-import json
 import typing
 from pathlib import Path
 
@@ -33,6 +32,24 @@ def add_action_to_menubar(menubar: qw.QMenuBar, path: str, action: qg.QAction):
             current_menu = menu
 
     current_menu.addAction(action)
+
+
+def add_action_to_menu(menu: qw.QMenu, action: qg.QAction, action_path: str):
+    """Add an action to a menu at a specific path.
+
+    Args:
+        menu (qw.QMenu): The menu to add the action to.
+        action (qg.QAction): The action to add, e.g., a QAction instance such as "Open".
+        action_path (str): The path to the last menu part where the action should be added, e.g., "File".
+    """
+    parts = action_path.split("/")
+    for part in parts:
+        sub_menu = menu.findChild(qw.QMenu, part)
+        if not sub_menu:
+            sub_menu = menu.addMenu(part)
+            sub_menu.setObjectName(part)
+        menu = sub_menu
+    menu.addAction(action)
 
 
 def yaml_load(file: Path):

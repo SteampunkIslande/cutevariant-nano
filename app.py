@@ -4,6 +4,7 @@ import os
 import typing
 import weakref
 from formatter import Formatter
+from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING, Union
 
@@ -77,7 +78,9 @@ class AppComponent(qc.QObject):
         LOGGER.debug(f"{self.__class__.__name__} did not implement get_menubar_entries")
         return []
 
-    def get_contextmenu_entries(self, local_info: dict) -> list[tuple[str, qg.QAction]]:
+    def get_contextmenu_entries(
+        self, producer_name: str, local_info: dict
+    ) -> list[tuple[str, qg.QAction]]:
         """Returns a list of actions that should be available from a context menu, that this AppComponent would be able to run.
         This method is invoked whenever `self`'s actions could be useful
 
@@ -105,15 +108,6 @@ class AppComponent(qc.QObject):
             self.app.application_closing.disconnect(self.close_component)
         self.app = None
 
-    def generic_receiver(
-        self,
-        action: str,
-        sender_component_name: str,
-        sender_instance_name: str,
-        payload: dict,
-    ):
-        pass
-
 
 class App(qc.QObject):
 
@@ -127,8 +121,6 @@ class App(qc.QObject):
     application_started = qc.Signal()
     application_closing = qc.Signal()
 
-    broadcast_dispatcher = qc.Signal(str, str, str, dict)
-
     def __init__(self, app_options: dict = None):
         super().__init__()
         self.main_window = mw.MainWindow(self)
@@ -138,6 +130,7 @@ class App(qc.QObject):
         self.current_selected_variant: Union[dict, None] = None
 
         self.formatters = {}
+        self.context_menu_mapper: dict[str, list["AppComponent"]] = {}
 
         self.app_options: dict = app_options
 
@@ -614,10 +607,6 @@ class App(qc.QObject):
 
         self.setup_component_menu(instance)
 
-        # Automatic connections
-        instance.broadcast.connect(self.dispatch_broadcast)
-        self.broadcast_dispatcher.connect(instance.generic_receiver)
-
         self.application_closing.connect(instance.close_component)
 
         # Registration
@@ -628,16 +617,63 @@ class App(qc.QObject):
 
         return instance
 
-    def dispatch_broadcast(
-        self,
-        action: str,
-        sender_component_name: str,
-        sender_instance_name: str,
-        payload: dict,
-    ):
-        self.broadcast_dispatcher.emit(
-            action, sender_component_name, sender_instance_name, payload
+    def subscribe_to_contextmenu(self, listener: "AppComponent", producer_name: str):
+        """Any component of type `producer_name` can call request_context_menu() to get the context menu entries from all components that subscribed to it.
+
+        Args:
+            listener (AppComponent): The component that wants to listen for context menu requests.
+            producer_name (str): The name of the element that will request context menu.
+        """
+        if producer_name not in self.context_menu_mapper:
+            self.context_menu_mapper[producer_name] = []
+        self.context_menu_mapper[producer_name].append(listener)
+
+        listener_unsubscribe = partial(
+            self.unsubscribe_from_contextmenu, listener, producer_name
         )
+        listener.closing.connect(listener_unsubscribe)
+
+    def unsubscribe_from_contextmenu(
+        self, listener: "AppComponent", producer_name: str
+    ):
+        """Unsubscribe a component from context menu requests.
+        Args:
+            listener (AppComponent): The component that wants to stop listening for context menu requests.
+            producer_name (str): The name of the element that will request context menu.
+        """
+        if producer_name in self.context_menu_mapper:
+            if listener in self.context_menu_mapper[producer_name]:
+                self.context_menu_mapper[producer_name].remove(listener)
+                LOGGER.debug(
+                    f"Unsubscribed {listener.get_instance_name()} from context menu for {producer_name}"
+                )
+            else:
+                LOGGER.warning(
+                    f"{listener.get_instance_name()} not found in context menu listeners for {producer_name}"
+                )
+        else:
+            LOGGER.warning(f"No context menu listeners for {producer_name}")
+
+    def request_context_menu(
+        self, producer_name: str, local_info: dict
+    ) -> list[tuple[str, qg.QAction]]:
+        """Request context menu entries from all components that subscribed to the given producer.
+        Args:
+            producer_name (str): The name of the element that will request context menu.
+            local_info (dict): Local information that might be needed by the components to prepare their actions.
+        Returns:
+            list[tuple[str, qg.QAction]]: A list of tuples with the menu path and the QAction.
+        """
+        if producer_name not in self.context_menu_mapper:
+            LOGGER.warning(
+                f"No components subscribed to context menu for producer '{producer_name}'"
+            )
+            return []
+        context_menu_entries: list[tuple[str, qg.QAction]] = []
+        for listener in self.context_menu_mapper[producer_name]:
+            entries = listener.get_contextmenu_entries(producer_name, local_info)
+            context_menu_entries.extend(entries)
+        return context_menu_entries
 
     # APP START
 

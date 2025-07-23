@@ -1,5 +1,6 @@
 import logging
 import os
+from functools import partial
 from pathlib import Path
 
 # Deferred import to resolve circular dependency
@@ -75,6 +76,8 @@ class ValidationManagerComponent(ap.AppComponent):
             self.validation_selection_widget.on_datalake_changed
         )
 
+        self.app.subscribe_to_contextmenu(self, "query_table_widget")
+
         self.validation_method = None
         self.validation_method_name = None
 
@@ -124,15 +127,6 @@ class ValidationManagerComponent(ap.AppComponent):
             },
         )
 
-        # if (
-        #     final_query.get_query_definition()
-        #     != self.validation_method["final"]["query"]
-        # ):
-        #     validation_mismatches[self.app.translate("Final validation")] = (
-        #         self.validation_method["final"]["query"],
-        #         final_query,
-        #     )
-
         completed = validation_info.get("completed")
         if completed:
             self.validation_widget.set_completed(True)
@@ -149,49 +143,6 @@ class ValidationManagerComponent(ap.AppComponent):
                     "selected_genes": self.gene_names,
                 },
             )
-
-            # if q.get_query_definition() != self.validation_method["default"]["query"]:
-            #     validation_mismatches[sample_name] = (
-            #         self.validation_method["default"]["query"],
-            #         q,
-            #     )
-
-        # if validation_mismatches and not self.app.get_user_pref(
-        #     "ignore_validation_method_mismatch", False
-        # ):
-        #     res = qw.QMessageBox.question(
-        #         self.validation_widget,
-        #         self.app.translate("Validation method mismatch"),
-        #         self.app.translate(
-        #             "<body>The following queries were created with an older validation method:<br/>{queries}"
-        #             "<br/>Do you want to update them to fit the latest version?</body>"
-        #         ).format(queries="<br/>".join(validation_mismatches.keys())),
-        #         qw.QMessageBox.StandardButton.Yes | qw.QMessageBox.StandardButton.No,
-        #         qw.QMessageBox.StandardButton.No,
-        #     )
-        #     if res == qw.QMessageBox.StandardButton.Yes:
-        #         for query_uiname, (
-        #             query_definition,
-        #             query,
-        #         ) in validation_mismatches.items():
-        #             self.query_manager_component.update_query_definition(
-        #                 query, query_definition
-        #             )
-
-        #     if res == qw.QMessageBox.StandardButton.No:
-        #         if (
-        #             qw.QMessageBox.question(
-        #                 self.validation_widget,
-        #                 self.app.translate("Validation method mismatch"),
-        #                 self.app.translate(
-        #                     "Do you want to ignore all similar warnings in the future?"
-        #                 ),
-        #             )
-        #             == qw.QMessageBox.StandardButton.Yes
-        #         ):
-        #             self.app.save_user_prefs(
-        #                 {"ignore_validation_method_mismatch": True}
-        #             )
 
     def validate(self):
 
@@ -259,36 +210,26 @@ class ValidationManagerComponent(ap.AppComponent):
 
     def on_back_to_validation_selection(self):
         self.query_manager_component.clear()
-
         self.widget_holder.set_current_widget("validation_selection")
 
-        # Broadcast that we are back to validation selection
-        self.broadcast.emit(
-            "back_to_validation_selection",
-            "validation_manager",
-            self.instance_name,
-            {},
-        )
+    def add_variants_to_validation(self, payload: dict[str, dict[dict[str, str]]]):
+        if "data" not in payload:
+            LOGGER.error("No data in payload to add variants to validation")
+            return
+        for row_data in payload["data"]:
+            # row_data is the dict contained in each row of the query table
+            # we have to enrich it with table_uuid, validation_hash, sample_name, run_name, transcript_iD, and variant_hash
+            update_data = {
+                "table_uuid": self.table_uuid,
+                "validation_hash": row_data.get(".validation_hash"),
+                "sample_name": row_data.get(".sample_name"),
+                "run_name": row_data.get(".run_name"),
+                "transcript_ID": row_data.get(".NM"),
+                "variant_hash": row_data.get(".variant_hash"),
+                "accepted": True,
+            }
 
-    def add_variants_to_validation(self, validation_infos: list[dict]):
-        for validation_info in validation_infos:
-            self.validation_model.insert_validation_data(**validation_info)
-
-        self.broadcast.emit(
-            "validation_infos_added",
-            "validation_manager",
-            self.instance_name,
-            {"validation_infos": validation_infos},
-        )
-
-    def generic_receiver(
-        self, action, sender_component_name, sender_instance_name, payload
-    ):
-        if action == "datalake_path_changed":
-            self.validation_selection_widget.on_datalake_changed()
-        if action == "add_variant_to_validation":
-            if "validation_infos" in payload:
-                self.add_variants_to_validation(payload["validation_infos"])
+            self.validation_model.insert_validation_data(update_data)
 
     def get_datalake(self) -> Union[dl.DatalakeComponent, None]:
         return self.app.get_component("datalake", "datalake")
@@ -325,8 +266,16 @@ class ValidationManagerComponent(ap.AppComponent):
         # Implement menu bar entries here
         return []
 
-    def get_contextmenu_entries(self, local_info: dict) -> list[tuple[str, qg.QAction]]:
-        # Implement context menu entries here
+    def get_contextmenu_entries(
+        self, producer_name: str, local_info: dict
+    ) -> list[tuple[str, qg.QAction]]:
+        if producer_name == "query_table_widget":
+            add_to_validation_action = qg.QAction(
+                self.app.translate("Add to validation")
+            )
+            add_variants_callback = partial(self.add_variants_to_validation, local_info)
+            add_to_validation_action.triggered.connect(add_variants_callback)
+            return [(self.app.translate("Validation/Genno"), add_to_validation_action)]
         return []
 
     def close_component(self):

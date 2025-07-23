@@ -64,8 +64,7 @@ class QueryAnalyzerComponent(ap.AppComponent):
         ]
 
     def analyze_current_query(self):
-
-        print(self.current_query.get_all_possible_fields())
+        pass
 
     def widget(self) -> Union[None, qw.QWidget]:
         """This component doesn't provide a widget."""
@@ -83,6 +82,7 @@ class QueryAnalyzerComponent(ap.AppComponent):
 
     def close_component(self):
         """Clean up when the component is closed."""
+        self.app.selected_query_changed.disconnect(self.on_selected_query_changed)
         self.current_query = None
         self.analyze_query_action = None
         super().close_component()

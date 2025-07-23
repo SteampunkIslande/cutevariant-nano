@@ -196,15 +196,6 @@ class QueryComponent(ap.AppComponent):
 
         return self
 
-    # Validation specific method: should be called by the validation manager component
-    def add_variant_to_validation(self, payload: dict):
-        self.broadcast.emit(
-            "add_variant_to_validation",
-            "query",
-            self.instance_name,
-            payload,
-        )
-
     # Variable management methods
     def add_variable(self, key: str, value: str):
         if key in QueryComponent.RESERVED_VARIABLES:
@@ -562,7 +553,6 @@ class QueryComponent(ap.AppComponent):
         )
         super().close_component()
         self.deleteLater()
-        self.app = None
 
     def to_json(self) -> dict:
         """Convert the query component to a JSON-like dict."""

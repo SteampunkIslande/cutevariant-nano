@@ -72,13 +72,17 @@ def new_validation(
 
 def insert_validation_data(
     conn: db.DuckDBPyConnection,
-    table_uuid: str,
-    validation_hash: int,
-    **kwargs,
+    row_data: dict,
 ):
 
     conn.begin()
     try:
+        table_uuid = row_data.get("table_uuid")
+        if not table_uuid:
+            raise ValueError("table_uuid is required in row_data")
+        validation_hash = row_data.get("validation_hash")
+        if not validation_hash:
+            raise ValueError("validation_hash is required in row_data")
 
         is_validation_hash_present = (
             conn.sql(
@@ -92,10 +96,10 @@ def insert_validation_data(
         if not is_validation_hash_present:
             if not all(
                 [
-                    "sample_name" in kwargs,
-                    "run_name" in kwargs,
-                    "transcript_ID" in kwargs,
-                    "variant_hash" in kwargs,
+                    "sample_name" in row_data,
+                    "run_name" in row_data,
+                    "transcript_ID" in row_data,
+                    "variant_hash" in row_data,
                 ]
             ):
                 raise ValueError(
@@ -103,33 +107,31 @@ def insert_validation_data(
                 )
 
             conn.sql(
-                f"""INSERT INTO "{table_uuid}" (validation_hash,sample_name,run_name, transcript_ID, variant_hash) VALUES ({validation_hash}, '{kwargs["sample_name"]}', '{kwargs["run_name"]}', '{kwargs["transcript_ID"]}', '{kwargs["variant_hash"]}')"""
+                f"""INSERT INTO "{table_uuid}" (validation_hash,sample_name,run_name, transcript_ID, variant_hash) VALUES ({validation_hash}, '{row_data["sample_name"]}', '{row_data["run_name"]}', '{row_data["transcript_ID"]}', '{row_data["variant_hash"]}')"""
             )
 
         comment_update = ""
-        if "comment" in kwargs:
-            comment_update = (
-                f"comment = comment || [row('{kwargs['comment']}','{username}',NOW())]"
-            )
+        if "comment" in row_data:
+            comment_update = f"comment = comment || [row('{row_data['comment']}','{username}',NOW())]"
 
         accepted_update = ""
-        if "accepted" in kwargs:
-            accepted_update = f"accepted = {kwargs['accepted']}"
+        if "accepted" in row_data:
+            accepted_update = f"accepted = {row_data['accepted']}"
 
         tags_update = ""
-        if "tags" in kwargs:
-            tags_update = f"tags = {duck_db_literal_string_list(kwargs['tags'])}"
+        if "tags" in row_data:
+            tags_update = f"tags = {duck_db_literal_string_list(row_data['tags'])}"
 
         acmg_classification_update = ""
-        if "acmg_classification" in kwargs:
+        if "acmg_classification" in row_data:
             acmg_classification_update = (
-                f"acmg_classification = '{kwargs['acmg_classification']}'"
+                f"acmg_classification = '{row_data['acmg_classification']}'"
             )
 
         distribution_anomalie_update = ""
-        if "distribution_anomalie" in kwargs:
+        if "distribution_anomalie" in row_data:
             distribution_anomalie_update = (
-                f"distribution_anomalie = '{kwargs['distribution_anomalie']}'"
+                f"distribution_anomalie = '{row_data['distribution_anomalie']}'"
             )
 
         updates = ", ".join(
@@ -292,16 +294,10 @@ class ValidationModel(qc.QAbstractTableModel):
             )
             self.update()
 
-    def insert_validation_data(self, table_uuid: str, validation_hash: int, **kwargs):
+    def insert_validation_data(self, row_data: dict):
         datalake = self.parent_component.get_datalake()
         if datalake.datalake_path and os.path.exists(datalake.datalake_path):
-            datalake.run_with_connection(
-                "validation",
-                insert_validation_data,
-                table_uuid,
-                validation_hash,
-                **kwargs,
-            )
+            datalake.run_with_connection("validation", insert_validation_data, row_data)
 
     def finish_validation(self, table_uuid: str):
         datalake = self.parent_component.get_datalake()

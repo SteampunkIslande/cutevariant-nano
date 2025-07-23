@@ -18,6 +18,8 @@ from filters import filters_component as f_cmpt
 if TYPE_CHECKING:
     from query.query_component import QueryComponent
 
+from commons import add_action_to_menu
+
 
 class PageSelector(qw.QWidget):
 
@@ -268,6 +270,16 @@ class QueryTableWidget(qw.QWidget):
         copy_action: qg.QAction = menu.addAction(self.app.translate("Copy"))
         copy_action.triggered.connect(partial(self.copy_current_row, index))
         copy_action.setShortcut("Ctrl+C")
+
+        all_indexes = self.table_view.selectionModel().selectedRows()
+        if len(all_indexes) > 0:
+            other_components_actions = self.app.request_context_menu(
+                "query_table_widget",
+                {"data": [i.data(qc.Qt.ItemDataRole.UserRole) for i in all_indexes]},
+            )
+
+            for menu_path, action in other_components_actions:
+                add_action_to_menu(menu, action, menu_path)
 
         menu.exec(qg.QCursor.pos())
 
