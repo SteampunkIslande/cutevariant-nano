@@ -2,7 +2,7 @@
 
 import logging
 from math import ceil
-from typing import List, Union
+from typing import Callable, List, Union
 
 import duckdb as db
 import PySide6.QtCore as qc
@@ -465,6 +465,15 @@ class QueryComponent(ap.AppComponent):
             if not isinstance(ob, list) or len(ob) != 2:
                 raise ValueError("Each order by item must be a list of [field, order]")
         self.order_by = order_by
+        return self
+
+    def write_to_user_table(self, database_name: str, function: Callable, data: dict):
+        if self.datalake is None:
+            return
+        if not self.editable_table_name:
+            return
+        self.datalake.run_with_connection(database_name, function, data)
+        self.commit()  # Refresh the data after writing to the user table
         return self
 
     def add_order_by(self, colname: str, order: str):

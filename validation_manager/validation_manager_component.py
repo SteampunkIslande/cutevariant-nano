@@ -19,6 +19,8 @@ from component_registry import register_app_component
 
 LOGGER = logging.getLogger(__name__)
 
+import query.query_component as q
+
 
 @register_app_component(
     name="validation_manager", policy="singleton", instantiation_time="demand"
@@ -76,10 +78,41 @@ class ValidationManagerComponent(ap.AppComponent):
             self.validation_selection_widget.on_datalake_changed
         )
 
+        self.query = None
+
+        self.app.selected_query_changed.connect(self.on_selected_query_changed)
+
         self.app.subscribe_to_contextmenu(self, "query_table_widget")
 
         self.validation_method = None
         self.validation_method_name = None
+
+    def on_selected_query_changed(self):
+        query: "q.QueryComponent" = self.app.get_current_query()
+
+        if query is self.query:
+            LOGGER.warning(
+                "on_selected_query_changed called with the same query, ignoring."
+            )
+            return
+
+        if self.query is not None:
+            self.query.closing.disconnect(self.on_selected_query_closing)
+            self.query.query_changed.disconnect(self.on_query_changed)
+
+        self.query = query
+        if self.query is not None:
+            self.query.closing.connect(self.on_selected_query_closing)
+            self.query.query_changed.connect(self.on_query_changed)
+
+        self.on_query_changed()
+
+    def on_selected_query_closing(self):
+        self.query = None
+
+    def on_query_changed(self):
+        if self.query is None:
+            return
 
     def on_validation_start(self):
         validation_info = self.validation_selection_widget.get_selected_validation()
@@ -270,6 +303,7 @@ class ValidationManagerComponent(ap.AppComponent):
         self, producer_name: str, local_info: dict
     ) -> list[tuple[str, qg.QAction]]:
         if producer_name == "query_table_widget":
+            print(local_info)
             add_to_validation_action = qg.QAction(
                 self.app.translate("Add to validation")
             )
@@ -279,6 +313,8 @@ class ValidationManagerComponent(ap.AppComponent):
         return []
 
     def close_component(self):
+
+        self.app.selected_query_changed.disconnect(self.on_selected_query_changed)
 
         # Clean up resources
         self.validation_model = None

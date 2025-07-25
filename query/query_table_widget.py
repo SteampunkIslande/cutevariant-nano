@@ -256,11 +256,6 @@ class QueryTableWidget(qw.QWidget):
         )
         debug_action.triggered.connect(partial(self.show_row_userdata, index))
 
-        add_variant_action: qg.QAction = menu.addAction(
-            self.app.translate("Add variant to validation")
-        )
-        add_variant_action.triggered.connect(self.add_variant_to_validation)
-
         # Neutralize Goto Mobidetails action
         # goto_mobidetails_action: qg.QAction = menu.addAction(
         #     self.app.translate("Browse variant in Mobidetails")

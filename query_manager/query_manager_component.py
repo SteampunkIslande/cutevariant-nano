@@ -195,7 +195,7 @@ class QueryManagerComponent(ap.AppComponent):
             item = items[0]
             item.setText(new_name)
 
-    def get_final_query(self):
+    def get_final_query(self) -> "q.QueryComponent":
         return self.queries.get(
             self.query_uiname_toinstancename.get(self.app.translate("Final validation"))
         )
@@ -354,40 +354,6 @@ class QueryManagerComponent(ap.AppComponent):
             LOGGER.warning("Datalake component not found, cannot update datalake path.")
             self.datalake_path = None
         return
-
-    # def save_to_session(self):
-    #     return {
-    #         "group_name": self.group_name,
-    #         "datalake_path": self.datalake_path,
-    #     }
-
-    # def load_from_session(self, session: dict):
-    #     """Load the component state from a session dictionary."""
-
-    #     datalake_path = session.get("datalake_path", None)
-    #     if not datalake_path:
-    #         return
-    #     self.datalake_path = datalake_path
-
-    #     if "group_name" in session:
-    #         self.set_group_name(session["group_name"])
-    #     else:
-    #         LOGGER.warning("No group name found in session, using default.")
-    #         self.set_group_name(self.app.translate("Generic Queries"))
-
-    #     # Search for queries from self.group_name within datalake path/queries/group_name
-    #     queries_path = Path(self.datalake_path) / "queries" / self.group_name
-    #     if not queries_path.exists():
-    #         LOGGER.warning(
-    #             f"Queries path {queries_path} does not exist, no queries to load."
-    #         )
-    #         return
-    #     for query_file in queries_path.glob("*.json"):
-    #         with open(query_file, "r") as f:
-    #             serialized_query: dict = json.load(f)
-    #         if "ui_name" not in serialized_query:
-    #             serialized_query["ui_name"] = query_file.stem
-    #         self.new_generic_query(**serialized_query)
 
     def clear(self):
         # Close all

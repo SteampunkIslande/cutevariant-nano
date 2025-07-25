@@ -88,10 +88,6 @@ default:
   query:
     select:
       fields:
-        - MAP{{'A':'red','C':'green','G':'blue','T':'black'}}[main_table.reference]
-          AS '.refcolor'
-        - MAP{{ 'missense_variant':'red', 'synonymous_variant':'green' }}[main_table.snpeff_Annotation]
-          AS '.annotationcolor'
         - main_table.validation_hash AS '.validation_hash'
         - main_table.variant_hash AS '.variant_hash'
         - main_table.run_name AS '.run_name'
@@ -176,7 +172,7 @@ default:
           how: ""
         - expression: read_parquet('{pwd}/annotations/alamut.parquet')
           alias: alamut
-          "on": main_table.chromosome = 'chr'||alamut.chromosome AND main_table.position = alamut.start AND main_table.reference = alamut.deleted AND main_table.alternate = alamut.inserted
+          "on": main_table.variant_hash = alamut.variant_hash
           how: ""
       filter:
         filter_type: AND

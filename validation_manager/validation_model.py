@@ -295,9 +295,12 @@ class ValidationModel(qc.QAbstractTableModel):
             self.update()
 
     def insert_validation_data(self, row_data: dict):
-        datalake = self.parent_component.get_datalake()
-        if datalake.datalake_path and os.path.exists(datalake.datalake_path):
-            datalake.run_with_connection("validation", insert_validation_data, row_data)
+        self.parent_component.query.write_to_user_table(
+            "validation",
+            insert_validation_data,
+            row_data,
+        )
+        self.parent_component.query_manager_component.get_final_query().commit()
 
     def finish_validation(self, table_uuid: str):
         datalake = self.parent_component.get_datalake()
@@ -323,3 +326,4 @@ class ValidationModel(qc.QAbstractTableModel):
             self._data = [tuple(v for v in d.values()) for d in query_res.to_dicts()]
             self.endResetModel()
             self.model_updated.emit()
+        self.endResetModel()
