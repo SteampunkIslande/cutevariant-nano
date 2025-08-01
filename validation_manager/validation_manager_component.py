@@ -162,6 +162,7 @@ class ValidationManagerComponent(ap.AppComponent):
 
         completed = validation_info.get("completed")
         if completed:
+            print("validation completed")
             self.validation_widget.set_completed(True)
             return
 
@@ -275,6 +276,7 @@ class ValidationManagerComponent(ap.AppComponent):
 
         validation_info = session.get("validation_info", {})
         if validation_info:
+            self.validation_selection_widget.set_selected_validation(validation_info)
             self.widget_holder.set_current_widget("validation")
             self.set_validation(validation_info)
 

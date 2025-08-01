@@ -18,7 +18,9 @@ def add_variant_hash(input_parquet: Path, output_parquet: Path) -> None:
     output_parquet.with_suffix(".tmp").rename(output_parquet)
 
 
-def add_variant_format_column(input_parquet: Path, output_parquet: Path) -> None:
+def add_variant_format_column(
+    input_parquet: Path, output_parquet: Path, reference: Path
+) -> None:
 
     import pyhgvs2 as hgvs
     from pyfaidx import Fasta
@@ -28,7 +30,7 @@ def add_variant_format_column(input_parquet: Path, output_parquet: Path) -> None
     if overwriting:
         output_parquet = input_parquet.with_suffix(".tmp.parquet")
 
-    genome = Fasta("/reference/ref-hg19/genome/ucsc.hg19.fasta")
+    genome = Fasta(reference)
 
     lf = (
         pl.scan_parquet(input_parquet)
@@ -70,7 +72,9 @@ def add_variant_format_column(input_parquet: Path, output_parquet: Path) -> None
         output_parquet.rename(input_parquet)
 
 
-def alamut_import(in_file: Path, out_file: Path, assembly: str = "GRCh37") -> None:
+def alamut_import(
+    in_file: Path, out_file: Path, reference: Path, assembly: str = "GRCh37"
+) -> None:
 
     db.sql("INSTALL sqlite")
     db.sql("LOAD sqlite")
@@ -81,8 +85,44 @@ def alamut_import(in_file: Path, out_file: Path, assembly: str = "GRCh37") -> No
         f"COPY (SELECT v.gNomen,v.Assembly,v.chromosome,v.inserted,v.deleted,TRY_CAST(v.start AS INT) AS start,TRY_CAST(v.end AS INT) AS end, vh.created,vh.updated,vh.updated_by,vh.acmg,vh.classification,vh.note FROM variant v FULL OUTER JOIN variant_history vh ON vh.variant_id = v.variant_id WHERE v.Assembly = '{assembly}') TO '{out_file}'"
     )
     if out_file.suffix == ".parquet":
-        add_variant_format_column(out_file, out_file)
+        add_variant_format_column(out_file, out_file, reference)
         add_variant_hash(out_file, out_file)
+
+
+def register_script():
+    return {
+        "name": "alamut_import",
+        "description": "Imports Alamut data into a parquet file.",
+        "version": "1.0",
+        "author": "Charles Monod-Broca",
+        "license": "MIT",
+        "functions": [
+            {
+                "name": "alamut_import",
+                "function": alamut_import,
+                "description": "Imports Alamut data into a parquet file.",
+                "parameters": {
+                    "in_file": {
+                        "type": "Path",
+                        "description": "Input SQLite file path",
+                    },
+                    "out_file": {
+                        "type": "Path",
+                        "description": "Output file path (CSV or Parquet)",
+                    },
+                    "reference": {
+                        "type": "Path",
+                        "description": "Path to the reference genome file (FASTA format)",
+                    },
+                    "assembly": {
+                        "type": "str",
+                        "default": "GRCh37",
+                        "description": "Genome assembly version",
+                    },
+                },
+            }
+        ],
+    }
 
 
 if __name__ == "__main__":

@@ -138,8 +138,28 @@ class ValidationSelectionWidget(qw.QWidget):
             return selected[0].data(qc.Qt.ItemDataRole.UserRole)
         return None
 
+    def set_selected_validation(self, validation: dict):
+        if validation:
+            index = self.model.match(
+                self.model.index(0, 0), qc.Qt.ItemDataRole.UserRole, validation
+            )
+            if index:
+                print(index[0].data(qc.Qt.ItemDataRole.UserRole))
+                self.view.list_view.selectionModel().select(
+                    index[0], qc.QItemSelectionModel.SelectionFlag.Select
+                )
+            else:
+                qw.QMessageBox.warning(
+                    self,
+                    self.app.translate("Validation not found"),
+                    self.app.translate("The selected validation could not be found."),
+                )
+        else:
+            self.view.list_view.selectionModel().clearSelection()
+
     def serialize_validation_info(self) -> dict:
         selected = self.get_selected_validation()
+        print("Selected validation for serialization:", selected)
         if selected:
             # Cannot serialize date to JSON, so we remove it
             return {k: v for k, v in selected.items() if k != "creation_date"}
