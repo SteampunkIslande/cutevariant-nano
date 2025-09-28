@@ -1,0 +1,206 @@
+#!/usr/bin/env python
+
+from pathlib import Path
+
+import polars as pl
+
+
+def convert(csv_in: Path, parquet_out: Path) -> None:
+    from column_names_translations import translations
+
+    dtypes = {
+        "Position": pl.Int32,
+        "Exon.rank": pl.Int32,
+        "Cosmic.coding.id": pl.Utf8,
+        "Sample_id": pl.Utf8,
+        "Recurrence.cosmic": pl.Utf8,
+        "NbrReadRef.Neg": pl.Int32,
+        "Nombre_reference.cosmic": pl.Utf8,
+        "Gene.symbol": pl.Utf8,
+        "Variant.effect": pl.Utf8,
+        "Chrom": pl.Utf8,
+        "Spidex.dpsi.max.tissue": pl.Utf8,
+        "Feature.type": pl.Utf8,
+        "dbsnp.rs.id": pl.Utf8,
+        "SIFT": pl.Float32,
+        "FATHMM": pl.Utf8,
+        "Spidex.dpsi.z.score": pl.Utf8,
+        "NChar_Ref": pl.Int32,
+        "Histo_majoritaire.cosmic": pl.Utf8,
+        "MUTATIONTASTER": pl.Utf8,
+        "Glims": pl.Utf8,
+        "Torrent.server.metric": pl.Float64,
+        "Histo_majoritaire_pourcentage.cosmic": pl.Float32,
+        "Clinvar.clinical.significance": pl.Utf8,
+        "Phastcons": pl.Float64,
+        "Fisher.test.p.value": pl.Utf8,
+        "Clinvar.review.status": pl.Utf8,
+        "hgvs.c": pl.Utf8,
+        "Position_recurrence1B": pl.Int32,
+        "dlong": pl.Float64,
+        "Project.recurrence": pl.Float64,
+        "Read.background.enrichment": pl.Float64,
+        "Feature.id": pl.Utf8,
+        "NbrReadAlt.Pos": pl.Int32,
+        "VAF": pl.Float64,
+        "N.Ref": pl.Utf8,
+        "NbrReadAlt": pl.Int32,
+        "RatioAlt_PosNeg": pl.Float32,
+        "Putative.impact": pl.Utf8,
+        "ORIGINE": pl.Utf8,
+        "dbscsnv.Ada.score": pl.Utf8,
+        "NbrReadAlt.Neg": pl.Int32,
+        "Position_recurrenceB": pl.Int32,
+        "SDlong": pl.Float64,
+        "Depth": pl.Utf8,
+        "Depth_min": pl.Float64,
+        "NChar_Alt": pl.Int32,
+        "Cosmic.noncoding.id": pl.Utf8,
+        "dbscsnv.Rf.score": pl.Utf8,
+        "Analysis_recurrence.N": pl.Utf8,
+        "CADD.phred": pl.Utf8,
+        "PROVEAN": pl.Utf8,
+        "MAF": pl.Utf8,
+        "N.Alt": pl.Utf8,
+        "hgvs.p": pl.Utf8,
+        "NbrReadRef": pl.Int32,
+        "Temps": pl.Utf8,
+        "TRI": pl.Utf8,
+        "NbrReadRef.Pos": pl.Int32,
+        "is.driver": pl.Utf8,
+        "testN_recurrence": pl.Utf8,
+        "TYPE": pl.Utf8,
+        "Position_recurrence1B_detail": pl.Int32,
+        "qADN": pl.Utf8,
+        "testN": pl.Float64,
+        "testN_id": pl.Float64,
+        "Protein.position": pl.Float64,
+        "Cds.position": pl.Float64,
+        "Analysis_recurrence": pl.Float64,
+        "DepthFP": pl.Float64,
+        "Position_recurrenceFP": pl.Float64,
+        "Allelic_ratio2.CNV": pl.Float64,
+        "NbrReadAlt.CNV": pl.Int32,
+        "CCFcap": pl.Float64,
+        "CCF": pl.Float64,
+        "NbrReadRef.CNV": pl.Int32,
+        "B_C_L": pl.Utf8,
+        "COSMICisna": pl.Utf8,
+        "DepthTEST": pl.Utf8,
+        "alt1": pl.Utf8,
+        "ref1": pl.Utf8,
+        "Position_recurrence1FP": pl.Float64,
+        "VAF color": pl.Utf8,
+        "Background color": pl.Utf8,
+        "Sample name": pl.Utf8,
+        "Run name": pl.Utf8,
+        "Position_recurrence1_detail.N": pl.Int32,
+        "QbitJ2": pl.Utf8,
+        "Gene.count": pl.Utf8,
+        "testN.R": pl.Float32,
+        "testN.D": pl.Float64,
+        "testN_id.N": pl.Int32,
+        "Allelic_ratio2": pl.Float64,
+        "Position_recurrence1_detail": pl.Float64,
+        "N.Ref_diag": pl.Utf8,
+        "N.Alt_diag": pl.Utf8,
+        "VAF_diag": pl.Float32,
+        "Depth_diag": pl.Utf8,
+        "NbrReadRef_diag": pl.Utf8,
+        "NbrReadAlt_diag": pl.Int32,
+        "NbrReadAlt.Pos_diag": pl.Int32,
+        "NbrReadAlt.Neg_diag": pl.Int32,
+        "X1000g.AF": pl.Float64,
+        "gnomad.genomes.AF": pl.Float64,
+        "gnomad.exomes.AF": pl.Float64,
+        "DepthTEST.detail": pl.Float64,
+        "SDlong.1": pl.Utf8,
+        "dlong.1": pl.Float64,
+        "Filtre": pl.Utf8,
+        "Allelic_ratio2.CNV_diag": pl.Utf8,
+        "CCFcap_diag": pl.Utf8,
+        "NbrReadRef.CNV_diag": pl.Int32,
+        "NbrReadAlt.CNV_diag": pl.Utf8,
+        "Project.recurrence.DENOM": pl.Utf8,
+        "Analysis.recurrence": pl.Float64,
+        "Analysis.recurrence.DENOM": pl.Utf8,
+        "Gene.meanVAF": pl.Float64,
+        "PREDICTED": pl.Utf8,
+        "rlong": pl.Float64,
+        "is.driver.test": pl.Utf8,
+        "Depth_min.detailFP": pl.Float64,
+        "rlong.1": pl.Float64,
+        "testN_recurrenceFP": pl.Float64,
+        "Gene.mediane": pl.Float64,
+        "Position.mediane1": pl.Float64,
+        "Position.mediane1R": pl.Float64,
+        "Position.mediane": pl.Float64,
+        "Position.medianeR": pl.Float64,
+        "VAFsum": pl.Float64,
+        "Gene.count.Sample_id": pl.Float64,
+        "NChar_Alt.median": pl.Float32,
+        "NChar_Ref.median": pl.Float32,
+        "RatioAlt_PosNeg.Sample_id": pl.Float32,
+        "RatioAlt_PosNeg.median1": pl.Float64,
+        "X": pl.Float64,
+        "Gene.count.Samle_id": pl.Float64,
+        "testPoly": pl.Int32,
+        "testPoly.sum": pl.Int32,
+        "VAFcorr": pl.Float64,
+        "AmpDel.CNV": pl.Float32,
+        "Allelic_ratio2neg.CNV": pl.Float64,
+        "Allelic_ratio2pos.CNV": pl.Float64,
+        "NbrReadAltneg.CNV": pl.Float64,
+        "NbrReadRefneg.CNV": pl.Int32,
+        "NbrReadAltpos.CNV": pl.Int32,
+        "NbrReadRefpos.CNV": pl.Int32,
+        "diffposCNV": pl.Float64,
+        "diffnegCNV": pl.Float64,
+        "Test": pl.Int32,
+        "PS_recurrence_detail.N": pl.Float64,
+        "PS_recurrence_detail1.N": pl.Int32,
+        "VS_recurrence_detail.N": pl.Int32,
+        "Fisher.test.p.value.1": pl.Float64,
+        "Sample_id2": pl.Utf8,
+        "VAF color": pl.Utf8,
+        "Background color": pl.Utf8,
+        "Sample name": pl.Utf8,
+        "Run name": pl.Utf8,
+        "Run date": pl.Utf8,
+    }
+
+    lf: pl.LazyFrame = pl.scan_csv(
+        csv_in,
+        has_header=True,
+        separator=",",
+        null_values=["N/A"],
+        schema_overrides=dtypes,
+        ignore_errors=True,
+    )
+
+    if "N.Ref_diag" in lf.collect_schema().names():
+        lf = lf.with_columns(pl.lit("SUIVI").alias("SUIVI/DIAGNOSTIC"))
+    elif "PREDICTED" in lf.collect_schema().names():
+        lf = lf.with_columns(pl.lit("DIAGNOSTIC").alias("SUIVI/DIAGNOSTIC"))
+
+    lf = (
+        lf.rename(
+            {k: v for k, v in translations.items() if k in lf.collect_schema().names()}
+        )
+        .select(
+            *[
+                v
+                for v in set(translations.values())
+                if v in lf.collect_schema().names()
+            ],
+            (
+                "SUIVI/DIAGNOSTIC"
+                if "SUIVI/DIAGNOSTIC" in lf.collect_schema().names()
+                else pl.lit(None).alias("SUIVI/DIAGNOSTIC")
+            ),
+        )
+        .sink_parquet(parquet_out)
+    )
+    # lf.collect().with_columns(
+    #     pl.col("Run date").str.to_date("%y%m%d", exact=False).alias("Date")
+    # ).write_parquet(sys.argv[2])

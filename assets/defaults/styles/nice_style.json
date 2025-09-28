@@ -1,86 +1,91 @@
 {
-    "*": {
-        "background": {
-            "from_column": ".backgroundcolor"
-        },
-        "italic": {
-            "map": {
-                "NULL": true
-            }
-        },
-        "color": {
-            "map": {
-                "NULL": "red"
-            }
-        }
+  "*": {
+    "italic": {
+      "map": {
+        "NULL": true
+      }
     },
-    "VAF": {
-        "color": {
-            "from_column": ".vafcolor"
-        }
-    },
-    "Allèle de référence": {
-        "color": {
-            "map": {
-                "A": "green",
-                "C": "red",
-                "G": "blue",
-                "T": "orange",
-                "N": "gray"
-            }
-        },
-        "bold": {
-            "constant": true
-        }
-    },
-    "Annotation": {
-        "color": {
-            "map": {
-                "missense_variant": "#bb96ff",
-                "synonymous_variant": "#67eebd",
-                "stop_gained": "#ed6d79",
-                "stop_lost": "#ed6d79",
-                "frameshift_variant": "#ff89b5"
-            }
-        },
-        "bold": {
-            "constant": true
-        }
-    },
-    "Annotation impact": {
-        "color": {
-            "map": {
-                "HIGH": "#ed6d79",
-                "MODERATE": "#ff89b5",
-                "LOW": "#67eebd",
-                "MODIFIER": "#bb96ff"
-            }
-        },
-        "bold": {
-            "map": {
-                "HIGH": true,
-                "MODERATE": true,
-                "LOW": false,
-                "MODIFIER": false
-            }
-        }
-    },
-    "Validé ?": {
-        "background": {
-            "map": {
-                "OUI": "green",
-                "NON": "#A1A1A1"
-            }
-        }
-    },
-    "Génotype": {
-        "icon": {
-            "map": {
-                "HOM": "0xF0AA5",
-                "HET": "0xF0AA1",
-                "REF": "0xF0766",
-                "UNK": "0xF0625"
-            }
-        }
+    "color": {
+      "map": {
+        "NULL": "blue"
+      }
     }
+  },
+  "Etiquette": {
+    "background": {
+      "from_column": "Etiquette"
+    },
+    "icon": {
+      "constant": "F04FC"
+    }
+  },
+  "VAF": {
+    "color": {
+      "from_column": ".vafcolor"
+    }
+  },
+  "Allèle de référence": {
+    "color": {
+      "map": {
+        "A": "green",
+        "C": "red",
+        "G": "blue",
+        "T": "orange",
+        "N": "gray"
+      }
+    },
+    "bold": {
+      "constant": true
+    }
+  },
+  "Annotation": {
+    "color": {
+      "map": {
+        "missense_variant": "#bb96ff",
+        "synonymous_variant": "#67eebd",
+        "stop_gained": "#ed6d79",
+        "stop_lost": "#ed6d79",
+        "frameshift_variant": "#ff89b5"
+      }
+    },
+    "bold": {
+      "constant": true
+    }
+  },
+  "Annotation impact": {
+    "color": {
+      "map": {
+        "HIGH": "#ed6d79",
+        "MODERATE": "#ff89b5",
+        "LOW": "#67eebd",
+        "MODIFIER": "#bb96ff"
+      }
+    },
+    "bold": {
+      "map": {
+        "HIGH": true,
+        "MODERATE": true,
+        "LOW": false,
+        "MODIFIER": false
+      }
+    }
+  },
+  "Validé ?": {
+    "background": {
+      "map": {
+        "OUI": "green",
+        "NON": "#A1A1A1"
+      }
+    }
+  },
+  "Génotype": {
+    "icon": {
+      "map": {
+        "HOM": "0xF0AA5",
+        "HET": "0xF0AA1",
+        "REF": "0xF0766",
+        "UNK": "0xF0625"
+      }
+    }
+  }
 }

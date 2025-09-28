@@ -1,3 +1,5 @@
+import json
+from pathlib import Path
 import PySide6.QtWidgets as qw
 
 import app as ap
@@ -7,7 +9,7 @@ from component_registry import register_app_component
 DEFAULT_QUERY = {
     "select": {
         "fields": [
-            "'#'||\"Background color\" AS '.backgroundcolor'",
+            "'#'||\"Background color\" AS 'Etiquette'",
             "'#'||\"VAF color\" as '.vafcolor'",
             '"Sample_id"',
             '"PREDICTED"',
@@ -139,8 +141,27 @@ class GenericExplorerComponent(ap.AppComponent):
         self._layout.addWidget(self.query_manager_widget)
         self._layout.addWidget(self.add_query_btn)
 
+        self.generic_queries: dict[str, dict] = {}
+
         # Connect button to handler
         self.add_query_btn.clicked.connect(self.on_add_query)
+
+    def load_from_session(self, session):
+        self.generic_queries = session.get("generic_queries", {})
+        for query_name, query_info in self.generic_queries.items():
+            with open(query_info["path"], "r") as f:
+                query_definition = json.load(f)
+                print(query_definition)
+            self.query_manager.new_generic_query(
+                ui_name=query_name,
+                query_definition=query_definition,
+                readonly_files=query_info.get("readonly_files", ["*.parquet"]),
+            )
+
+    def save_to_session(self):
+        return {
+            "generic_queries": self.generic_queries,
+        }
 
     def widget(self):
         return self._widget
@@ -176,8 +197,25 @@ class GenericExplorerComponent(ap.AppComponent):
             return
 
         # Create a new query
-        self.query_manager.new_generic_query(
+        query = self.query_manager.new_generic_query(
             ui_name=query_name,
             query_definition=DEFAULT_QUERY,
             readonly_files=file_names,
         )
+
+        serialized_path = (
+            (
+                Path(query.datalake.datalake_path)
+                / "queries"
+                / "Requêtes génériques"
+                / (query_name + ".json")
+            )
+            if query
+            else None
+        )
+        # Add this new path to the list of generic queries paths
+        if serialized_path:
+            self.generic_queries[query_name] = {
+                "path": str(serialized_path),
+                "readonly_files": file_names,
+            }

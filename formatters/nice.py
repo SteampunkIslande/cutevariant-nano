@@ -83,12 +83,18 @@ class NiceFormatter(Formatter):
             if not os.path.exists(os.path.join(config_folder, "styles")):
                 os.makedirs(os.path.join(config_folder, "styles"))
             # Create default config file
-            with open(
-                os.path.join(config_folder, "styles", formatter_style_file), "w"
-            ) as f:
-                import json
-
-                json.dump(DEFAULT_STYLE, f, indent=4, ensure_ascii=False)
+            with (
+                open(
+                    os.path.join(config_folder, "styles", formatter_style_file), "w"
+                ) as f,
+                open(
+                    os.path.join(
+                        os.path.dirname(__file__),
+                        "../assets/defaults/styles/nice_style.json",
+                    )
+                ) as default_style,
+            ):
+                f.write(default_style.read())
 
         with open(
             os.path.join(config_folder, "styles", formatter_style_file), "r"
@@ -158,6 +164,8 @@ class NiceFormatter(Formatter):
                 if "map" in icon:
                     if value in icon["map"]:
                         res["icon"] = FIcon(int(icon["map"][value], 16))
+                if "constant" in icon:
+                    res["icon"] = FIcon(int(icon["constant"], 16))
 
         return res
 

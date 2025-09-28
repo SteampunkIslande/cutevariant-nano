@@ -36,12 +36,12 @@ class AppManager(app.AppComponent):
 
         # Conditional management of validation component
 
-        if self.app.get_user_pref("validation_type", "genno") == "genno":
+        if self.app.get_user_pref("validation_type", "generic") == "genno":
             validation_component = self.app.instantiate_component("validation_manager")
             window.add_component_to_window(
                 validation_component, mainwindow.WindowRegion.RIGHT
             )
-        if self.app.get_user_pref("validation_type", "genno") == "generic":
+        if self.app.get_user_pref("validation_type", "generic") == "generic":
             generic_explorer_component = self.app.instantiate_component(
                 "generic_explorer"
             )
